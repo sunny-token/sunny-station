@@ -46,11 +46,11 @@ export default function LotteryCrawlerPage() {
   );
   const mutation = trpc.ssq.fetchAndSave.useMutation();
 
-  // 解析搜索输入为号码数组
+  // 解析搜索输入为号码数组（支持空格和逗号分隔）
   const parseSearchNumbers = (input: string): string[] => {
     return input
       .trim()
-      .split(/\s+/)
+      .split(/[\s,]+/)
       .filter((n) => n.trim() !== "")
       .map((n) => n.trim());
   };
@@ -114,7 +114,7 @@ export default function LotteryCrawlerPage() {
   const handleSearch = async () => {
     const numbers = parseSearchNumbers(searchInput);
     if (numbers.length === 0) {
-      setResult("请输入至少1个号码进行搜索（用空格分隔）");
+      setResult("请输入至少1个号码进行搜索（用空格或逗号分隔）");
       return;
     }
     if (numbers.length > 7) {
@@ -253,7 +253,7 @@ export default function LotteryCrawlerPage() {
           type="text"
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
-          placeholder="搜索号码（7个号码，空格分隔）"
+          placeholder="搜索号码（7个号码，空格或逗号分隔）"
           style={{
             width: 250,
             padding: "8px 12px",
