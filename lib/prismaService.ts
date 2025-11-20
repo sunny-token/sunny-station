@@ -8,7 +8,23 @@ class PrismaService {
   private prisma: PrismaClient;
 
   private constructor() {
-    this.prisma = new PrismaClient();
+    this.prisma = new PrismaClient({
+      log:
+        process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
+    });
+
+    // 测试数据库连接
+    this.testConnection();
+  }
+
+  private async testConnection() {
+    try {
+      await this.prisma.$connect();
+      console.log("✅ Database connected successfully");
+    } catch (error) {
+      console.error("❌ Database connection failed:", error);
+      console.error("Please check your DATABASE_URL in .env file");
+    }
   }
 
   public static getInstance(): PrismaService {

@@ -52,33 +52,38 @@ export const ssqRouter = router({
       }),
     )
     .query(async ({ input }) => {
-      const { page, pageSize } = input;
-      const skip = (page - 1) * pageSize;
-      const prisma = prismaService.getPrismaClient();
-      const [total, results] = await Promise.all([
-        prisma.sSQResult.count(),
-        prisma.sSQResult.findMany({
-          skip,
-          take: pageSize,
-          orderBy: { issueNumber: "desc" },
-        }),
-      ]);
-      const tmpResults = results.map((item: any) => ({
-        ...item,
-        openNumbers:
-          typeof item.openNumbers === "string"
-            ? JSON.parse(item.openNumbers)
-            : item.openNumbers,
-      }));
-      return {
-        success: true,
-        data: {
-          total,
-          page,
-          pageSize,
-          list: tmpResults,
-        },
-      };
+      try {
+        const { page, pageSize } = input;
+        const skip = (page - 1) * pageSize;
+        const prisma = prismaService.getPrismaClient();
+        const [total, results] = await Promise.all([
+          prisma.sSQResult.count(),
+          prisma.sSQResult.findMany({
+            skip,
+            take: pageSize,
+            orderBy: { issueNumber: "desc" },
+          }),
+        ]);
+        const tmpResults = results.map((item: any) => ({
+          ...item,
+          openNumbers:
+            typeof item.openNumbers === "string"
+              ? JSON.parse(item.openNumbers)
+              : item.openNumbers,
+        }));
+        return {
+          success: true,
+          data: {
+            total,
+            page,
+            pageSize,
+            list: tmpResults,
+          },
+        };
+      } catch (error) {
+        console.error("Error in ssq.getList:", error);
+        throw error;
+      }
     }),
   fetchAndSave: publicProcedure
     .input(z.object({ year: z.string().default("all") }))
