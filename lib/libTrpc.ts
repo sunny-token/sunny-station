@@ -15,9 +15,9 @@ const getBaseUrl = () => {
   //    Vercel 会自动设置 VERCEL_URL。
   //    注意：为了让它在客户端也可用，你需要使用 NEXT_PUBLIC_ 前缀，
   //    所以通常建议将 VERCEL_URL 映射到一个 NEXT_PUBLIC_ 变量。
-  if (process.env.NEXT_PUBLIC_VERCEL_URL) {
+  if (process.env.VERCEL_URL) {
     // 确保使用 https 协议
-    return `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`;
+    return `https://${process.env.VERCEL_URL}`;
   }
 
   // 3. **开发环境 (Local)**:
