@@ -118,4 +118,87 @@ export const ssqRouter = router({
       });
       return { success: true, count: created.count };
     }),
+  search: publicProcedure
+    .input(
+      z.object({
+        numbers: z.array(z.string()).min(1).max(7),
+        exactMatch: z.boolean().default(false),
+        page: z.number().default(1),
+        pageSize: z.number().default(10),
+      }),
+    )
+    .query(async ({ input }) => {
+      const { numbers, exactMatch, page, pageSize } = input;
+      const prisma = prismaService.getPrismaClient();
+
+      // 获取所有数据
+      const allResults = await prisma.sSQResult.findMany({
+        orderBy: { issueNumber: "desc" },
+      });
+
+      // 过滤匹配的数据
+      // 双色球：前6个是红球，第7个是蓝球
+      const matchedResults = allResults.filter((item: any) => {
+        const openNumbers =
+          typeof item.openNumbers === "string"
+            ? JSON.parse(item.openNumbers)
+            : item.openNumbers;
+
+        const redNumbers = (openNumbers.red || []).map((n: string) =>
+          n.toString().padStart(2, "0"),
+        );
+        const blueNumber = openNumbers.blue
+          ? openNumbers.blue.toString().padStart(2, "0")
+          : "";
+
+        // 统一输入号码格式，并区分红球和蓝球
+        // 前6个是红球，第7个是蓝球
+        const inputRedNumbers = numbers
+          .slice(0, 6)
+          .map((n) => n.toString().padStart(2, "0"));
+        const inputBlueNumber =
+          numbers.length >= 7 ? numbers[6].toString().padStart(2, "0") : null;
+
+        if (exactMatch) {
+          // 全匹配：输入的号码必须全部在对应颜色的开奖号码中
+          const redMatched = inputRedNumbers.every((num) =>
+            redNumbers.includes(num),
+          );
+          const blueMatched =
+            inputBlueNumber === null || blueNumber === inputBlueNumber;
+          return redMatched && blueMatched;
+        } else {
+          // 模糊匹配：只要输入的号码中任意一个在对应颜色的开奖号码中出现就显示
+          const redMatch = inputRedNumbers.some((num) =>
+            redNumbers.includes(num),
+          );
+          const blueMatch =
+            inputBlueNumber === null || blueNumber === inputBlueNumber;
+          return redMatch || blueMatch;
+        }
+      });
+
+      // 分页处理
+      const total = matchedResults.length;
+      const skip = (page - 1) * pageSize;
+      const paginatedResults = matchedResults.slice(skip, skip + pageSize);
+
+      const formattedResults = paginatedResults.map((item: any) => ({
+        ...item,
+        openNumbers:
+          typeof item.openNumbers === "string"
+            ? JSON.parse(item.openNumbers)
+            : item.openNumbers,
+      }));
+
+      return {
+        success: true,
+        data: {
+          total,
+          page,
+          pageSize,
+          list: formattedResults,
+        },
+      };
+    }),
 });
