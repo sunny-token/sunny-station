@@ -3,26 +3,11 @@ import type { AppRouter } from "@/server";
 import { QueryClient } from "@tanstack/react-query";
 import SuperJSON from "superjson";
 
-function getBaseUrl() {
-  // 在客户端（浏览器）中使用相对路径
-  if (typeof window !== "undefined") {
-    return "";
-  }
-
-  // 在 Vercel 上使用 VERCEL_URL 环境变量
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}`;
-  }
-
-  // 本地开发环境
-  return `http://localhost:${process.env.PORT ?? 3000}`;
-}
-
 export const queryClient = new QueryClient();
 export const trpcClient = createTRPCClient<AppRouter>({
   links: [
     httpBatchLink({
-      url: `${getBaseUrl()}/api/trpc`,
+      url: `${process.env.NODE_ENV === "development" ? "http://localhost:3000" : process.env.NEXT_PUBLIC_APP_URL}/api/trpc`,
       transformer: SuperJSON,
     }),
   ],
