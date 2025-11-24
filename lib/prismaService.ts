@@ -6,24 +6,41 @@ import { PrismaClient } from "@prisma/client";
 class PrismaService {
   private static instance: PrismaService;
   private prisma: PrismaClient;
+  private connectionTested: boolean = false;
 
   private constructor() {
+    // Prisma Client 会自动管理连接池，无需手动配置
+    // 对于 Supabase，确保使用 pooler 连接（端口 6543）
     this.prisma = new PrismaClient({
       log:
         process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
     });
 
-    // 测试数据库连接
-    this.testConnection();
+    // 在应用启动时测试连接（延迟执行，避免阻塞）
+    // Prisma Client 使用懒加载连接，首次查询时才会建立连接
+    if (process.env.NODE_ENV === "development") {
+      // 开发环境下延迟测试连接
+      setTimeout(() => {
+        this.testConnection().catch(() => {
+          // 静默失败，不影响应用启动
+        });
+      }, 1000);
+    }
   }
 
   private async testConnection() {
+    if (this.connectionTested) return;
+    
     try {
-      await this.prisma.$connect();
+      // 使用简单的查询来测试连接，而不是 $connect()
+      // $connect() 会占用连接池中的连接
+      await this.prisma.$queryRaw`SELECT 1`;
+      this.connectionTested = true;
       console.log("✅ Database connected successfully");
     } catch (error) {
       console.error("❌ Database connection failed:", error);
       console.error("Please check your DATABASE_URL in .env file");
+      // 不抛出错误，允许应用继续运行
     }
   }
 

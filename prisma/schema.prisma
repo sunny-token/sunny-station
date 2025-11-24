@@ -36,3 +36,29 @@ model DLTResult {
   @@unique([issueNumber])
   @@index([openDate])
 }
+
+// 预设号码表（支持双色球和大乐透）
+model Ticket {
+  id          Int      @id @default(autoincrement())
+  lotteryType String   // "ssq" 或 "dlt"
+  name        String   // 预设号码名称/备注
+  numbers     Json     // { red: string[], blue: string[] }
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([lotteryType, isActive])
+}
+
+// 邮件收件人表
+model EmailRecipient {
+  id        Int      @id @default(autoincrement())
+  email     String
+  name      String?  // 收件人名称（可选）
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([email])
+  @@index([isActive])
+}

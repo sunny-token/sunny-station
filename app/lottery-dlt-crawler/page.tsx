@@ -199,13 +199,30 @@ export default function DLTCrawlerPage() {
 
   return (
     <div style={{ padding: 32 }}>
-      <Button
-        variant="outline"
-        className="mb-4 px-8 py-3 rounded-full font-bold text-white shadow-lg transition-all duration-200 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-purple-500 hover:to-blue-500 hover:scale-105 border-0"
-        onClick={() => router.push("/lottery-crawler")}
-      >
-        去双色球爬虫
-      </Button>
+      <div style={{ display: "flex", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
+        <Button
+          variant="outline"
+          className="mb-4 px-8 py-3 rounded-full font-bold text-white shadow-lg transition-all duration-200 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-purple-500 hover:to-blue-500 hover:scale-105 border-0"
+          onClick={() => router.push("/lottery-crawler")}
+        >
+          去双色球爬虫
+        </Button>
+        <Button
+          variant="outline"
+          style={{
+            padding: "12px 24px",
+            fontSize: 14,
+            background: "#f3f4f6",
+            color: "#374151",
+            border: "1px solid #d1d5db",
+            borderRadius: 6,
+            cursor: "pointer",
+          }}
+          onClick={() => router.push("/settings")}
+        >
+          ⚙️ 系统设置
+        </Button>
+      </div>
       <h1 style={{ fontSize: 24, marginBottom: 16 }}>大乐透开奖爬虫</h1>
       <div
         style={{

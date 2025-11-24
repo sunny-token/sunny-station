@@ -11,7 +11,7 @@ export default function HomePage() {
       <p className="mb-6 text-gray-600">
         点击下方按钮进入相应的爬虫页面，获取最新的开奖信息。
       </p>
-      <div className="flex gap-4">
+      <div className="flex gap-4 flex-wrap">
         <Link href="/lottery-crawler">
           <Button variant="default" className="text-lg px-8 py-4">
             双色球爬虫
@@ -20,6 +20,11 @@ export default function HomePage() {
         <Link href="/lottery-dlt-crawler">
           <Button variant="default" className="text-lg px-8 py-4">
             大乐透爬虫
+          </Button>
+        </Link>
+        <Link href="/settings">
+          <Button variant="outline" className="text-lg px-8 py-4">
+            系统设置
           </Button>
         </Link>
       </div>

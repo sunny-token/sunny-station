@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { appRouter } from "@/server";
 import { createCallerFactory } from "@/server/trpc";
+import prismaService from "@/lib/prismaService";
+import { checkWin, type TicketNumbers } from "@/lib/lotteryRules";
 
 /**
  * Unified cron job endpoint for both DLT and SSQ crawlers
@@ -93,14 +95,33 @@ export async function GET(req: NextRequest) {
     const crawlDuration = Date.now() - crawlStartTime;
     const totalCount = (dltResult.count || 0) + (ssqResult.count || 0);
     const allSuccess = dltResult.success && ssqResult.success;
+
+    // 中奖匹配和邮件通知
+    console.log("-".repeat(60));
+    console.log("[CRON] 🎯 开始中奖匹配检查...");
+    const matchStartTime = Date.now();
+
+    try {
+      await checkAndNotifyWinners();
+    } catch (error) {
+      console.error("[CRON] ❌ 中奖匹配检查失败:", error);
+      // 不中断整个流程，只记录错误
+    }
+
+    const matchDuration = Date.now() - matchStartTime;
     const totalDuration = Date.now() - startTime;
 
     console.log("-".repeat(60));
     console.log("[CRON] 📊 执行结果汇总:");
-    console.log(`  DLT: ${dltResult.success ? "✅" : "❌"} ${dltResult.count || 0} 条`);
-    console.log(`  SSQ: ${ssqResult.success ? "✅" : "❌"} ${ssqResult.count || 0} 条`);
+    console.log(
+      `  DLT: ${dltResult.success ? "✅" : "❌"} ${dltResult.count || 0} 条`,
+    );
+    console.log(
+      `  SSQ: ${ssqResult.success ? "✅" : "❌"} ${ssqResult.count || 0} 条`,
+    );
     console.log(`  总计: ${totalCount} 条新记录`);
     console.log(`  爬取耗时: ${crawlDuration}ms`);
+    console.log(`  匹配耗时: ${matchDuration}ms`);
     console.log(`  总耗时: ${totalDuration}ms`);
     console.log(`  状态: ${allSuccess ? "✅ 成功" : "❌ 部分失败"}`);
     console.log("=".repeat(60));
@@ -148,3 +169,181 @@ export async function GET(req: NextRequest) {
   }
 }
 
+/**
+ * 检查中奖并发送邮件通知
+ * 周一、周三、周六：匹配大乐透
+ * 周二、周四、周日：匹配双色球
+ */
+async function checkAndNotifyWinners() {
+  const now = new Date();
+  const dayOfWeek = now.getDay(); // 0 = 周日, 1 = 周一, ..., 6 = 周六
+
+  // 确定今天要匹配的彩票类型
+  let lotteryType: "ssq" | "dlt" | null = null;
+  if (dayOfWeek === 1 || dayOfWeek === 3 || dayOfWeek === 6) {
+    // 周一、周三、周六：大乐透
+    lotteryType = "dlt";
+    console.log(
+      "[CRON] [MATCH] 今天是周" +
+        ["日", "一", "二", "三", "四", "五", "六"][dayOfWeek] +
+        "，匹配大乐透",
+    );
+  } else if (dayOfWeek === 2 || dayOfWeek === 4 || dayOfWeek === 0) {
+    // 周二、周四、周日：双色球
+    lotteryType = "ssq";
+    console.log(
+      "[CRON] [MATCH] 今天是周" +
+        ["日", "一", "二", "三", "四", "五", "六"][dayOfWeek] +
+        "，匹配双色球",
+    );
+  } else {
+    console.log("[CRON] [MATCH] 今天（周五）不匹配任何彩票类型");
+    return;
+  }
+
+  const prisma = prismaService.getPrismaClient();
+
+  // 获取最新的开奖结果
+  let latestResult: any;
+  if (lotteryType === "ssq") {
+    latestResult = await prisma.sSQResult.findFirst({
+      orderBy: { issueNumber: "desc" },
+    });
+  } else {
+    latestResult = await prisma.dLTResult.findFirst({
+      orderBy: { issueNumber: "desc" },
+    });
+  }
+
+  if (!latestResult) {
+    console.log(
+      `[CRON] [MATCH] 未找到最新的${lotteryType === "ssq" ? "双色球" : "大乐透"}开奖结果`,
+    );
+    return;
+  }
+
+  // 检查是否已经开奖（开奖号码不为空）
+  const openNumbers =
+    typeof latestResult.openNumbers === "string"
+      ? JSON.parse(latestResult.openNumbers)
+      : latestResult.openNumbers;
+
+  if (!openNumbers || !openNumbers.red || openNumbers.red.length === 0) {
+    console.log(`[CRON] [MATCH] 最新期号 ${latestResult.issueNumber} 尚未开奖`);
+    return;
+  }
+
+  console.log(
+    `[CRON] [MATCH] 检查期号: ${latestResult.issueNumber}, 开奖日期: ${latestResult.openDate}`,
+  );
+
+  // 获取所有激活的预设号码
+  const tickets = await prisma.ticket.findMany({
+    where: {
+      lotteryType,
+      isActive: true,
+    },
+  });
+
+  if (tickets.length === 0) {
+    console.log(
+      `[CRON] [MATCH] 没有激活的${lotteryType === "ssq" ? "双色球" : "大乐透"}预设号码`,
+    );
+    return;
+  }
+
+  console.log(`[CRON] [MATCH] 找到 ${tickets.length} 个预设号码，开始匹配...`);
+
+  // 获取所有激活的收件人
+  const recipients = await prisma.emailRecipient.findMany({
+    where: { isActive: true },
+  });
+
+  if (recipients.length === 0) {
+    console.log("[CRON] [MATCH] ⚠️  没有激活的邮件收件人，跳过邮件发送");
+  }
+
+  const winnerTickets: Array<{
+    ticket: any;
+    matchResult: ReturnType<typeof checkWin>;
+  }> = [];
+
+  // 检查每个预设号码
+  for (const ticket of tickets) {
+    const ticketNumbers =
+      typeof ticket.numbers === "string"
+        ? JSON.parse(ticket.numbers)
+        : ticket.numbers;
+
+    const matchResult = checkWin(
+      lotteryType,
+      ticketNumbers as TicketNumbers,
+      openNumbers as TicketNumbers,
+    );
+
+    if (matchResult.isWinner) {
+      winnerTickets.push({ ticket, matchResult });
+      console.log(
+        `[CRON] [MATCH] ✅ 中奖！预设号码 "${ticket.name}" (ID: ${ticket.id}) - ${matchResult.prizeLevels[0]?.name || "中奖"}`,
+      );
+    }
+  }
+
+  if (winnerTickets.length === 0) {
+    console.log("[CRON] [MATCH] 本次检查无中奖号码");
+    return;
+  }
+
+  console.log(`[CRON] [MATCH] 🎉 发现 ${winnerTickets.length} 个中奖号码！`);
+
+  // 发送邮件通知（合并所有中奖号码到一封邮件）
+  if (recipients.length > 0) {
+    const recipientEmails = recipients.map((r) => r.email);
+    console.log(
+      `[CRON] [MATCH] 📧 准备发送邮件到 ${recipientEmails.length} 个收件人...`,
+    );
+
+    // 合并所有中奖信息到一封邮件
+    const { sendMultipleWinnersNotifications, parsePrizeDetails } =
+      await import("@/lib/emailService");
+
+    // 解析中奖金额信息
+    console.log(
+      `[CRON] [MATCH] 开始解析中奖金额，detail 字段: ${latestResult.detail?.substring(0, 200) || "空"}...`,
+    );
+    const prizeDetails = parsePrizeDetails(latestResult.detail || "");
+
+    const multipleNotification = {
+      lotteryType,
+      issueNumber: latestResult.issueNumber,
+      openDate: latestResult.openDate.toISOString().split("T")[0],
+      openNumbers,
+      jackpot: latestResult.jackpot || undefined,
+      prizeDetails:
+        Object.keys(prizeDetails).length > 0 ? prizeDetails : undefined,
+      winners: winnerTickets.map(({ ticket, matchResult }) => ({
+        ticketName: ticket.name,
+        matchResult,
+      })),
+    };
+
+    console.log(
+      `[CRON] [MATCH] 📧 准备发送合并邮件 - ${winnerTickets.length} 个中奖号码，${recipientEmails.length} 个收件人`,
+    );
+    console.log(
+      `[CRON] [MATCH] 📧 中奖金额信息: ${Object.keys(prizeDetails).length > 0 ? JSON.stringify(prizeDetails) : "无"}`,
+    );
+
+    // 只发送一次合并邮件
+    const emailResult = await sendMultipleWinnersNotifications(
+      recipientEmails,
+      multipleNotification,
+    );
+
+    console.log(
+      `[CRON] [MATCH] 📧 合并邮件发送完成 - 共 ${winnerTickets.length} 个中奖号码: 成功 ${emailResult.success} 个，失败 ${emailResult.failed} 个`,
+    );
+  } else {
+    console.log("[CRON] [MATCH] ⚠️  无收件人，跳过邮件发送");
+  }
+}

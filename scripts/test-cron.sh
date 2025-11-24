@@ -18,20 +18,13 @@ if [ -n "$AUTH_HEADER" ]; then
     -H "Authorization: $AUTH_HEADER" \
     -H "Content-Type: application/json" \
     -w "\n\nHTTP Status: %{http_code}\n" \
-    -s | jq '.' 2>/dev/null || curl -X GET "$BASE_URL/api/cron/crawler" \
-    -H "Authorization: $AUTH_HEADER" \
-    -H "Content-Type: application/json" \
-    -w "\n\nHTTP Status: %{http_code}\n" \
-    -s
+    -s | (jq '.' 2>/dev/null || cat)
 else
   echo "📝 无认证测试 (如果设置了 CRON_SECRET，请使用: ./scripts/test-cron.sh $BASE_URL 'Bearer your-secret')"
   curl -X GET "$BASE_URL/api/cron/crawler" \
     -H "Content-Type: application/json" \
     -w "\n\nHTTP Status: %{http_code}\n" \
-    -s | jq '.' 2>/dev/null || curl -X GET "$BASE_URL/api/cron/crawler" \
-    -H "Content-Type: application/json" \
-    -w "\n\nHTTP Status: %{http_code}\n" \
-    -s
+    -s | (jq '.' 2>/dev/null || cat)
 fi
 
 echo ""
