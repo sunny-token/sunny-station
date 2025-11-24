@@ -20,6 +20,13 @@ import { formatDate } from "../../lib/utils";
 import { Button } from "../../components/ui/button";
 import { useRouter } from "next/navigation";
 import { trpc } from "../../server/client";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export default function LotteryCrawlerPage() {
   const router = useRouter();
@@ -33,6 +40,12 @@ export default function LotteryCrawlerPage() {
   const [searchInput, setSearchInput] = useState<string>("");
   const [isSearching, setIsSearching] = useState(false);
   const [isExactMatch, setIsExactMatch] = useState(false);
+  const [selectedPrizeInfo, setSelectedPrizeInfo] = useState<{
+    issueNumber: string;
+    openDate: string;
+    prizeAmounts: Array<{ level: string; amount: string }> | null;
+  } | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const pageSize = 10;
 
   // trpc hooks
@@ -45,6 +58,7 @@ export default function LotteryCrawlerPage() {
     { enabled: !isSearching },
   );
   const mutation = trpc.ssq.fetchAndSave.useMutation();
+  const refreshAllMutation = trpc.ssq.refreshAll.useMutation();
 
   // 解析搜索输入为号码数组（支持空格和逗号分隔）
   const parseSearchNumbers = (input: string): string[] => {
@@ -100,6 +114,26 @@ export default function LotteryCrawlerPage() {
       const res = await mutation.mutateAsync({ year: selectedYear });
       if (res.success) {
         setResult(`爬取并写入成功，新增 ${res.count} 条数据。`);
+        refetch();
+      } else {
+        setResult("失败");
+      }
+    } catch (e) {
+      setResult(`请求异常: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRefreshAll = async () => {
+    setLoading(true);
+    setResult(null);
+    try {
+      const res = await refreshAllMutation.mutateAsync();
+      if (res.success) {
+        setResult(
+          `一键刷新成功，处理 ${res.count} 条数据（存在则更新，不存在则新增）。`,
+        );
         refetch();
       } else {
         setResult("失败");
@@ -196,7 +230,9 @@ export default function LotteryCrawlerPage() {
 
   return (
     <div style={{ padding: 32 }}>
-      <div style={{ display: "flex", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
+      <div
+        style={{ display: "flex", gap: 12, marginBottom: 16, flexWrap: "wrap" }}
+      >
         <Button
           variant="outline"
           className="mb-4 px-8 py-3 rounded-full font-bold text-white shadow-lg transition-all duration-200 bg-linear-to-r from-blue-500 to-purple-500 hover:from-purple-500 hover:to-blue-500 hover:scale-105 border-0"
@@ -265,6 +301,21 @@ export default function LotteryCrawlerPage() {
           }}
         >
           {loading ? "正在爬取..." : "启动爬虫"}
+        </button>
+        <button
+          onClick={handleRefreshAll}
+          disabled={loading}
+          style={{
+            padding: "8px 24px",
+            fontSize: 18,
+            background: "#10b981",
+            color: "#fff",
+            border: "none",
+            borderRadius: 6,
+            cursor: loading ? "not-allowed" : "pointer",
+          }}
+        >
+          {loading ? "正在刷新..." : "一键刷新所有数据"}
         </button>
         <input
           type="text"
@@ -355,6 +406,7 @@ export default function LotteryCrawlerPage() {
                     <TableHead>期号</TableHead>
                     <TableHead>开奖日期</TableHead>
                     <TableHead>开奖号码</TableHead>
+                    <TableHead>奖项信息</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -446,6 +498,43 @@ export default function LotteryCrawlerPage() {
                               </span>
                             );
                           })()}
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            let prizeAmounts = item.prizeAmounts;
+                            // 如果 prizeAmounts 是字符串，尝试解析
+                            if (
+                              typeof prizeAmounts === "string" &&
+                              prizeAmounts.trim()
+                            ) {
+                              try {
+                                prizeAmounts = JSON.parse(prizeAmounts);
+                              } catch {
+                                prizeAmounts = null;
+                              }
+                            }
+                            setSelectedPrizeInfo({
+                              issueNumber: item.issueNumber,
+                              openDate: formatDate(item.openDate),
+                              prizeAmounts:
+                                prizeAmounts &&
+                                Array.isArray(prizeAmounts) &&
+                                prizeAmounts.length > 0
+                                  ? prizeAmounts
+                                  : null,
+                            });
+                            setIsDialogOpen(true);
+                          }}
+                          style={{
+                            padding: "4px 12px",
+                            fontSize: 14,
+                          }}
+                        >
+                          奖项信息
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -615,6 +704,79 @@ export default function LotteryCrawlerPage() {
           </>
         )}
       </div>
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              奖项信息 - {selectedPrizeInfo?.issueNumber}
+            </DialogTitle>
+            <DialogDescription>
+              开奖日期：{selectedPrizeInfo?.openDate}
+            </DialogDescription>
+          </DialogHeader>
+          <div style={{ marginTop: 16 }}>
+            {selectedPrizeInfo?.prizeAmounts &&
+            selectedPrizeInfo.prizeAmounts.length > 0 ? (
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 12,
+                }}
+              >
+                {selectedPrizeInfo.prizeAmounts.map(
+                  (prize: { level: string; amount: string }, idx: number) => (
+                    <div
+                      key={idx}
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        padding: "12px 16px",
+                        background: "#f9fafb",
+                        borderRadius: 8,
+                        border: "1px solid #e5e7eb",
+                      }}
+                    >
+                      <span
+                        style={{
+                          color: "#059669",
+                          fontWeight: 600,
+                          fontSize: 16,
+                        }}
+                      >
+                        {prize.level}
+                      </span>
+                      <span
+                        style={{
+                          color: "#dc2626",
+                          fontWeight: 700,
+                          fontSize: 18,
+                        }}
+                      >
+                        {prize.amount
+                          ? `${parseInt(prize.amount).toLocaleString()}元`
+                          : "待定"}
+                      </span>
+                    </div>
+                  ),
+                )}
+              </div>
+            ) : (
+              <div
+                style={{
+                  padding: "24px",
+                  textAlign: "center",
+                  color: "#9ca3af",
+                }}
+              >
+                暂无奖项信息
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -8,30 +8,34 @@ datasource db {
 }
 
 model SSQResult {
-  id          Int      @id @default(autoincrement())
-  issueNumber String
-  openDate    DateTime
-  openNumbers Json
-  ballOrder   String
-  totalBet    String
-  jackpot     String
-  detail      String
-  createdAt   DateTime @default(now())
+  id              Int      @id @default(autoincrement())
+  issueNumber     String
+  openDate        DateTime
+  openNumbers     Json
+  ballOrder       String
+  totalBet        String
+  jackpot         String
+  detail          String
+  prizeAmounts    Json? // 各等奖的奖金数组 [{ level: "一等奖", amount: "5000000" }, ...]
+  prizeDetailHtml String?  @db.Text // 从 getdetail 接口获取的原始 HTML
+  createdAt       DateTime @default(now())
 
   @@unique([issueNumber])
   @@index([openDate])
 }
 
 model DLTResult {
-  id          Int      @id @default(autoincrement())
-  issueNumber String
-  openDate    DateTime
-  openNumbers Json
-  ballOrder   String
-  totalBet    String
-  jackpot     String
-  detail      String
-  createdAt   DateTime @default(now())
+  id              Int      @id @default(autoincrement())
+  issueNumber     String
+  openDate        DateTime
+  openNumbers     Json
+  ballOrder       String
+  totalBet        String
+  jackpot         String
+  detail          String
+  prizeAmounts    Json? // 各等奖的奖金数组 [{ level: "一等奖", amount: "5000000" }, ...]
+  prizeDetailHtml String?  @db.Text // 从 getdetail 接口获取的原始 HTML
+  createdAt       DateTime @default(now())
 
   @@unique([issueNumber])
   @@index([openDate])
@@ -40,9 +44,9 @@ model DLTResult {
 // 预设号码表（支持双色球和大乐透）
 model Ticket {
   id          Int      @id @default(autoincrement())
-  lotteryType String   // "ssq" 或 "dlt"
-  name        String   // 预设号码名称/备注
-  numbers     Json     // { red: string[], blue: string[] }
+  lotteryType String // "ssq" 或 "dlt"
+  name        String // 预设号码名称/备注
+  numbers     Json // { red: string[], blue: string[] }
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -54,7 +58,7 @@ model Ticket {
 model EmailRecipient {
   id        Int      @id @default(autoincrement())
   email     String
-  name      String?  // 收件人名称（可选）
+  name      String? // 收件人名称（可选）
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

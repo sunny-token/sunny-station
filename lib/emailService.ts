@@ -54,13 +54,8 @@ export function parsePrizeDetails(detail: string): Record<string, string> {
   const prizeDetails: Record<string, string> = {};
 
   if (!detail) {
-    console.log("[EMAIL] [PARSE] detail 字段为空");
     return prizeDetails;
   }
-
-  console.log(
-    `[EMAIL] [PARSE] 开始解析 detail: ${detail.substring(0, 200)}...`,
-  );
 
   // 匹配格式：等级名称: 金额
   // 支持多种格式：
@@ -90,20 +85,25 @@ export function parsePrizeDetails(detail: string): Record<string, string> {
       }
 
       prizeDetails[level] = amount;
-      console.log(`[EMAIL] [PARSE] 解析到: ${level} = ${amount}元`);
     }
   }
 
-  if (Object.keys(prizeDetails).length === 0) {
-    console.log(`[EMAIL] [PARSE] ⚠️  未能解析出任何中奖金额信息`);
-    console.log(`[EMAIL] [PARSE] detail 完整内容: ${detail}`);
-  } else {
-    console.log(
-      `[EMAIL] [PARSE] ✅ 成功解析 ${Object.keys(prizeDetails).length} 个等级的金额`,
-    );
-  }
-
   return prizeDetails;
+}
+
+/**
+ * 将 parsePrizeDetails 的结果转换为数组格式
+ * 用于存储到数据库的 prizeAmounts 字段
+ * @param prizeDetails Record<string, string> 格式的奖项奖金数据
+ * @returns 数组格式 [{ level: "一等奖", amount: "5000000" }, ...]
+ */
+export function convertPrizeDetailsToArray(
+  prizeDetails: Record<string, string>,
+): Array<{ level: string; amount: string }> {
+  return Object.entries(prizeDetails).map(([level, amount]) => ({
+    level,
+    amount,
+  }));
 }
 
 /**
