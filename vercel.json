@@ -1,11 +1,7 @@
 {
   "crons": [
     {
-      "path": "/api/cron/ssq-crawler",
-      "schedule": "0 7 * * *"
-    },
-    {
-      "path": "/api/cron/dlt-crawler",
+      "path": "/api/cron/crawler",
       "schedule": "0 7 * * *"
     }
   ]

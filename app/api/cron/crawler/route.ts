@@ -3,7 +3,7 @@ import { appRouter } from "@/server";
 import { createCallerFactory } from "@/server/trpc";
 
 /**
- * Cron job endpoint for DLT crawler
+ * Unified cron job endpoint for both DLT and SSQ crawlers
  * This endpoint is called by Vercel Cron Jobs every day at 7 AM
  *
  * To verify the request is from Vercel Cron, you can check the Authorization header:
@@ -32,12 +32,28 @@ export async function GET(req: NextRequest) {
     // 直接调用 tRPC 方法，复用代码
     const caller = createCaller({});
     const currentYear = new Date().getFullYear().toString();
-    const result = await caller.dlt.fetchAndSave({ year: currentYear });
+
+    // 并行执行两个爬取任务
+    const [dltResult, ssqResult] = await Promise.all([
+      caller.dlt.fetchAndSave({ year: currentYear }),
+      caller.ssq.fetchAndSave({ year: currentYear }),
+    ]);
+
+    const totalCount = (dltResult.count || 0) + (ssqResult.count || 0);
+    const allSuccess = dltResult.success && ssqResult.success;
 
     return NextResponse.json({
-      success: result.success,
-      count: result.count,
-      message: `Cron job executed successfully. Added ${result.count} new records.`,
+      success: allSuccess,
+      dlt: {
+        success: dltResult.success,
+        count: dltResult.count || 0,
+      },
+      ssq: {
+        success: ssqResult.success,
+        count: ssqResult.count || 0,
+      },
+      totalCount,
+      message: `Cron job executed successfully. Added ${totalCount} new records (DLT: ${dltResult.count || 0}, SSQ: ${ssqResult.count || 0}).`,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
