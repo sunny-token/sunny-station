@@ -280,7 +280,6 @@ export default function DLTCrawlerPage() {
             outline: "none",
           }}
         >
-          <option value="all">所有年份</option>
           {Array.from(
             { length: new Date().getFullYear() - 2006 },
             (_, i) => new Date().getFullYear() - i,

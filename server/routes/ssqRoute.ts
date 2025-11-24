@@ -165,7 +165,7 @@ export const ssqRouter = router({
       }
     }),
   fetchAndSave: publicProcedure
-    .input(z.object({ year: z.string().default("all") }))
+    .input(z.object({ year: z.string() }))
     .mutation(async ({ input }) => {
       const { year } = input;
       const prisma = prismaService.getPrismaClient();

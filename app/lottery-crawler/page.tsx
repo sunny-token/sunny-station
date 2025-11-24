@@ -277,7 +277,6 @@ export default function LotteryCrawlerPage() {
             outline: "none",
           }}
         >
-          <option value="all">所有年份</option>
           {Array.from(
             { length: new Date().getFullYear() - 1999 },
             (_, i) => new Date().getFullYear() - i,
