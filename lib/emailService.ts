@@ -311,6 +311,29 @@ function generateWinnerEmailHTML(notification: WinnerNotification): string {
       }
     </div>
 
+    ${
+      notification.prizeDetails &&
+      Object.keys(notification.prizeDetails).length > 0
+        ? `<div class="section">
+      <div class="section-title">💰 本期奖项奖金</div>
+      <div class="prize-levels">
+        ${Object.entries(notification.prizeDetails)
+          .map(
+            ([level, amount]) => `
+          <div class="prize-item">
+            <div class="prize-name">${level}</div>
+            <div style="margin-top: 8px; color: #e74c3c; font-size: 18px; font-weight: bold;">
+              ${formatAmount(amount)}
+            </div>
+          </div>
+        `,
+          )
+          .join("")}
+      </div>
+    </div>`
+        : ""
+    }
+
     <div class="section">
       <div class="section-title">🎱 开奖号码</div>
       <div>
@@ -636,6 +659,29 @@ function generateMultipleWinnersEmailHTML(
           : ""
       }
     </div>
+
+    ${
+      notification.prizeDetails &&
+      Object.keys(notification.prizeDetails).length > 0
+        ? `<div class="section">
+      <div class="section-title">💰 本期奖项奖金</div>
+      <div class="prize-levels">
+        ${Object.entries(notification.prizeDetails)
+          .map(
+            ([level, amount]) => `
+          <div class="prize-item">
+            <div class="prize-name">${level}</div>
+            <div style="margin-top: 8px; color: #e74c3c; font-size: 18px; font-weight: bold;">
+              ${formatAmount(amount)}
+            </div>
+          </div>
+        `,
+          )
+          .join("")}
+      </div>
+    </div>`
+        : ""
+    }
 
     <div class="section">
       <div class="section-title">🎱 开奖号码</div>
