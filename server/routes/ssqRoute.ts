@@ -21,6 +21,8 @@ const fetchYearData = async (year: number) => {
     const issueNumber = $(tds[0]).text().trim();
     const openDate = $(tds[1]).text().trim();
     const openNumbersRaw = $(tds[2]).text().trim();
+    // 跳过未开奖的记录（开奖号码为 "-"）
+    if (openNumbersRaw === "-" || !openNumbersRaw) continue;
     const numbers = openNumbersRaw.split(/\s+/);
     const tmpRed = numbers[0];
     const red = tmpRed.match(/.{2}/g) || [];
@@ -109,19 +111,51 @@ export const ssqRouter = router({
         }
       }
       const prisma = prismaService.getPrismaClient();
-      const created = await prisma.sSQResult.createMany({
-        data: results.map((item) => ({
-          issueNumber: item.issueNumber,
-          openDate: new Date(item.openDate),
-          openNumbers: item.openNumbers,
-          ballOrder: item.ballOrder,
-          totalBet: item.totalBet,
-          jackpot: item.jackpot,
-          detail: item.detail,
-        })),
-        skipDuplicates: true,
+      // 查询已存在的记录，只获取 issueNumber 和 ballOrder
+      const existingRecords = await prisma.sSQResult.findMany({
+        where: {
+          issueNumber: { in: results.map((r) => r.issueNumber) },
+        },
+        select: { issueNumber: true, ballOrder: true },
       });
-      return { success: true, count: created.count };
+      const existingMap = new Map(
+        existingRecords.map((r) => [r.issueNumber, r.ballOrder]),
+      );
+      // 过滤出需要处理的记录：不存在 或 ballOrder 为 "-"
+      const recordsToProcess = results.filter(
+        (item) =>
+          !existingMap.has(item.issueNumber) ||
+          existingMap.get(item.issueNumber) === "-",
+      );
+      if (recordsToProcess.length === 0) {
+        return { success: true, count: 0 };
+      }
+      // 批量 upsert 需要处理的记录
+      const upserted = await prisma.$transaction(
+        recordsToProcess.map((item) =>
+          prisma.sSQResult.upsert({
+            where: { issueNumber: item.issueNumber },
+            update: {
+              openDate: new Date(item.openDate),
+              openNumbers: item.openNumbers,
+              ballOrder: item.ballOrder,
+              totalBet: item.totalBet,
+              jackpot: item.jackpot,
+              detail: item.detail,
+            },
+            create: {
+              issueNumber: item.issueNumber,
+              openDate: new Date(item.openDate),
+              openNumbers: item.openNumbers,
+              ballOrder: item.ballOrder,
+              totalBet: item.totalBet,
+              jackpot: item.jackpot,
+              detail: item.detail,
+            },
+          }),
+        ),
+      );
+      return { success: true, count: upserted.length };
     }),
   search: publicProcedure
     .input(
