@@ -13,6 +13,20 @@ import { checkWin, type TicketNumbers } from "@/lib/lotteryRules";
  */
 const createCaller = createCallerFactory(appRouter);
 
+// 防重复发送邮件的缓存：记录已发送的期号
+// key: `${lotteryType}-${issueNumber}`
+const sentEmailCache = new Set<string>();
+
+// 清理过期的缓存（保留最近24小时的记录）
+function cleanupEmailCache() {
+  // 这个缓存会在服务器重启时清空，所以不需要复杂的过期机制
+  // 如果缓存太大（超过1000条），清空它
+  if (sentEmailCache.size > 1000) {
+    sentEmailCache.clear();
+    console.log("[CRON] [MATCH] 清理邮件发送缓存");
+  }
+}
+
 export async function GET(req: NextRequest) {
   const startTime = Date.now();
   const timestamp = new Date().toISOString();
@@ -237,6 +251,29 @@ async function checkAndNotifyWinners() {
     `[CRON] [MATCH] 检查期号: ${latestResult.issueNumber}, 开奖日期: ${latestResult.openDate}`,
   );
 
+  // 检查是否已经发送过邮件（防重复发送）
+  // 方法1: 使用内存缓存（在同一实例内有效）
+  const emailCacheKey = `${lotteryType}-${latestResult.issueNumber}`;
+  if (sentEmailCache.has(emailCacheKey)) {
+    console.log(
+      `[CRON] [MATCH] ⚠️  期号 ${latestResult.issueNumber} 的邮件已发送过（内存缓存），跳过重复发送`,
+    );
+    return;
+  }
+
+  // 方法2: 检查开奖结果的创建时间
+  // 如果开奖结果是在最近5分钟内创建的，可能是重复的 cron 调用，跳过
+  const resultAge = Date.now() - new Date(latestResult.createdAt).getTime();
+  const fiveMinutes = 5 * 60 * 1000;
+  if (resultAge < fiveMinutes) {
+    console.log(
+      `[CRON] [MATCH] ⚠️  开奖结果 ${latestResult.issueNumber} 创建于 ${Math.round(resultAge / 1000)} 秒前，可能是重复调用，跳过邮件发送`,
+    );
+    // 仍然记录到缓存，防止短时间内重复发送
+    sentEmailCache.add(emailCacheKey);
+    return;
+  }
+
   // 获取所有激活的预设号码
   const tickets = await prisma.ticket.findMany({
     where: {
@@ -307,11 +344,43 @@ async function checkAndNotifyWinners() {
     const { sendMultipleWinnersNotifications, parsePrizeDetails } =
       await import("@/lib/emailService");
 
-    // 解析中奖金额信息
-    console.log(
-      `[CRON] [MATCH] 开始解析中奖金额，detail 字段: ${latestResult.detail?.substring(0, 200) || "空"}...`,
-    );
-    const prizeDetails = parsePrizeDetails(latestResult.detail || "");
+    // 获取中奖金额信息：优先使用 prizeAmounts 字段，如果没有则从 detail 解析
+    let prizeDetails: Record<string, string> = {};
+
+    if (latestResult.prizeAmounts) {
+      // 从 prizeAmounts 字段获取（数组格式）
+      try {
+        const prizeAmountsArray = Array.isArray(latestResult.prizeAmounts)
+          ? latestResult.prizeAmounts
+          : JSON.parse(latestResult.prizeAmounts as string);
+
+        if (Array.isArray(prizeAmountsArray)) {
+          prizeAmountsArray.forEach(
+            (item: { level: string; amount: string }) => {
+              if (item.level && item.amount) {
+                prizeDetails[item.level] = item.amount;
+              }
+            },
+          );
+        }
+        console.log(
+          `[CRON] [MATCH] 从 prizeAmounts 字段获取奖项信息: ${Object.keys(prizeDetails).length} 个奖项`,
+        );
+      } catch (error) {
+        console.error(`[CRON] [MATCH] 解析 prizeAmounts 失败:`, error);
+      }
+    }
+
+    // 如果 prizeAmounts 为空，尝试从 detail 字段解析
+    if (Object.keys(prizeDetails).length === 0) {
+      console.log(
+        `[CRON] [MATCH] prizeAmounts 为空，尝试从 detail 字段解析...`,
+      );
+      prizeDetails = parsePrizeDetails(latestResult.detail || "");
+      console.log(
+        `[CRON] [MATCH] 从 detail 字段解析出 ${Object.keys(prizeDetails).length} 个奖项`,
+      );
+    }
 
     const multipleNotification = {
       lotteryType,
@@ -339,6 +408,15 @@ async function checkAndNotifyWinners() {
       recipientEmails,
       multipleNotification,
     );
+
+    // 记录已发送的期号（防止重复发送）
+    if (emailResult.success > 0) {
+      sentEmailCache.add(emailCacheKey);
+      cleanupEmailCache();
+      console.log(
+        `[CRON] [MATCH] 📧 已记录期号 ${latestResult.issueNumber} 的邮件发送状态`,
+      );
+    }
 
     console.log(
       `[CRON] [MATCH] 📧 合并邮件发送完成 - 共 ${winnerTickets.length} 个中奖号码: 成功 ${emailResult.success} 个，失败 ${emailResult.failed} 个`,

@@ -154,9 +154,15 @@ function generateWinnerEmailHTML(notification: WinnerNotification): string {
     matchResult,
     openNumbers,
     jackpot,
+    prizeDetails,
   } = notification;
   const lotteryName = lotteryType === "ssq" ? "双色球" : "大乐透";
   const highestPrize = matchResult.prizeLevels[0];
+
+  // 调试日志
+  console.log(
+    `[EMAIL] 生成单个中奖邮件 - 期号: ${issueNumber}, prizeDetails: ${prizeDetails ? JSON.stringify(prizeDetails) : "无"}`,
+  );
 
   return `
 <!DOCTYPE html>
@@ -498,9 +504,21 @@ export async function sendWinnerNotifications(
 function generateMultipleWinnersEmailHTML(
   notification: MultipleWinnerNotification,
 ): string {
-  const { lotteryType, issueNumber, openDate, openNumbers, jackpot, winners } =
-    notification;
+  const {
+    lotteryType,
+    issueNumber,
+    openDate,
+    openNumbers,
+    jackpot,
+    winners,
+    prizeDetails,
+  } = notification;
   const lotteryName = lotteryType === "ssq" ? "双色球" : "大乐透";
+
+  // 调试日志
+  console.log(
+    `[EMAIL] 生成多个中奖邮件 - 期号: ${issueNumber}, prizeDetails: ${prizeDetails ? JSON.stringify(prizeDetails) : "无"}`,
+  );
 
   return `
 <!DOCTYPE html>
