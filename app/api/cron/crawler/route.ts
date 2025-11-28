@@ -237,7 +237,7 @@ async function checkAndNotifyWinners() {
   }
 
   // 检查是否已经开奖（开奖号码不为空）
-  const openNumbers =
+  let openNumbers =
     typeof latestResult.openNumbers === "string"
       ? JSON.parse(latestResult.openNumbers)
       : latestResult.openNumbers;
@@ -245,6 +245,17 @@ async function checkAndNotifyWinners() {
   if (!openNumbers || !openNumbers.red || openNumbers.red.length === 0) {
     console.log(`[CRON] [MATCH] 最新期号 ${latestResult.issueNumber} 尚未开奖`);
     return;
+  }
+
+  // 修复数据格式：双色球的 blue 可能是字符串，需要转换为数组
+  if (lotteryType === "ssq" && typeof openNumbers.blue === "string") {
+    openNumbers = {
+      ...openNumbers,
+      blue: [openNumbers.blue],
+    };
+    console.log(
+      `[CRON] [MATCH] 修复双色球 blue 格式: "${openNumbers.blue[0]}" -> ["${openNumbers.blue[0]}"]`,
+    );
   }
 
   console.log(
