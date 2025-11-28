@@ -317,6 +317,34 @@ function generateWinnerEmailHTML(notification: WinnerNotification): string {
       }
     </div>
 
+    <div class="section">
+      <div class="section-title">🏆 中奖等级</div>
+      <div class="prize-levels">
+        ${matchResult.prizeLevels
+          .map(
+            (prize: PrizeLevel) => `
+          <div class="prize-item">
+            <div class="prize-name">${prize.name}</div>
+            <div style="margin-top: 5px; color: #666; font-size: 14px;">
+              ${prize.description}
+            </div>
+            <div style="margin-top: 5px; color: #999; font-size: 12px;">
+              红球匹配：${prize.redMatch} 个 | 蓝球匹配：${prize.blueMatch} 个
+            </div>
+            ${
+              notification.prizeDetails && notification.prizeDetails[prize.name]
+                ? `<div style="margin-top: 8px; color: #e74c3c; font-size: 18px; font-weight: bold;">
+              💰 中奖金额：${formatAmount(notification.prizeDetails[prize.name])}
+            </div>`
+                : ""
+            }
+          </div>
+        `,
+          )
+          .join("")}
+      </div>
+    </div>
+
     ${
       notification.prizeDetails &&
       Object.keys(notification.prizeDetails).length > 0
@@ -384,34 +412,6 @@ function generateWinnerEmailHTML(notification: WinnerNotification): string {
       <div class="info-row">
         <span class="info-label">蓝球匹配：</span>
         <span class="info-value">${matchResult.blueMatch} 个</span>
-      </div>
-    </div>
-
-    <div class="section">
-      <div class="section-title">🏆 中奖等级</div>
-      <div class="prize-levels">
-        ${matchResult.prizeLevels
-          .map(
-            (prize: PrizeLevel) => `
-          <div class="prize-item">
-            <div class="prize-name">${prize.name}</div>
-            <div style="margin-top: 5px; color: #666; font-size: 14px;">
-              ${prize.description}
-            </div>
-            <div style="margin-top: 5px; color: #999; font-size: 12px;">
-              红球匹配：${prize.redMatch} 个 | 蓝球匹配：${prize.blueMatch} 个
-            </div>
-            ${
-              notification.prizeDetails && notification.prizeDetails[prize.name]
-                ? `<div style="margin-top: 8px; color: #e74c3c; font-size: 18px; font-weight: bold;">
-              💰 中奖金额：${formatAmount(notification.prizeDetails[prize.name])}
-            </div>`
-                : ""
-            }
-          </div>
-        `,
-          )
-          .join("")}
       </div>
     </div>
 
@@ -678,45 +678,6 @@ function generateMultipleWinnersEmailHTML(
       }
     </div>
 
-    ${
-      notification.prizeDetails &&
-      Object.keys(notification.prizeDetails).length > 0
-        ? `<div class="section">
-      <div class="section-title">💰 本期奖项奖金</div>
-      <div class="prize-levels">
-        ${Object.entries(notification.prizeDetails)
-          .map(
-            ([level, amount]) => `
-          <div class="prize-item">
-            <div class="prize-name">${level}</div>
-            <div style="margin-top: 8px; color: #e74c3c; font-size: 18px; font-weight: bold;">
-              ${formatAmount(amount)}
-            </div>
-          </div>
-        `,
-          )
-          .join("")}
-      </div>
-    </div>`
-        : ""
-    }
-
-    <div class="section">
-      <div class="section-title">🎱 开奖号码</div>
-      <div>
-        <strong>红球：</strong>
-        <div class="numbers">
-          ${openNumbers.red.map((n) => `<span class="number-ball red-ball">${n.padStart(2, "0")}</span>`).join("")}
-        </div>
-      </div>
-      <div style="margin-top: 15px;">
-        <strong>蓝球：</strong>
-        <div class="numbers">
-          ${openNumbers.blue.map((n) => `<span class="number-ball blue-ball">${n.padStart(2, "0")}</span>`).join("")}
-        </div>
-      </div>
-    </div>
-
     <div class="section">
       <div class="section-title">🏆 中奖详情</div>
       ${winners
@@ -769,6 +730,45 @@ function generateMultipleWinnersEmailHTML(
       `,
         )
         .join("")}
+    </div>
+
+    ${
+      notification.prizeDetails &&
+      Object.keys(notification.prizeDetails).length > 0
+        ? `<div class="section">
+      <div class="section-title">💰 本期奖项奖金</div>
+      <div class="prize-levels">
+        ${Object.entries(notification.prizeDetails)
+          .map(
+            ([level, amount]) => `
+          <div class="prize-item">
+            <div class="prize-name">${level}</div>
+            <div style="margin-top: 8px; color: #e74c3c; font-size: 18px; font-weight: bold;">
+              ${formatAmount(amount)}
+            </div>
+          </div>
+        `,
+          )
+          .join("")}
+      </div>
+    </div>`
+        : ""
+    }
+
+    <div class="section">
+      <div class="section-title">🎱 开奖号码</div>
+      <div>
+        <strong>红球：</strong>
+        <div class="numbers">
+          ${openNumbers.red.map((n) => `<span class="number-ball red-ball">${n.padStart(2, "0")}</span>`).join("")}
+        </div>
+      </div>
+      <div style="margin-top: 15px;">
+        <strong>蓝球：</strong>
+        <div class="numbers">
+          ${openNumbers.blue.map((n) => `<span class="number-ball blue-ball">${n.padStart(2, "0")}</span>`).join("")}
+        </div>
+      </div>
     </div>
 
     <div class="footer">

@@ -27,6 +27,81 @@ function cleanupEmailCache() {
   }
 }
 
+/**
+ * 检查昨天是否有开奖结果（已开奖）
+ * @param lotteryType 彩票类型 'dlt' | 'ssq'
+ * @returns 如果有昨天的开奖结果返回 true，否则返回 false
+ */
+async function hasYesterdayResult(
+  lotteryType: "dlt" | "ssq",
+): Promise<boolean> {
+  const prisma = prismaService.getPrismaClient();
+
+  // 计算昨天的日期（本地时区）
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  yesterday.setHours(0, 0, 0, 0);
+
+  // 计算昨天的结束时间
+  const yesterdayEnd = new Date(yesterday);
+  yesterdayEnd.setHours(23, 59, 59, 999);
+
+  const yesterdayDateStr = yesterday.toISOString().split("T")[0];
+  console.log(
+    `[CRON] [${lotteryType.toUpperCase()}] 检查昨天 (${yesterdayDateStr}) 是否有开奖结果...`,
+  );
+
+  // 查询昨天的开奖结果
+  let result: any = null;
+  if (lotteryType === "ssq") {
+    result = await prisma.sSQResult.findFirst({
+      where: {
+        openDate: {
+          gte: yesterday,
+          lte: yesterdayEnd,
+        },
+      },
+      orderBy: { issueNumber: "desc" },
+    });
+  } else {
+    result = await prisma.dLTResult.findFirst({
+      where: {
+        openDate: {
+          gte: yesterday,
+          lte: yesterdayEnd,
+        },
+      },
+      orderBy: { issueNumber: "desc" },
+    });
+  }
+
+  if (!result) {
+    console.log(`[CRON] [${lotteryType.toUpperCase()}] 昨天没有开奖结果记录`);
+    return false;
+  }
+
+  // 检查是否已开奖（openNumbers 不为空且有 red 字段）
+  const openNumbers =
+    typeof result.openNumbers === "string"
+      ? JSON.parse(result.openNumbers)
+      : result.openNumbers;
+
+  const hasOpened =
+    openNumbers && openNumbers.red && openNumbers.red.length > 0;
+
+  if (hasOpened) {
+    console.log(
+      `[CRON] [${lotteryType.toUpperCase()}] ✅ 昨天已有开奖结果 (期号: ${result.issueNumber}, 开奖日期: ${result.openDate.toISOString().split("T")[0]})`,
+    );
+    return true;
+  } else {
+    console.log(
+      `[CRON] [${lotteryType.toUpperCase()}] ⚠️  昨天有记录但尚未开奖 (期号: ${result.issueNumber})`,
+    );
+    return false;
+  }
+}
+
 export async function GET(req: NextRequest) {
   const startTime = Date.now();
   const timestamp = new Date().toISOString();
@@ -61,54 +136,92 @@ export async function GET(req: NextRequest) {
     const currentYear = new Date().getFullYear().toString();
     console.log(`[CRON] 目标年份: ${currentYear}`);
 
-    // 并行执行两个爬取任务
-    console.log("[CRON] 开始并行执行爬取任务...");
+    // 根据今天是周几决定要处理的彩票类型
+    // 开奖日：大乐透(1,3,6) 双色球(2,4,0)
+    // 匹配日（延后一天）：大乐透(2,4,0) 双色球(1,3,5)
+    const now = new Date();
+    const dayOfWeek = now.getDay(); // 0 = 周日, 1 = 周一, ..., 6 = 周六
+
+    let targetLotteryType: "dlt" | "ssq" | null = null;
+    if (dayOfWeek === 2 || dayOfWeek === 4 || dayOfWeek === 0) {
+      // 周二、周四、周日：处理大乐透（昨天是周一、周三、周六，大乐透开奖）
+      targetLotteryType = "dlt";
+      console.log(
+        `[CRON] 今天是周${["日", "一", "二", "三", "四", "五", "六"][dayOfWeek]}，处理大乐透`,
+      );
+    } else if (dayOfWeek === 1 || dayOfWeek === 3 || dayOfWeek === 5) {
+      // 周一、周三、周五：处理双色球（昨天是周日、周二、周四，双色球开奖）
+      targetLotteryType = "ssq";
+      console.log(
+        `[CRON] 今天是周${["日", "一", "二", "三", "四", "五", "六"][dayOfWeek]}，处理双色球`,
+      );
+    } else {
+      // 周六：不处理任何类型
+      console.log("[CRON] 今天（周六）不处理任何彩票类型");
+      return NextResponse.json({
+        success: true,
+        message: "Saturday - no lottery processing needed",
+        timestamp,
+        duration: {
+          crawl: 0,
+          total: Date.now() - startTime,
+        },
+      });
+    }
+
+    // 检查昨天是否有对应类型的开奖结果
+    console.log(
+      `[CRON] 检查昨天是否有${targetLotteryType === "ssq" ? "双色球" : "大乐透"}开奖结果...`,
+    );
+    const hasYesterday = await hasYesterdayResult(targetLotteryType);
+
+    // 执行爬取任务（如果昨天没有开奖结果才执行）
+    console.log(
+      `[CRON] 开始执行${targetLotteryType === "ssq" ? "双色球" : "大乐透"}爬取任务...`,
+    );
     const crawlStartTime = Date.now();
 
-    const [dltResult, ssqResult] = await Promise.all([
-      (async () => {
-        const taskStartTime = Date.now();
-        console.log("[CRON] [DLT] 开始爬取...");
-        try {
-          const result = await caller.dlt.fetchAndSave({ year: currentYear });
-          const duration = Date.now() - taskStartTime;
-          console.log(
-            `[CRON] [DLT] ✅ 完成 - 成功: ${result.success}, 新增: ${result.count || 0} 条, 耗时: ${duration}ms`,
-          );
-          return result;
-        } catch (error) {
-          const duration = Date.now() - taskStartTime;
-          console.error(
-            `[CRON] [DLT] ❌ 失败 - 耗时: ${duration}ms, 错误:`,
-            error,
-          );
-          throw error;
-        }
-      })(),
-      (async () => {
-        const taskStartTime = Date.now();
-        console.log("[CRON] [SSQ] 开始爬取...");
-        try {
-          const result = await caller.ssq.fetchAndSave({ year: currentYear });
-          const duration = Date.now() - taskStartTime;
-          console.log(
-            `[CRON] [SSQ] ✅ 完成 - 成功: ${result.success}, 新增: ${result.count || 0} 条, 耗时: ${duration}ms`,
-          );
-          return result;
-        } catch (error) {
-          const duration = Date.now() - taskStartTime;
-          console.error(
-            `[CRON] [SSQ] ❌ 失败 - 耗时: ${duration}ms, 错误:`,
-            error,
-          );
-          throw error;
-        }
-      })(),
-    ]);
+    let crawlResult: {
+      success: boolean;
+      count?: number;
+      skipped?: boolean;
+    };
+
+    if (hasYesterday) {
+      console.log(
+        `[CRON] [${targetLotteryType.toUpperCase()}] ⏭️  跳过爬取（昨天已有开奖结果）`,
+      );
+      crawlResult = {
+        success: true,
+        count: 0,
+        skipped: true,
+      };
+    } else {
+      const taskStartTime = Date.now();
+      console.log(`[CRON] [${targetLotteryType.toUpperCase()}] 开始爬取...`);
+      try {
+        const result =
+          targetLotteryType === "ssq"
+            ? await caller.ssq.fetchAndSave({ year: currentYear })
+            : await caller.dlt.fetchAndSave({ year: currentYear });
+        const duration = Date.now() - taskStartTime;
+        console.log(
+          `[CRON] [${targetLotteryType.toUpperCase()}] ✅ 完成 - 成功: ${result.success}, 新增: ${result.count || 0} 条, 耗时: ${duration}ms`,
+        );
+        crawlResult = result;
+      } catch (error) {
+        const duration = Date.now() - taskStartTime;
+        console.error(
+          `[CRON] [${targetLotteryType.toUpperCase()}] ❌ 失败 - 耗时: ${duration}ms, 错误:`,
+          error,
+        );
+        throw error;
+      }
+    }
 
     const crawlDuration = Date.now() - crawlStartTime;
-    const totalCount = (dltResult.count || 0) + (ssqResult.count || 0);
-    const allSuccess = dltResult.success && ssqResult.success;
+    const totalCount = crawlResult.count || 0;
+    const allSuccess = crawlResult.success;
 
     // 中奖匹配和邮件通知
     console.log("-".repeat(60));
@@ -127,31 +240,31 @@ export async function GET(req: NextRequest) {
 
     console.log("-".repeat(60));
     console.log("[CRON] 📊 执行结果汇总:");
+    const lotteryName = targetLotteryType === "ssq" ? "双色球" : "大乐透";
+    const status = (crawlResult as any).skipped
+      ? "⏭️  跳过"
+      : crawlResult.success
+        ? "✅"
+        : "❌";
     console.log(
-      `  DLT: ${dltResult.success ? "✅" : "❌"} ${dltResult.count || 0} 条`,
-    );
-    console.log(
-      `  SSQ: ${ssqResult.success ? "✅" : "❌"} ${ssqResult.count || 0} 条`,
+      `  ${lotteryName}: ${status} ${(crawlResult as any).skipped ? "(昨天已有开奖结果)" : `${totalCount} 条`}`,
     );
     console.log(`  总计: ${totalCount} 条新记录`);
     console.log(`  爬取耗时: ${crawlDuration}ms`);
     console.log(`  匹配耗时: ${matchDuration}ms`);
     console.log(`  总耗时: ${totalDuration}ms`);
-    console.log(`  状态: ${allSuccess ? "✅ 成功" : "❌ 部分失败"}`);
+    console.log(`  状态: ${allSuccess ? "✅ 成功" : "❌ 失败"}`);
     console.log("=".repeat(60));
 
     return NextResponse.json({
       success: allSuccess,
-      dlt: {
-        success: dltResult.success,
-        count: dltResult.count || 0,
-      },
-      ssq: {
-        success: ssqResult.success,
-        count: ssqResult.count || 0,
+      [targetLotteryType]: {
+        success: crawlResult.success,
+        count: totalCount,
+        skipped: (crawlResult as any).skipped || false,
       },
       totalCount,
-      message: `Cron job executed successfully. Added ${totalCount} new records (DLT: ${dltResult.count || 0}, SSQ: ${ssqResult.count || 0}).`,
+      message: `Cron job executed successfully. ${lotteryName}: ${(crawlResult as any).skipped ? "skipped" : `added ${totalCount} new records`}.`,
       timestamp,
       duration: {
         crawl: crawlDuration,
@@ -185,33 +298,36 @@ export async function GET(req: NextRequest) {
 
 /**
  * 检查中奖并发送邮件通知
- * 周一、周三、周六：匹配大乐透
- * 周二、周四、周日：匹配双色球
+ * 开奖日：大乐透(1,3,6) 双色球(2,4,0)
+ * 匹配日（延后一天）：大乐透(2,4,0) 双色球(3,5,1)
+ * 周二、周四、周日：匹配大乐透（因为昨天是周一、周三、周六，大乐透开奖）
+ * 周一、周三、周五：匹配双色球（因为昨天是周日、周二、周四，双色球开奖）
  */
 async function checkAndNotifyWinners() {
   const now = new Date();
   const dayOfWeek = now.getDay(); // 0 = 周日, 1 = 周一, ..., 6 = 周六
 
-  // 确定今天要匹配的彩票类型
+  // 确定今天要匹配的彩票类型（延后一天匹配）
   let lotteryType: "ssq" | "dlt" | null = null;
-  if (dayOfWeek === 1 || dayOfWeek === 3 || dayOfWeek === 6) {
-    // 周一、周三、周六：大乐透
+  if (dayOfWeek === 2 || dayOfWeek === 4 || dayOfWeek === 0) {
+    // 周二、周四、周日：匹配大乐透（昨天是周一、周三、周六，大乐透开奖）
     lotteryType = "dlt";
     console.log(
       "[CRON] [MATCH] 今天是周" +
         ["日", "一", "二", "三", "四", "五", "六"][dayOfWeek] +
-        "，匹配大乐透",
+        "，匹配大乐透（昨天大乐透开奖）",
     );
-  } else if (dayOfWeek === 2 || dayOfWeek === 4 || dayOfWeek === 0) {
-    // 周二、周四、周日：双色球
+  } else if (dayOfWeek === 1 || dayOfWeek === 3 || dayOfWeek === 5) {
+    // 周一、周三、周五：匹配双色球（昨天是周日、周二、周四，双色球开奖）
     lotteryType = "ssq";
     console.log(
       "[CRON] [MATCH] 今天是周" +
         ["日", "一", "二", "三", "四", "五", "六"][dayOfWeek] +
-        "，匹配双色球",
+        "，匹配双色球（昨天双色球开奖）",
     );
   } else {
-    console.log("[CRON] [MATCH] 今天（周五）不匹配任何彩票类型");
+    // 周六不匹配（昨天周五没有开奖）
+    console.log("[CRON] [MATCH] 今天（周六）不匹配任何彩票类型");
     return;
   }
 
