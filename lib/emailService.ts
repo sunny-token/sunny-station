@@ -790,7 +790,14 @@ export async function sendMultipleWinnersNotification(
 ): Promise<boolean> {
   const config = getEmailConfig();
   if (!config) {
-    console.warn(`[EMAIL] 跳过发送邮件到 ${recipientEmail}：邮件配置不完整`);
+    console.error(
+      `[EMAIL] ❌ 跳过发送邮件到 ${recipientEmail}：邮件配置不完整`,
+    );
+    console.error(`[EMAIL] 缺少的环境变量：`);
+    if (!process.env.SMTP_HOST) console.error(`[EMAIL]   - SMTP_HOST`);
+    if (!process.env.SMTP_PORT) console.error(`[EMAIL]   - SMTP_PORT`);
+    if (!process.env.SMTP_USER) console.error(`[EMAIL]   - SMTP_USER`);
+    if (!process.env.SMTP_PASSWORD) console.error(`[EMAIL]   - SMTP_PASSWORD`);
     return false;
   }
 
@@ -799,6 +806,11 @@ export async function sendMultipleWinnersNotification(
     const lotteryName =
       notification.lotteryType === "ssq" ? "双色球" : "大乐透";
     const subject = `🎉 ${lotteryName}中奖通知 - ${notification.issueNumber}期 - 共 ${notification.winners.length} 个预设号码中奖`;
+
+    console.log(`[EMAIL] 准备发送邮件到 ${recipientEmail}...`);
+    console.log(
+      `[EMAIL] SMTP配置: ${config.smtpHost}:${config.smtpPort}, 用户: ${config.smtpUser}`,
+    );
 
     const nodemailer = await import("nodemailer");
     const transporter = nodemailer.default.createTransport({
@@ -810,6 +822,10 @@ export async function sendMultipleWinnersNotification(
         pass: config.smtpPassword,
       },
     });
+
+    // 验证连接
+    await transporter.verify();
+    console.log(`[EMAIL] ✅ SMTP 连接验证成功`);
 
     const info = await transporter.sendMail({
       from: `"${config.fromName}" <${config.fromEmail}>`,
@@ -824,7 +840,13 @@ export async function sendMultipleWinnersNotification(
     );
     return true;
   } catch (error) {
-    console.error(`[EMAIL] ❌ 发送合并邮件到 ${recipientEmail} 失败:`, error);
+    console.error(`[EMAIL] ❌ 发送合并邮件到 ${recipientEmail} 失败:`);
+    if (error instanceof Error) {
+      console.error(`[EMAIL]   错误消息: ${error.message}`);
+      console.error(`[EMAIL]   错误堆栈: ${error.stack}`);
+    } else {
+      console.error(`[EMAIL]   错误详情:`, error);
+    }
     return false;
   }
 }

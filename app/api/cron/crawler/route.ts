@@ -397,10 +397,11 @@ async function checkAndNotifyWinners(latestResultFromCrawl?: any) {
   }
 
   // 方法2: 检查开奖结果的创建时间
-  // 如果开奖结果是在最近5分钟内创建的，可能是重复的 cron 调用，跳过
+  // 如果开奖结果是在最近1分钟内创建的，可能是重复的 cron 调用，跳过
+  // 注意：如果是在爬取后立即匹配，这个时间应该足够短，但也不能太短导致误判
   const resultAge = Date.now() - new Date(latestResult.createdAt).getTime();
-  const fiveMinutes = 5 * 60 * 1000;
-  if (resultAge < fiveMinutes) {
+  const oneMinute = 1 * 60 * 1000;
+  if (resultAge < oneMinute) {
     console.log(
       `[CRON] [MATCH] ⚠️  开奖结果 ${latestResult.issueNumber} 创建于 ${Math.round(resultAge / 1000)} 秒前，可能是重复调用，跳过邮件发送`,
     );
@@ -433,7 +434,10 @@ async function checkAndNotifyWinners(latestResultFromCrawl?: any) {
 
   if (recipients.length === 0) {
     console.log("[CRON] [MATCH] ⚠️  没有激活的邮件收件人，跳过邮件发送");
+    return;
   }
+
+  console.log(`[CRON] [MATCH] 找到 ${recipients.length} 个激活的邮件收件人`);
 
   const winnerTickets: Array<{
     ticket: any;
@@ -538,7 +542,27 @@ async function checkAndNotifyWinners(latestResultFromCrawl?: any) {
       `[CRON] [MATCH] 📧 中奖金额信息: ${Object.keys(prizeDetails).length > 0 ? JSON.stringify(prizeDetails) : "无"}`,
     );
 
+    // 检查邮件配置
+    const emailConfig =
+      process.env.SMTP_HOST &&
+      process.env.SMTP_PORT &&
+      process.env.SMTP_USER &&
+      process.env.SMTP_PASSWORD;
+
+    if (!emailConfig) {
+      console.error("[CRON] [MATCH] ❌ 邮件配置不完整，无法发送邮件！");
+      console.error("[CRON] [MATCH] 请检查以下环境变量：");
+      console.error("[CRON] [MATCH]   - SMTP_HOST");
+      console.error("[CRON] [MATCH]   - SMTP_PORT");
+      console.error("[CRON] [MATCH]   - SMTP_USER");
+      console.error("[CRON] [MATCH]   - SMTP_PASSWORD");
+      return;
+    }
+
     // 只发送一次合并邮件
+    console.log(
+      `[CRON] [MATCH] 📧 开始发送邮件到 ${recipientEmails.join(", ")}`,
+    );
     const emailResult = await sendMultipleWinnersNotifications(
       recipientEmails,
       multipleNotification,
@@ -549,7 +573,17 @@ async function checkAndNotifyWinners(latestResultFromCrawl?: any) {
       sentEmailCache.add(emailCacheKey);
       cleanupEmailCache();
       console.log(
-        `[CRON] [MATCH] 📧 已记录期号 ${latestResult.issueNumber} 的邮件发送状态`,
+        `[CRON] [MATCH] 📧 ✅ 已记录期号 ${latestResult.issueNumber} 的邮件发送状态（成功发送到 ${emailResult.success} 个收件人）`,
+      );
+    } else {
+      console.error(
+        `[CRON] [MATCH] 📧 ❌ 邮件发送失败！所有 ${recipientEmails.length} 个收件人都发送失败`,
+      );
+    }
+
+    if (emailResult.failed > 0) {
+      console.error(
+        `[CRON] [MATCH] 📧 ⚠️  部分邮件发送失败：成功 ${emailResult.success} 个，失败 ${emailResult.failed} 个`,
       );
     }
 
