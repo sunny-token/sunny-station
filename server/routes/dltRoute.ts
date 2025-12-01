@@ -209,7 +209,15 @@ export const dltRouter = router({
           existingMap.get(item.issueNumber) === "-",
       );
       if (recordsToProcess.length === 0) {
-        return { success: true, count: 0 };
+        // 即使没有新记录，也返回最新的开奖结果
+        const latestResult = await prisma.dLTResult.findFirst({
+          orderBy: { issueNumber: "desc" },
+        });
+        return {
+          success: true,
+          count: 0,
+          latestResult: latestResult || undefined,
+        };
       }
       // 批量 upsert 需要处理的记录
       const upserted = await prisma.$transaction(
@@ -240,7 +248,17 @@ export const dltRouter = router({
           }),
         ),
       );
-      return { success: true, count: upserted.length };
+
+      // 获取最新的一条开奖结果（按期号降序）
+      const latestResult = await prisma.dLTResult.findFirst({
+        orderBy: { issueNumber: "desc" },
+      });
+
+      return {
+        success: true,
+        count: upserted.length,
+        latestResult: latestResult || undefined,
+      };
     }),
   search: publicProcedure
     .input(

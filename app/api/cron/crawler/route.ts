@@ -229,7 +229,9 @@ export async function GET(req: NextRequest) {
     const matchStartTime = Date.now();
 
     try {
-      await checkAndNotifyWinners();
+      // 如果刚刚执行了爬取，使用爬取结果中的最新开奖结果，避免重复查询数据库
+      const latestResultFromCrawl = (crawlResult as any).latestResult;
+      await checkAndNotifyWinners(latestResultFromCrawl);
     } catch (error) {
       console.error("[CRON] ❌ 中奖匹配检查失败:", error);
       // 不中断整个流程，只记录错误
@@ -302,8 +304,9 @@ export async function GET(req: NextRequest) {
  * 匹配日（延后一天）：大乐透(2,4,0) 双色球(3,5,1)
  * 周二、周四、周日：匹配大乐透（因为昨天是周一、周三、周六，大乐透开奖）
  * 周一、周三、周五：匹配双色球（因为昨天是周日、周二、周四，双色球开奖）
+ * @param latestResultFromCrawl 如果提供了爬取结果中的最新开奖结果，则直接使用，避免重复查询数据库
  */
-async function checkAndNotifyWinners() {
+async function checkAndNotifyWinners(latestResultFromCrawl?: any) {
   const now = new Date();
   const dayOfWeek = now.getDay(); // 0 = 周日, 1 = 周一, ..., 6 = 周六
 
@@ -333,16 +336,21 @@ async function checkAndNotifyWinners() {
 
   const prisma = prismaService.getPrismaClient();
 
-  // 获取最新的开奖结果
-  let latestResult: any;
-  if (lotteryType === "ssq") {
-    latestResult = await prisma.sSQResult.findFirst({
-      orderBy: { issueNumber: "desc" },
-    });
+  // 获取最新的开奖结果：如果提供了爬取结果，直接使用；否则从数据库查询
+  let latestResult: any = latestResultFromCrawl;
+  if (!latestResult) {
+    console.log("[CRON] [MATCH] 从数据库查询最新开奖结果...");
+    if (lotteryType === "ssq") {
+      latestResult = await prisma.sSQResult.findFirst({
+        orderBy: { issueNumber: "desc" },
+      });
+    } else {
+      latestResult = await prisma.dLTResult.findFirst({
+        orderBy: { issueNumber: "desc" },
+      });
+    }
   } else {
-    latestResult = await prisma.dLTResult.findFirst({
-      orderBy: { issueNumber: "desc" },
-    });
+    console.log("[CRON] [MATCH] 使用爬取结果中的最新开奖结果，跳过数据库查询");
   }
 
   if (!latestResult) {
