@@ -563,15 +563,15 @@ async function checkAndNotifyWinners(latestResultFromCrawl?: any) {
     console.log(
       `[CRON] [MATCH] 📧 开始发送邮件到 ${recipientEmails.join(", ")}`,
     );
+    // 记录已发送的期号（防止重复发送）
+    sentEmailCache.add(emailCacheKey);
     const emailResult = await sendMultipleWinnersNotifications(
       recipientEmails,
       multipleNotification,
     );
 
-    // 记录已发送的期号（防止重复发送）
+    // 记录邮件发送结果
     if (emailResult.success > 0) {
-      sentEmailCache.add(emailCacheKey);
-      cleanupEmailCache();
       console.log(
         `[CRON] [MATCH] 📧 ✅ 已记录期号 ${latestResult.issueNumber} 的邮件发送状态（成功发送到 ${emailResult.success} 个收件人）`,
       );
@@ -590,6 +590,9 @@ async function checkAndNotifyWinners(latestResultFromCrawl?: any) {
     console.log(
       `[CRON] [MATCH] 📧 合并邮件发送完成 - 共 ${winnerTickets.length} 个中奖号码: 成功 ${emailResult.success} 个，失败 ${emailResult.failed} 个`,
     );
+
+    // 清理邮件缓存（发送完成后清理）
+    cleanupEmailCache();
   } else {
     console.log("[CRON] [MATCH] ⚠️  无收件人，跳过邮件发送");
   }
