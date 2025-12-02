@@ -399,16 +399,16 @@ async function checkAndNotifyWinners(latestResultFromCrawl?: any) {
   // 方法2: 检查开奖结果的创建时间
   // 如果开奖结果是在最近1分钟内创建的，可能是重复的 cron 调用，跳过
   // 注意：如果是在爬取后立即匹配，这个时间应该足够短，但也不能太短导致误判
-  const resultAge = Date.now() - new Date(latestResult.createdAt).getTime();
-  const oneMinute = 1 * 60 * 1000;
-  if (resultAge < oneMinute) {
-    console.log(
-      `[CRON] [MATCH] ⚠️  开奖结果 ${latestResult.issueNumber} 创建于 ${Math.round(resultAge / 1000)} 秒前，可能是重复调用，跳过邮件发送`,
-    );
-    // 仍然记录到缓存，防止短时间内重复发送
-    sentEmailCache.add(emailCacheKey);
-    return;
-  }
+  // const resultAge = Date.now() - new Date(latestResult.createdAt).getTime();
+  // const oneMinute = 1 * 60 * 1000;
+  // if (resultAge < oneMinute) {
+  //   console.log(
+  //     `[CRON] [MATCH] ⚠️  开奖结果 ${latestResult.issueNumber} 创建于 ${Math.round(resultAge / 1000)} 秒前，可能是重复调用，跳过邮件发送`,
+  //   );
+  //   // 仍然记录到缓存，防止短时间内重复发送
+  //   sentEmailCache.add(emailCacheKey);
+  //   return;
+  // }
 
   // 获取所有激活的预设号码
   const tickets = await prisma.ticket.findMany({
