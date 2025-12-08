@@ -284,6 +284,32 @@ function generateWinnerEmailHTML(notification: WinnerNotification): string {
     .info-value {
       color: #333;
     }
+    .number-comparison {
+      display: flex;
+      gap: 20px;
+      margin: 20px 0;
+    }
+    .number-group {
+      flex: 1;
+      padding: 15px;
+      background-color: white;
+      border-radius: 6px;
+      border: 2px solid #e0e0e0;
+    }
+    .number-group-title {
+      font-size: 16px;
+      font-weight: bold;
+      color: #2c3e50;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #4ecdc4;
+    }
+    .number-group.open {
+      border-color: #4ecdc4;
+    }
+    .number-group.yours {
+      border-color: #27ae60;
+    }
   </style>
 </head>
 <body>
@@ -369,36 +395,40 @@ function generateWinnerEmailHTML(notification: WinnerNotification): string {
     }
 
     <div class="section">
-      <div class="section-title">🎱 开奖号码</div>
-      <div>
-        <strong>红球：</strong>
-        <div class="numbers">
-          ${openNumbers.red.map((n) => `<span class="number-ball red-ball">${n.padStart(2, "0")}</span>`).join("")}
+      <div class="section-title">🎱 号码对比</div>
+      <div class="number-comparison">
+        <div class="number-group open">
+          <div class="number-group-title">🎱 开奖号码</div>
+          <div style="margin-bottom: 15px;">
+            <strong>红球：</strong>
+            <div class="numbers">
+              ${openNumbers.red.map((n) => `<span class="number-ball red-ball">${n.padStart(2, "0")}</span>`).join("")}
+            </div>
+          </div>
+          <div>
+            <strong>蓝球：</strong>
+            <div class="numbers">
+              ${openNumbers.blue.map((n) => `<span class="number-ball blue-ball">${n.padStart(2, "0")}</span>`).join("")}
+            </div>
+          </div>
         </div>
-      </div>
-      <div style="margin-top: 15px;">
-        <strong>蓝球：</strong>
-        <div class="numbers">
-          ${openNumbers.blue.map((n) => `<span class="number-ball blue-ball">${n.padStart(2, "0")}</span>`).join("")}
-        </div>
-      </div>
-    </div>
-
-    <div class="section">
-      <div class="section-title">🎫 您的号码</div>
-      <div>
-        <strong>预设名称：</strong> ${ticketName}
-      </div>
-      <div style="margin-top: 10px;">
-        <strong>红球：</strong>
-        <div class="numbers">
-          ${matchResult.ticketNumbers.red.map((n) => `<span class="number-ball red-ball">${n.padStart(2, "0")}</span>`).join("")}
-        </div>
-      </div>
-      <div style="margin-top: 15px;">
-        <strong>蓝球：</strong>
-        <div class="numbers">
-          ${matchResult.ticketNumbers.blue.map((n) => `<span class="number-ball blue-ball">${n.padStart(2, "0")}</span>`).join("")}
+        <div class="number-group yours">
+          <div class="number-group-title">🎫 您的号码</div>
+          <div style="margin-bottom: 8px; font-size: 13px; color: #666;">
+            <strong>预设名称：</strong> ${ticketName}
+          </div>
+          <div style="margin-bottom: 15px;">
+            <strong>红球：</strong>
+            <div class="numbers">
+              ${matchResult.ticketNumbers.red.map((n) => `<span class="number-ball red-ball">${n.padStart(2, "0")}</span>`).join("")}
+            </div>
+          </div>
+          <div>
+            <strong>蓝球：</strong>
+            <div class="numbers">
+              ${matchResult.ticketNumbers.blue.map((n) => `<span class="number-ball blue-ball">${n.padStart(2, "0")}</span>`).join("")}
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -637,6 +667,32 @@ function generateMultipleWinnersEmailHTML(
     .info-value {
       color: #333;
     }
+    .number-comparison {
+      display: flex;
+      gap: 20px;
+      margin: 20px 0;
+    }
+    .number-group {
+      flex: 1;
+      padding: 15px;
+      background-color: white;
+      border-radius: 6px;
+      border: 2px solid #e0e0e0;
+    }
+    .number-group-title {
+      font-size: 16px;
+      font-weight: bold;
+      color: #2c3e50;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #4ecdc4;
+    }
+    .number-group.open {
+      border-color: #4ecdc4;
+    }
+    .number-group.yours {
+      border-color: #27ae60;
+    }
     .footer {
       text-align: center;
       margin-top: 30px;
@@ -685,18 +741,35 @@ function generateMultipleWinnersEmailHTML(
           (winner) => `
       <div class="winner-item">
         <div class="winner-header">🎫 ${winner.ticketName}</div>
-        <div style="margin: 15px 0;">
-          <strong>您的号码：</strong>
-          <div style="margin-top: 8px;">
-            <strong>红球：</strong>
-            <div class="numbers">
-              ${winner.matchResult.ticketNumbers.red.map((n: string) => `<span class="number-ball red-ball">${n.padStart(2, "0")}</span>`).join("")}
+        <div class="number-comparison">
+          <div class="number-group open">
+            <div class="number-group-title">🎱 开奖号码</div>
+            <div style="margin-bottom: 15px;">
+              <strong>红球：</strong>
+              <div class="numbers">
+                ${openNumbers.red.map((n) => `<span class="number-ball red-ball">${n.padStart(2, "0")}</span>`).join("")}
+              </div>
+            </div>
+            <div>
+              <strong>蓝球：</strong>
+              <div class="numbers">
+                ${openNumbers.blue.map((n) => `<span class="number-ball blue-ball">${n.padStart(2, "0")}</span>`).join("")}
+              </div>
             </div>
           </div>
-          <div style="margin-top: 12px;">
-            <strong>蓝球：</strong>
-            <div class="numbers">
-              ${winner.matchResult.ticketNumbers.blue.map((n: string) => `<span class="number-ball blue-ball">${n.padStart(2, "0")}</span>`).join("")}
+          <div class="number-group yours">
+            <div class="number-group-title">🎫 您的号码</div>
+            <div style="margin-bottom: 15px;">
+              <strong>红球：</strong>
+              <div class="numbers">
+                ${winner.matchResult.ticketNumbers.red.map((n: string) => `<span class="number-ball red-ball">${n.padStart(2, "0")}</span>`).join("")}
+              </div>
+            </div>
+            <div>
+              <strong>蓝球：</strong>
+              <div class="numbers">
+                ${winner.matchResult.ticketNumbers.blue.map((n: string) => `<span class="number-ball blue-ball">${n.padStart(2, "0")}</span>`).join("")}
+              </div>
             </div>
           </div>
         </div>
@@ -754,22 +827,6 @@ function generateMultipleWinnersEmailHTML(
     </div>`
         : ""
     }
-
-    <div class="section">
-      <div class="section-title">🎱 开奖号码</div>
-      <div>
-        <strong>红球：</strong>
-        <div class="numbers">
-          ${openNumbers.red.map((n) => `<span class="number-ball red-ball">${n.padStart(2, "0")}</span>`).join("")}
-        </div>
-      </div>
-      <div style="margin-top: 15px;">
-        <strong>蓝球：</strong>
-        <div class="numbers">
-          ${openNumbers.blue.map((n) => `<span class="number-ball blue-ball">${n.padStart(2, "0")}</span>`).join("")}
-        </div>
-      </div>
-    </div>
 
     <div class="footer">
       <p>此邮件由彩票爬虫系统自动发送</p>
