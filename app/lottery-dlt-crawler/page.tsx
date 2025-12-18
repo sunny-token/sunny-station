@@ -61,6 +61,14 @@ export default function DLTCrawlerPage() {
   const mutation = trpc.dlt.fetchAndSave.useMutation();
   const refreshAllMutation = trpc.dlt.refreshAll.useMutation();
 
+  // 获取大乐透激活的守号号码
+  const { data: ticketData } = trpc.ticket.getList.useQuery({
+    lotteryType: "dlt",
+    isActive: true,
+    page: 1,
+    pageSize: 100, // 获取所有激活的守号号码
+  });
+
   // 解析搜索输入为号码数组（支持空格和逗号分隔）
   const parseSearchNumbers = (input: string): string[] => {
     return input
@@ -397,6 +405,103 @@ export default function DLTCrawlerPage() {
         <h2 style={{ fontSize: 20, marginBottom: 16 }}>
           {isSearching ? "搜索结果" : "开奖历史"}
         </h2>
+        {/* 显示守号号码 */}
+        {!isSearching &&
+          ticketData?.data?.list &&
+          ticketData.data.list.length > 0 && (
+            <div
+              style={{
+                marginBottom: 16,
+                padding: "12px 16px",
+                background: "#f9fafb",
+                borderRadius: 8,
+                border: "1px solid #e5e7eb",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: "#374151",
+                  marginBottom: 8,
+                }}
+              >
+                我的守号号码：
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 16,
+                  alignItems: "center",
+                }}
+              >
+                {ticketData.data.list.map((ticket: any) => (
+                  <div
+                    key={ticket.id}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: 13,
+                        color: "#6b7280",
+                        marginRight: 6,
+                        fontWeight: 500,
+                      }}
+                    >
+                      {ticket.name}:
+                    </span>
+                    {ticket.numbers?.red?.map((num: string, idx: number) => (
+                      <span
+                        key={`ticket-${ticket.id}-red-${idx}`}
+                        style={{
+                          display: "inline-block",
+                          width: 28,
+                          height: 28,
+                          lineHeight: "28px",
+                          borderRadius: "50%",
+                          background: "#fff",
+                          color: "#e53e3e",
+                          border: "1px solid #e53e3e",
+                          textAlign: "center",
+                          marginRight: 2,
+                          fontWeight: 600,
+                          fontSize: 12,
+                        }}
+                      >
+                        {num}
+                      </span>
+                    ))}
+                    {ticket.numbers?.blue?.map((num: string, idx: number) => (
+                      <span
+                        key={`ticket-${ticket.id}-blue-${idx}`}
+                        style={{
+                          display: "inline-block",
+                          width: 28,
+                          height: 28,
+                          lineHeight: "28px",
+                          borderRadius: "50%",
+                          background: "#fff",
+                          color: "#2563eb",
+                          border: "1px solid #2563eb",
+                          textAlign: "center",
+                          marginLeft: 4,
+                          marginRight: 2,
+                          fontWeight: 600,
+                          fontSize: 12,
+                        }}
+                      >
+                        {num}
+                      </span>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         {displayLoading ? (
           <div>加载中...</div>
         ) : (
