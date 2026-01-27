@@ -77,61 +77,40 @@ export function checkSSQWin(
       blueMatch: 1,
       description: "5个红球 + 1个蓝球",
     });
-  } else if (redMatch === 5 && blueMatch === 0) {
+  } else if (
+    (redMatch === 5 && blueMatch === 0) ||
+    (redMatch === 4 && blueMatch === 1)
+  ) {
     prizeLevels.push({
       level: 4,
       name: "四等奖",
-      redMatch: 5,
-      blueMatch: 0,
+      redMatch,
+      blueMatch,
       description: "5个红球 或 4个红球 + 1个蓝球",
     });
-  } else if (redMatch === 4 && blueMatch === 1) {
-    prizeLevels.push({
-      level: 4,
-      name: "四等奖",
-      redMatch: 4,
-      blueMatch: 1,
-      description: "5个红球 或 4个红球 + 1个蓝球",
-    });
-  } else if (redMatch === 4 && blueMatch === 0) {
+  } else if (
+    (redMatch === 4 && blueMatch === 0) ||
+    (redMatch === 3 && blueMatch === 1)
+  ) {
     prizeLevels.push({
       level: 5,
       name: "五等奖",
-      redMatch: 4,
-      blueMatch: 0,
+      redMatch,
+      blueMatch,
       description: "4个红球 或 3个红球 + 1个蓝球",
     });
-  } else if (redMatch === 3 && blueMatch === 1) {
-    prizeLevels.push({
-      level: 5,
-      name: "五等奖",
-      redMatch: 3,
-      blueMatch: 1,
-      description: "4个红球 或 3个红球 + 1个蓝球",
-    });
-  } else if (redMatch === 2 && blueMatch === 1) {
+  } else if (
+    (redMatch === 2 && blueMatch === 1) ||
+    (redMatch === 1 && blueMatch === 1) ||
+    (redMatch === 0 && blueMatch === 1)
+  ) {
     prizeLevels.push({
       level: 6,
       name: "六等奖",
-      redMatch: 2,
-      blueMatch: 1,
-      description: "2个红球 + 1个蓝球 或 1个红球 + 1个蓝球 或 0个红球 + 1个蓝球",
-    });
-  } else if (redMatch === 1 && blueMatch === 1) {
-    prizeLevels.push({
-      level: 6,
-      name: "六等奖",
-      redMatch: 1,
-      blueMatch: 1,
-      description: "2个红球 + 1个蓝球 或 1个红球 + 1个蓝球 或 0个红球 + 1个蓝球",
-    });
-  } else if (redMatch === 0 && blueMatch === 1) {
-    prizeLevels.push({
-      level: 6,
-      name: "六等奖",
-      redMatch: 0,
-      blueMatch: 1,
-      description: "2个红球 + 1个蓝球 或 1个红球 + 1个蓝球 或 0个红球 + 1个蓝球",
+      redMatch,
+      blueMatch,
+      description:
+        "2个红球 + 1个蓝球 或 1个红球 + 1个蓝球 或 0个红球 + 1个蓝球",
     });
   }
 
@@ -149,6 +128,7 @@ export function checkSSQWin(
  * 大乐透中奖规则
  * 红球：5个，从01-35中选择
  * 蓝球：2个，从01-12中选择
+ * 更新为9等奖规则（2019年及以后）
  */
 export function checkDLTWin(
   ticketNumbers: TicketNumbers,
@@ -166,7 +146,7 @@ export function checkDLTWin(
 
   const prizeLevels: PrizeLevel[] = [];
 
-  // 大乐透中奖规则
+  // 大乐透中奖规则（9级制）
   if (redMatch === 5 && blueMatch === 2) {
     prizeLevels.push({
       level: 1,
@@ -193,83 +173,60 @@ export function checkDLTWin(
     });
   } else if (redMatch === 4 && blueMatch === 2) {
     prizeLevels.push({
-      level: 3,
-      name: "三等奖",
+      level: 4,
+      name: "四等奖",
       redMatch: 4,
       blueMatch: 2,
-      description: "5个红球 或 4个红球 + 2个蓝球",
+      description: "4个红球 + 2个蓝球",
     });
   } else if (redMatch === 4 && blueMatch === 1) {
     prizeLevels.push({
-      level: 4,
-      name: "四等奖",
+      level: 5,
+      name: "五等奖",
       redMatch: 4,
       blueMatch: 1,
       description: "4个红球 + 1个蓝球",
     });
   } else if (redMatch === 3 && blueMatch === 2) {
     prizeLevels.push({
-      level: 4,
-      name: "四等奖",
+      level: 6,
+      name: "六等奖",
       redMatch: 3,
       blueMatch: 2,
-      description: "4个红球 + 1个蓝球 或 3个红球 + 2个蓝球",
+      description: "3个红球 + 2个蓝球",
     });
   } else if (redMatch === 4 && blueMatch === 0) {
     prizeLevels.push({
-      level: 5,
-      name: "五等奖",
+      level: 7,
+      name: "七等奖",
       redMatch: 4,
       blueMatch: 0,
       description: "4个红球",
     });
-  } else if (redMatch === 3 && blueMatch === 1) {
+  } else if (
+    (redMatch === 3 && blueMatch === 1) ||
+    (redMatch === 2 && blueMatch === 2)
+  ) {
     prizeLevels.push({
-      level: 5,
-      name: "五等奖",
-      redMatch: 3,
-      blueMatch: 1,
-      description: "4个红球 或 3个红球 + 1个蓝球",
+      level: 8,
+      name: "八等奖",
+      redMatch,
+      blueMatch,
+      description: "3个红球 + 1个蓝球 或 2个红球 + 2个蓝球",
     });
-  } else if (redMatch === 2 && blueMatch === 2) {
+  } else if (
+    (redMatch === 3 && blueMatch === 0) ||
+    (redMatch === 1 && blueMatch === 2) ||
+    (redMatch === 2 && blueMatch === 1) ||
+    (redMatch === 0 && blueMatch === 2)
+  ) {
     prizeLevels.push({
-      level: 5,
-      name: "五等奖",
-      redMatch: 2,
-      blueMatch: 2,
-      description: "4个红球 或 3个红球 + 1个蓝球 或 2个红球 + 2个蓝球",
-    });
-  } else if (redMatch === 3 && blueMatch === 0) {
-    prizeLevels.push({
-      level: 6,
-      name: "六等奖",
-      redMatch: 3,
-      blueMatch: 0,
-      description: "3个红球",
-    });
-  } else if (redMatch === 1 && blueMatch === 2) {
-    prizeLevels.push({
-      level: 6,
-      name: "六等奖",
-      redMatch: 1,
-      blueMatch: 2,
-      description: "3个红球 或 1个红球 + 2个蓝球",
-    });
-  } else if (redMatch === 2 && blueMatch === 1) {
-    prizeLevels.push({
-      level: 6,
-      name: "六等奖",
-      redMatch: 2,
-      blueMatch: 1,
-      description: "3个红球 或 1个红球 + 2个蓝球 或 2个红球 + 1个蓝球",
-    });
-  } else if (redMatch === 0 && blueMatch === 2) {
-    prizeLevels.push({
-      level: 6,
-      name: "六等奖",
-      redMatch: 0,
-      blueMatch: 2,
-      description: "3个红球 或 1个红球 + 2个蓝球 或 2个红球 + 1个蓝球 或 0个红球 + 2个蓝球",
+      level: 9,
+      name: "九等奖",
+      redMatch,
+      blueMatch,
+      description:
+        "3个红球 或 1个红球 + 2个蓝球 或 2个红球 + 1个蓝球 或 0个红球 + 2个蓝球",
     });
   }
 
@@ -297,4 +254,3 @@ export function checkWin(
     return checkDLTWin(ticketNumbers, openNumbers);
   }
 }
-
