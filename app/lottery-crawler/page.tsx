@@ -58,7 +58,6 @@ export default function LotteryCrawlerPage() {
     { enabled: !isSearching },
   );
   const mutation = trpc.ssq.fetchAndSave.useMutation();
-  const refreshAllMutation = trpc.ssq.refreshAll.useMutation();
 
   // 获取双色球激活的守号号码
   const { data: ticketData } = trpc.ticket.getList.useQuery({
@@ -133,25 +132,7 @@ export default function LotteryCrawlerPage() {
     }
   };
 
-  const handleRefreshAll = async () => {
-    setLoading(true);
-    setResult(null);
-    try {
-      const res = await refreshAllMutation.mutateAsync();
-      if (res.success) {
-        setResult(
-          `一键刷新成功，处理 ${res.count} 条数据（存在则更新，不存在则新增）。`,
-        );
-        refetch();
-      } else {
-        setResult("失败");
-      }
-    } catch (e) {
-      setResult(`请求异常: ${e instanceof Error ? e.message : String(e)}`);
-    } finally {
-      setLoading(false);
-    }
-  };
+
 
   const handleSearch = async () => {
     const numbers = parseSearchNumbers(searchInput);
@@ -313,13 +294,6 @@ export default function LotteryCrawlerPage() {
                   className="flex-1 h-12 px-6 rounded-xl bg-white text-black font-bold hover:bg-slate-200 disabled:opacity-50 transition-all shadow-xl active:scale-[0.98]"
                 >
                   {loading ? "正在抓取数据..." : "启动抓取任务"}
-                </button>
-                <button
-                  onClick={handleRefreshAll}
-                  disabled={loading}
-                  className="px-6 h-12 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold disabled:opacity-50 transition-all shadow-[0_0_20px_rgba(220,38,38,0.3)] active:scale-[0.98]"
-                >
-                  {loading ? "加载中" : "一键全量同步"}
                 </button>
               </div>
             </div>
@@ -595,29 +569,31 @@ export default function LotteryCrawlerPage() {
             </div>
             
             <div className="p-8 pt-4 space-y-4">
-              {selectedPrizeInfo?.prizeAmounts && selectedPrizeInfo.prizeAmounts.length > 0 ? (
-                <div className="space-y-3">
-                  {selectedPrizeInfo.prizeAmounts.map((prize: any, idx: number) => (
-                    <div key={idx} className="flex justify-between items-center p-5 bg-white/[0.03] rounded-[1.5rem] border border-white/5 hover:border-red-500/20 transition-colors group">
-                      <div className="space-y-1">
-                        <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">奖项能级</div>
-                        <div className="text-sm font-bold text-white group-hover:text-red-400 transition-colors tracking-tight">{prize.level}</div>
-                      </div>
-                      <div className="text-right space-y-1">
-                        <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">单注金额</div>
-                        <div className="text-xl font-black text-white tracking-tighter">
-                          {prize.amount ? `${parseInt(prize.amount).toLocaleString()}` : "待定"}
-                          <span className="text-[10px] text-slate-500 ml-1 font-bold">元</span>
+              <div className="max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar space-y-4">
+                {selectedPrizeInfo?.prizeAmounts && selectedPrizeInfo.prizeAmounts.length > 0 ? (
+                  <div className="space-y-3">
+                    {selectedPrizeInfo.prizeAmounts.map((prize: any, idx: number) => (
+                      <div key={idx} className="flex justify-between items-center p-5 bg-white/[0.03] rounded-[1.5rem] border border-white/5 hover:border-red-500/20 transition-colors group">
+                        <div className="space-y-1">
+                          <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">奖项能级</div>
+                          <div className="text-sm font-bold text-white group-hover:text-red-400 transition-colors tracking-tight">{prize.level}</div>
+                        </div>
+                        <div className="text-right space-y-1">
+                          <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">单注金额</div>
+                          <div className="text-xl font-black text-white tracking-tighter">
+                            {prize.amount ? `${parseInt(prize.amount).toLocaleString()}` : "待定"}
+                            <span className="text-[10px] text-slate-500 ml-1 font-bold">元</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="py-20 text-center rounded-[1.5rem] bg-white/[0.02] border border-white/5 border-dashed">
-                  <p className="text-slate-600 font-bold uppercase tracking-widest text-xs">暂无采集数据</p>
-                </div>
-              )}
+                    ))}
+                  </div>
+                ) : (
+                  <div className="py-20 text-center rounded-[1.5rem] bg-white/[0.02] border border-white/5 border-dashed">
+                    <p className="text-slate-600 font-bold uppercase tracking-widest text-xs">暂无采集数据</p>
+                  </div>
+                )}
+              </div>
               
               <button
                 onClick={() => setIsDialogOpen(false)}
