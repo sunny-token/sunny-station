@@ -20,24 +20,19 @@ import {
   Settings2, 
   ArrowLeft, 
   Download, 
-  Upload, 
   Plus, 
   Activity, 
   Mail, 
   Database,
-  Search,
   CheckCircle2,
   AlertCircle,
   FileSpreadsheet,
   Moon,
   Zap,
   Trash2,
-  Edit3,
-  ExternalLink,
-  ShieldCheck
+  Edit3
 } from "lucide-react";
 import { formatDate } from "../../lib/utils";
-import { Button } from "../../components/ui/button";
 import { useRouter } from "next/navigation";
 import { trpc } from "../../server/client";
 

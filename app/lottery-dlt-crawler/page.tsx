@@ -17,7 +17,6 @@ import {
   TableRow,
 } from "../../components/ui/table";
 import { formatDate } from "../../lib/utils";
-import { Button } from "../../components/ui/button";
 import { useRouter } from "next/navigation";
 import { trpc } from "../../server/client";
 import {
@@ -342,7 +341,7 @@ export default function DLTCrawlerPage() {
             <div className="p-6 rounded-[2rem] bg-gradient-to-br from-amber-500/20 to-emerald-500/20 border border-amber-500/20 backdrop-blur-xl">
               <h3 className="text-xs font-black text-amber-400 uppercase tracking-widest mb-4">系统反馈</h3>
               {result ? (
-                <p className="text-sm font-medium leading-relaxed italic text-amber-200">"{result}"</p>
+                <p className="text-sm font-medium leading-relaxed italic text-amber-200">“{result}”</p>
               ) : (
                 <p className="text-sm text-slate-500 italic">等待系统指令下达...</p>
               )}
@@ -505,7 +504,10 @@ export default function DLTCrawlerPage() {
                         className="rounded-xl hover:bg-white/10 text-white disabled:opacity-30"
                         onClick={() => {
                           const current = isSearching ? searchCurrentPage : currentPage;
-                          if (current > 1) isSearching ? handleSearchPageChange(current - 1) : handlePageChange(current - 1);
+                          if (current > 1) {
+                            if (isSearching) handleSearchPageChange(current - 1);
+                            else handlePageChange(current - 1);
+                          }
                         }}
                       />
                     </PaginationItem>
@@ -540,7 +542,10 @@ export default function DLTCrawlerPage() {
                         onClick={() => {
                           const current = isSearching ? searchCurrentPage : currentPage;
                           const total = isSearching ? searchTotalPages : totalPages;
-                          if (current < total) isSearching ? handleSearchPageChange(current + 1) : handlePageChange(current + 1);
+                          if (current < total) {
+                            if (isSearching) handleSearchPageChange(current + 1);
+                            else handlePageChange(current + 1);
+                          }
                         }}
                       />
                     </PaginationItem>
