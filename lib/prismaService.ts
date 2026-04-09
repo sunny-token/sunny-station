@@ -3,18 +3,29 @@
 
 import { PrismaClient } from "@prisma/client";
 
+const globalForPrisma = globalThis as unknown as {
+  prisma: PrismaClient | undefined;
+};
+
 class PrismaService {
   private static instance: PrismaService;
   private prisma: PrismaClient;
   private connectionTested: boolean = false;
 
   private constructor() {
-    // Prisma Client 会自动管理连接池，无需手动配置
-    // 对于 Supabase，确保使用 pooler 连接（端口 6543）
-    this.prisma = new PrismaClient({
-      log:
-        process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
-    });
+    // 在 Next.js 开发环境下使用全局实例，避免重复创建连接导致 pool 耗尽
+    this.prisma =
+      globalForPrisma.prisma ??
+      new PrismaClient({
+        log:
+          process.env.NODE_ENV === "development"
+            ? ["error", "warn"]
+            : ["error"],
+      });
+
+    if (process.env.NODE_ENV !== "production") {
+      globalForPrisma.prisma = this.prisma;
+    }
 
     // 在应用启动时测试连接（延迟执行，避免阻塞）
     // Prisma Client 使用懒加载连接，首次查询时才会建立连接
