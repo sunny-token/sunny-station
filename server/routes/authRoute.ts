@@ -5,15 +5,49 @@ import { hashPassword, verifyPassword, signToken } from "../../lib/auth";
 import { cookies } from "next/headers";
 import { TRPCError } from "@trpc/server";
 
+// 内存中的简易频率限制器 (生产环境建议使用 Redis)
+const rateLimitMap = new Map<string, { count: number; lastRequest: number }>();
+
 export const authRouter = router({
-  // 注册接口 (测试阶段开放，后续可改为仅 Admin 可创建)
+  // 注册接口 (包含频率限制和开关)
   register: publicProcedure
     .input(z.object({
       email: z.string().email("无效的邮箱格式"),
       password: z.string().min(6, "密码不能少于 6 位"),
       name: z.string().optional(),
     }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
+      // 1. 检查注册开关
+      const isRegistrationAllowed = process.env.ALLOW_REGISTRATION !== "false";
+      if (!isRegistrationAllowed) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "系统当前已关闭注册功能" });
+      }
+
+      // 2. 简易频率限制 (基于 IP)
+      const ip = ctx.ip;
+      const now = Date.now();
+      const limitWindow = 10 * 60 * 1000; // 10 分钟
+      const maxRequests = 3;
+
+      const userLimit = rateLimitMap.get(ip);
+      if (userLimit) {
+        if (now - userLimit.lastRequest < limitWindow) {
+          if (userLimit.count >= maxRequests) {
+            throw new TRPCError({ 
+              code: "TOO_MANY_REQUESTS", 
+              message: "请求过于频繁，请 10 分钟后再试" 
+            });
+          }
+          userLimit.count += 1;
+        } else {
+          // 重置窗口
+          userLimit.count = 1;
+          userLimit.lastRequest = now;
+        }
+      } else {
+        rateLimitMap.set(ip, { count: 1, lastRequest: now });
+      }
+
       const { email, password, name } = input;
       const prisma = prismaService.getPrismaClient();
       

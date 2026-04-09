@@ -3,14 +3,20 @@ import SuperJSON from "superjson";
 import { cookies } from "next/headers";
 import { verifyToken } from "../lib/auth";
 
-export const createContext = async () => {
+export const createContext = async (opts?: { req?: Request }) => {
   const cookieStore = await cookies();
   const token = cookieStore.get("auth_token")?.value;
+  
+  // 获取客户端 IP (用于频率限制)
+  const headersList = await (await import("next/headers")).headers();
+  const xForwardedFor = headersList.get("x-forwarded-for");
+  const ip = xForwardedFor ? xForwardedFor.split(",")[0] : "127.0.0.1";
+
   let user = null;
   if (token) {
     user = await verifyToken(token);
   }
-  return { user };
+  return { user, ip };
 };
 
 type Context = Awaited<ReturnType<typeof createContext>>;
