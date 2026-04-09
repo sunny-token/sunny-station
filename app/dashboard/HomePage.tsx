@@ -3,12 +3,21 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { trpc } from "@/server/client";
-import { Database, RefreshCw, Settings, CircleDot, Layers, ChevronRight, Activity } from "lucide-react";
+import { Database, RefreshCw, Settings, CircleDot, Layers, ChevronRight, Activity, LogOut } from "lucide-react";
 
 export default function HomePage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const refreshAllMutation = trpc.refreshAll.useMutation();
+
+  const { data: user } = trpc.auth.getMe.useQuery();
+  const isAdmin = user?.role === "ADMIN";
+
+  const logoutMutation = trpc.auth.logout.useMutation({
+    onSuccess: () => {
+      window.location.href = "/login";
+    }
+  });
 
   const handleRefreshAll = async () => {
     setLoading(true);
@@ -38,8 +47,19 @@ export default function HomePage() {
       <div className="text-center space-y-6 pt-10 pb-16 relative">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-indigo-500/20 blur-[120px] rounded-full pointer-events-none" />
         
-        <div className="relative z-10 inline-flex items-center justify-center p-4 mb-2 rounded-2xl bg-white/5 border border-white/10 shadow-[0_0_30px_rgba(99,102,241,0.2)] backdrop-blur-xl">
-          <Database className="w-10 h-10 text-indigo-400" />
+        <div className="relative z-10 flex items-center justify-between w-full px-4 md:px-0">
+          <div className="w-12 h-12" /> {/* Spacer for centering */}
+          <div className="inline-flex items-center justify-center p-4 mb-2 rounded-2xl bg-white/5 border border-white/10 shadow-[0_0_30px_rgba(99,102,241,0.2)] backdrop-blur-xl">
+            <Database className="w-10 h-10 text-indigo-400" />
+          </div>
+          <button
+              onClick={() => logoutMutation.mutate()}
+              disabled={logoutMutation.isPending}
+              className="group flex items-center justify-center w-12 h-12 rounded-2xl bg-white/5 border border-white/10 text-slate-400 hover:text-red-400 hover:bg-red-500/10 hover:border-red-500/20 transition-all duration-300 shadow-xl"
+              title="退出系统"
+            >
+              <LogOut className="w-5 h-5 group-hover:scale-110 transition-transform" />
+          </button>
         </div>
         
         <h1 className="relative z-10 text-5xl md:text-7xl font-semibold tracking-tight text-transparent bg-clip-text bg-gradient-to-br from-white via-white/90 to-white/40 pb-2">
@@ -107,41 +127,43 @@ export default function HomePage() {
       </div>
 
       {/* Global Actions Section */}
-      <div className="mt-8 relative z-10">
-        <div className="p-8 rounded-[2rem] bg-indigo-950/20 border border-indigo-500/20 backdrop-blur-md flex flex-col sm:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-5 w-full sm:w-auto">
-            <div className="p-3 bg-indigo-500/20 rounded-xl">
-              <Activity className="w-6 h-6 text-indigo-400" />
+      {isAdmin && (
+        <div className="mt-8 relative z-10">
+          <div className="p-8 rounded-[2rem] bg-indigo-950/20 border border-indigo-500/20 backdrop-blur-md flex flex-col sm:flex-row items-center justify-between gap-6">
+            <div className="flex items-center gap-5 w-full sm:w-auto">
+              <div className="p-3 bg-indigo-500/20 rounded-xl">
+                <Activity className="w-6 h-6 text-indigo-400" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-medium text-indigo-100 tracking-wide">全网数据聚合</h3>
+                <p className="text-sm text-indigo-300/60 font-light mt-0.5">一键触发所有站点的增量更新</p>
+              </div>
             </div>
-            <div className="flex-1">
-              <h3 className="text-lg font-medium text-indigo-100 tracking-wide">全网数据聚合</h3>
-              <p className="text-sm text-indigo-300/60 font-light mt-0.5">一键触发所有站点的增量更新</p>
-            </div>
+            
+            <Button
+              size="lg"
+              variant="default"
+              disabled={loading}
+              onClick={handleRefreshAll}
+              className="w-full sm:w-auto px-8 h-14 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white shadow-[0_0_20px_rgba(79,70,229,0.3)] hover:shadow-[0_0_30px_rgba(79,70,229,0.5)] transition-all duration-300 overflow-hidden relative group border-0 text-base font-medium tracking-wide"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-purple-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <span className="relative z-10 flex items-center gap-3">
+                <RefreshCw className={`w-5 h-5 ${loading ? "animate-spin" : ""}`} />
+                {loading ? "执行同步协议..." : "执行全局同步"}
+              </span>
+            </Button>
           </div>
-          
-          <Button
-            size="lg"
-            variant="default"
-            disabled={loading}
-            onClick={handleRefreshAll}
-            className="w-full sm:w-auto px-8 h-14 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white shadow-[0_0_20px_rgba(79,70,229,0.3)] hover:shadow-[0_0_30px_rgba(79,70,229,0.5)] transition-all duration-300 overflow-hidden relative group border-0 text-base font-medium tracking-wide"
-          >
-            <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-purple-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            <span className="relative z-10 flex items-center gap-3">
-              <RefreshCw className={`w-5 h-5 ${loading ? "animate-spin" : ""}`} />
-              {loading ? "执行同步协议..." : "执行全局同步"}
-            </span>
-          </Button>
-        </div>
-      </div>
 
-      {/* Result Toast/Alert */}
-      {result && (
-        <div className="mt-6 animate-in slide-in-from-bottom-4 fade-in duration-300 relative z-10">
-          <div className="p-4 px-6 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center gap-4">
-            <div className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse" />
-            <p className="text-indigo-200 font-light tracking-wide text-sm">{result}</p>
-          </div>
+          {/* Result Toast/Alert */}
+          {result && (
+            <div className="mt-6 animate-in slide-in-from-bottom-4 fade-in duration-300 relative z-10">
+              <div className="p-4 px-6 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center gap-4">
+                <div className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse" />
+                <p className="text-indigo-200 font-light tracking-wide text-sm">{result}</p>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

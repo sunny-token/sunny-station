@@ -16,13 +16,13 @@ import {
   TableHeader,
   TableRow,
 } from "../../components/ui/table";
-import { 
-  Settings2, 
-  ArrowLeft, 
-  Download, 
-  Plus, 
-  Activity, 
-  Mail, 
+import {
+  Settings2,
+  ArrowLeft,
+  Download,
+  Plus,
+  Activity,
+  Mail,
   Database,
   CheckCircle2,
   AlertCircle,
@@ -30,7 +30,8 @@ import {
   Moon,
   Zap,
   Trash2,
-  Edit3
+  Edit3,
+  LogOut,
 } from "lucide-react";
 import { formatDate } from "../../lib/utils";
 import { useRouter } from "next/navigation";
@@ -62,6 +63,10 @@ export default function SettingsPage() {
   const [emailAddress, setEmailAddress] = useState("");
   const [emailName, setEmailName] = useState("");
   const [emailIsActive, setEmailIsActive] = useState(true);
+
+  // 认证状态 hooks
+  const { data: user } = trpc.auth.getMe.useQuery();
+  const isAdmin = user?.role === "ADMIN";
 
   // 预设号码相关 hooks
   const {
@@ -95,6 +100,13 @@ export default function SettingsPage() {
   const createEmailMutation = trpc.email.create.useMutation();
   const updateEmailMutation = trpc.email.update.useMutation();
   const deleteEmailMutation = trpc.email.delete.useMutation();
+
+  const logoutMutation = trpc.auth.logout.useMutation({
+    onSuccess: () => {
+      router.push("/login");
+      router.refresh();
+    },
+  });
 
   useEffect(() => {
     if (ticketData?.data?.total) {
@@ -483,31 +495,52 @@ export default function SettingsPage() {
       {/* 氛围背景 */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_-20%,rgba(99,102,241,0.08),transparent_70%)]" />
-        <div className="absolute top-0 left-0 w-full h-full opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'radial-gradient(#ffffff 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
+        <div
+          className="absolute top-0 left-0 w-full h-full opacity-[0.03] pointer-events-none"
+          style={{
+            backgroundImage: "radial-gradient(#ffffff 1px, transparent 1px)",
+            backgroundSize: "40px 40px",
+          }}
+        />
       </div>
 
       <div className="relative z-10 w-full max-w-6xl mx-auto p-6 md:p-16 animate-in fade-in slide-in-from-bottom-12 duration-1000">
         {/* Navigation & Header */}
         <header className="mb-16 space-y-10">
-          <button
-            onClick={() => router.push("/")}
-            className="group flex items-center gap-3 px-5 py-2.5 rounded-2xl bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10 hover:border-white/20 transition-all duration-300 font-medium"
-          >
-            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-            <span className="text-sm tracking-tight">返回控制中心</span>
-          </button>
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => router.push("/")}
+              className="group flex items-center gap-3 px-5 py-2.5 rounded-2xl bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10 hover:border-white/20 transition-all duration-300 font-medium"
+            >
+              <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+              <span className="text-sm tracking-tight">返回控制中心</span>
+            </button>
+            <button
+              onClick={() => logoutMutation.mutate()}
+              disabled={logoutMutation.isPending}
+              className="group flex items-center gap-3 px-5 py-2.5 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 hover:text-white hover:bg-red-500 hover:border-red-500 transition-all duration-300 font-medium"
+            >
+              <span className="text-sm uppercase tracking-widest">
+                {logoutMutation.isPending ? "登出中..." : "安全登出"}
+              </span>
+              <LogOut className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </button>
+          </div>
 
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
             <div className="space-y-3">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[10px] uppercase tracking-[0.2em] font-black">
                 <Settings2 className="w-3 h-3" />
-                底层系统架构
+                系统配置中心
               </div>
               <h1 className="text-5xl md:text-6xl font-black tracking-tighter text-white">
-                核心运行 <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 via-violet-500 to-purple-500">配置参数</span>
+                全局{" "}
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 via-violet-500 to-purple-500">
+                  参数配置
+                </span>
               </h1>
               <p className="text-slate-500 text-lg font-light max-w-xl leading-relaxed">
-                管理全局干预逻辑、模型信标及其监听节点。此处的所有改动将实时同步至核心执行引擎。
+                管理全局号码监控策略、通知邮箱及其订阅状态。配置变更将实时同步至对奖核心。
               </p>
             </div>
           </div>
@@ -515,18 +548,22 @@ export default function SettingsPage() {
 
         {/* Global Feedback */}
         {result && (
-          <div className={`p-5 rounded-3xl mb-12 flex items-start gap-4 border backdrop-blur-3xl shadow-2xl animate-in zoom-in-95 duration-500 ${
-            result.includes("成功") || result.includes("完成")
-              ? "bg-emerald-500/5 border-emerald-500/20 text-emerald-400"
-              : "bg-red-500/5 border-red-500/20 text-red-400"
-          }`}>
+          <div
+            className={`p-5 rounded-3xl mb-12 flex items-start gap-4 border backdrop-blur-3xl shadow-2xl animate-in zoom-in-95 duration-500 ${
+              result.includes("成功") || result.includes("完成")
+                ? "bg-emerald-500/5 border-emerald-500/20 text-emerald-400"
+                : "bg-red-500/5 border-red-500/20 text-red-400"
+            }`}
+          >
             {result.includes("成功") || result.includes("完成") ? (
               <CheckCircle2 className="w-5 h-5 flex-shrink-0 mt-0.5" />
             ) : (
               <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
             )}
             <div className="space-y-1">
-              <p className="text-sm font-bold tracking-tight whitespace-pre-line leading-relaxed">{result}</p>
+              <p className="text-sm font-bold tracking-tight whitespace-pre-line leading-relaxed">
+                {result}
+              </p>
             </div>
           </div>
         )}
@@ -544,13 +581,19 @@ export default function SettingsPage() {
             {activeTab === "tickets" && (
               <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/10 via-transparent to-transparent opacity-50" />
             )}
-            <Zap className={`w-5 h-5 transition-transform duration-500 ${activeTab === "tickets" ? "scale-110" : "group-hover:scale-110"}`} />
+            <Zap
+              className={`w-5 h-5 transition-transform duration-500 ${activeTab === "tickets" ? "scale-110" : "group-hover:scale-110"}`}
+            />
             <div className="text-center">
-              <div className="text-sm font-black uppercase tracking-widest leading-none">干预模型</div>
-              <div className="text-[10px] font-medium opacity-50 uppercase tracking-tighter mt-1">干预策略模型</div>
+              <div className="text-sm font-black uppercase tracking-widest leading-none">
+                监控策略
+              </div>
+              <div className="text-[10px] font-medium opacity-50 uppercase tracking-tighter mt-1">
+                管理预设号码
+              </div>
             </div>
           </button>
-          
+
           <button
             onClick={() => setActiveTab("emails")}
             className={`group relative flex items-center justify-center gap-3 px-8 py-5 rounded-[1.75rem] transition-all duration-500 overflow-hidden ${
@@ -562,10 +605,16 @@ export default function SettingsPage() {
             {activeTab === "emails" && (
               <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/10 via-transparent to-transparent opacity-50" />
             )}
-            <Mail className={`w-5 h-5 transition-transform duration-500 ${activeTab === "emails" ? "scale-110" : "group-hover:scale-110"}`} />
+            <Mail
+              className={`w-5 h-5 transition-transform duration-500 ${activeTab === "emails" ? "scale-110" : "group-hover:scale-110"}`}
+            />
             <div className="text-center">
-              <div className="text-sm font-black uppercase tracking-widest leading-none">投递终端</div>
-              <div className="text-[10px] font-medium opacity-50 uppercase tracking-tighter mt-1">通知推送节点</div>
+              <div className="text-sm font-black uppercase tracking-widest leading-none">
+                通知配置
+              </div>
+              <div className="text-[10px] font-medium opacity-50 uppercase tracking-tighter mt-1">
+                邮件提醒设置
+              </div>
             </div>
           </button>
         </div>
@@ -579,101 +628,135 @@ export default function SettingsPage() {
                   <Database className="w-6 h-6" />
                 </div>
                 <div className="space-y-0.5">
-                  <h2 className="text-xl font-black tracking-tight text-white uppercase">活跃执行池</h2>
-                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">活跃执行池登记中心</p>
+                  <h2 className="text-xl font-black tracking-tight text-white uppercase">
+                    策略节点
+                  </h2>
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                    预设号码监控及对奖模型
+                  </p>
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-3">
-                <a
-                  href="/批量导入模板.xlsx"
-                  download
-                  className="group px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-slate-400 hover:text-white transition-all flex items-center gap-2"
-                >
-                  <Download className="w-4 h-4 group-hover:translate-y-0.5 transition-transform" />
-                  <span className="text-xs font-bold uppercase tracking-wider">下载导入规范</span>
-                </a>
-                
-                <div className="flex items-center bg-black/20 p-1.5 rounded-xl border border-white/[0.05]">
-                  <input
-                    id="import-file-input"
-                    type="file"
-                    accept=".xlsx,.xls,.csv"
-                    onChange={handleFileSelect}
-                    className="hidden"
-                  />
-                  <label
-                    htmlFor="import-file-input"
-                    className="px-4 py-2 text-xs font-bold uppercase tracking-widest bg-white/5 hover:bg-white/10 text-slate-300 rounded-lg transition-all cursor-pointer flex items-center gap-2 border border-white/5"
+              {isAdmin && (
+                <div className="flex flex-wrap items-center gap-3">
+                  <a
+                    href="/批量导入模板.xlsx"
+                    download
+                    className="group px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-slate-400 hover:text-white transition-all flex items-center gap-2"
                   >
-                    <FileSpreadsheet className="w-4 h-4" />
-                    选择规范文件
-                  </label>
-                  {importFile && (
-                    <div className="flex items-center gap-2 ml-2 animate-in slide-in-from-left-2">
-                      <span className="text-[10px] font-mono text-indigo-400 max-w-[120px] truncate">
-                        {importFile.name}
-                      </span>
-                      <button
-                        onClick={handleBatchImport}
-                        disabled={isImporting}
-                        className="px-4 py-2 text-[10px] font-black uppercase tracking-[0.2em] bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-all disabled:opacity-50 shadow-[0_0_15px_rgba(79,70,229,0.3)]"
-                      >
-                        {isImporting ? "正在同步" : "执行导入"}
-                      </button>
-                    </div>
-                  )}
-                </div>
+                    <Download className="w-4 h-4 group-hover:translate-y-0.5 transition-transform" />
+                    <span className="text-xs font-bold uppercase tracking-wider">
+                      下载模板
+                    </span>
+                  </a>
 
-                <button
-                  onClick={handleAddTicket}
-                  className="px-6 py-3 rounded-2xl bg-white text-black hover:bg-slate-200 transition-all shadow-xl flex items-center gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span className="text-sm font-black uppercase tracking-wider">增加策略节点</span>
-                </button>
-              </div>
+                  <div className="flex items-center bg-black/20 p-1.5 rounded-xl border border-white/[0.05]">
+                    <input
+                      id="import-file-input"
+                      type="file"
+                      accept=".xlsx,.xls,.csv"
+                      onChange={handleFileSelect}
+                      className="hidden"
+                    />
+                    <label
+                      htmlFor="import-file-input"
+                      className="px-4 py-2 text-xs font-bold uppercase tracking-widest bg-white/5 hover:bg-white/10 text-slate-300 rounded-lg transition-all cursor-pointer flex items-center gap-2 border border-white/5"
+                    >
+                      <FileSpreadsheet className="w-4 h-4" />
+                      选择文件
+                    </label>
+                    {importFile && (
+                      <div className="flex items-center gap-2 ml-2 animate-in slide-in-from-left-2">
+                        <span className="text-[10px] font-mono text-indigo-400 max-w-[120px] truncate">
+                          {importFile.name}
+                        </span>
+                        <button
+                          onClick={handleBatchImport}
+                          disabled={isImporting}
+                          className="px-4 py-2 text-[10px] font-black uppercase tracking-[0.2em] bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-all disabled:opacity-50 shadow-[0_0_15px_rgba(79,70,229,0.3)]"
+                        >
+                          {isImporting ? "正在同步" : "执行导入"}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={handleAddTicket}
+                    className="px-6 py-3 rounded-2xl bg-white text-black hover:bg-slate-200 transition-all shadow-xl flex items-center gap-2"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span className="text-sm font-black uppercase tracking-wider">
+                      新增监控策略
+                    </span>
+                  </button>
+                </div>
+              )}
             </div>
 
             {showTicketForm && (
               <div className="p-8 lg:p-12 rounded-[3.5rem] bg-white/[0.03] border border-white/[0.08] backdrop-blur-3xl shadow-[0_0_100px_rgba(0,0,0,0.5)] animate-in slide-in-from-top-6 duration-700 relative group overflow-hidden">
-                 <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-500/5 blur-[120px] rounded-full -mr-32 -mt-32 pointer-events-none" />
-                 
-                 <div className="relative z-10 space-y-12">
+                <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-500/5 blur-[120px] rounded-full -mr-32 -mt-32 pointer-events-none" />
+
+                <div className="relative z-10 space-y-12">
                   <div className="flex items-center justify-between border-b border-white/5 pb-8">
                     <div className="space-y-1">
                       <h3 className="text-3xl font-black tracking-tighter text-white uppercase italic">
-                        {editingTicket ? "重构策略模型" : "新建策略节点"}
+                        {editingTicket ? "编辑策略信息" : "新增号码策略"}
                       </h3>
-                      <p className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.4em]">策略配置子系统</p>
+                      <p className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.4em]">
+                        监控配置管理
+                      </p>
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
-                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">系统链路激活</span>
+                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                        系统链路激活
+                      </span>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
                     <div className="space-y-8">
                       <div className="space-y-3">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block px-1">数据路由 - 数据中心</label>
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block px-1">
+                          彩票类型
+                        </label>
                         <select
                           value={ticketLotteryType}
                           onChange={(e) => {
                             const newType = e.target.value as "ssq" | "dlt";
                             setTicketLotteryType(newType);
-                            setTicketRedNumbers(newType === "ssq" ? ["", "", "", "", "", ""] : ["", "", "", "", ""]);
-                            setTicketBlueNumbers(newType === "ssq" ? [""] : ["", ""]);
+                            setTicketRedNumbers(
+                              newType === "ssq"
+                                ? ["", "", "", "", "", ""]
+                                : ["", "", "", "", ""],
+                            );
+                            setTicketBlueNumbers(
+                              newType === "ssq" ? [""] : ["", ""],
+                            );
                           }}
                           className="w-full h-14 px-6 rounded-2xl bg-black/40 border border-white/10 text-white outline-none focus:border-indigo-500 hover:bg-black/60 transition-all appearance-none cursor-pointer font-bold tracking-tight"
                         >
-                          <option value="ssq" className="bg-slate-900 px-4 py-2">双色球 - 代理链路激活</option>
-                          <option value="dlt" className="bg-slate-900 px-4 py-2">大乐透 - 代理链路激活</option>
+                          <option
+                            value="ssq"
+                            className="bg-slate-900 px-4 py-2"
+                          >
+                            双色球 (Standard Edition)
+                          </option>
+                          <option
+                            value="dlt"
+                            className="bg-slate-900 px-4 py-2"
+                          >
+                            大乐透 (Super Lotto)
+                          </option>
                         </select>
                       </div>
 
                       <div className="space-y-3">
-                         <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block px-1">信标标识 - 节点 ID</label>
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block px-1">
+                          策略名称 / 备注
+                        </label>
                         <input
                           type="text"
                           value={ticketName}
@@ -686,14 +769,29 @@ export default function SettingsPage() {
                       <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5 space-y-4">
                         <div className="flex items-center justify-between">
                           <div className="space-y-1">
-                            <div className="text-xs font-black text-white uppercase tracking-wider">周期性监听协议</div>
-                            <div className="text-[9px] text-slate-500 font-medium tracking-tight uppercase">持续自动同步协议</div>
+                            <div className="text-xs font-black text-white uppercase tracking-wider">
+                              启用号码监控
+                            </div>
+                            <div className="text-[9px] text-slate-500 font-medium tracking-tight uppercase">
+                              开奖后由对奖引擎自动计算匹配结果
+                            </div>
                           </div>
                           <label className="flex items-center cursor-pointer">
-                            <div className={`w-14 h-7 flex items-center rounded-full transition-all duration-500 ${ticketIsActive ? 'bg-indigo-600 shadow-[0_0_20px_rgba(79,70,229,0.4)]' : 'bg-slate-800'}`}>
-                              <div className={`w-5 h-5 bg-white rounded-full transition-transform duration-500 transform mx-1 shadow-2xl ${ticketIsActive ? 'translate-x-[28px]' : 'translate-x-0'}`} />
+                            <div
+                              className={`w-14 h-7 flex items-center rounded-full transition-all duration-500 ${ticketIsActive ? "bg-indigo-600 shadow-[0_0_20px_rgba(79,70,229,0.4)]" : "bg-slate-800"}`}
+                            >
+                              <div
+                                className={`w-5 h-5 bg-white rounded-full transition-transform duration-500 transform mx-1 shadow-2xl ${ticketIsActive ? "translate-x-[28px]" : "translate-x-0"}`}
+                              />
                             </div>
-                            <input type="checkbox" checked={ticketIsActive} onChange={(e) => setTicketIsActive(e.target.checked)} className="hidden" />
+                            <input
+                              type="checkbox"
+                              checked={ticketIsActive}
+                              onChange={(e) =>
+                                setTicketIsActive(e.target.checked)
+                              }
+                              className="hidden"
+                            />
                           </label>
                         </div>
                       </div>
@@ -702,8 +800,13 @@ export default function SettingsPage() {
                     <div className="space-y-10">
                       <div className="space-y-4">
                         <div className="flex items-baseline justify-between px-1">
-                          <label className="text-[10px] font-black text-red-500 uppercase tracking-[0.2em]">红球矩阵 - 原始数据</label>
-                          <div className="text-[9px] font-mono text-slate-600">输入范围: {ticketLotteryType === "ssq" ? "01-33" : "01-35"}</div>
+                          <label className="text-[10px] font-black text-red-500 uppercase tracking-[0.2em]">
+                            红球号码
+                          </label>
+                          <div className="text-[9px] font-mono text-slate-600">
+                            范围:{" "}
+                            {ticketLotteryType === "ssq" ? "01-33" : "01-35"}
+                          </div>
                         </div>
                         <div className="grid grid-cols-6 gap-2">
                           {ticketRedNumbers.map((num, idx) => (
@@ -727,8 +830,13 @@ export default function SettingsPage() {
 
                       <div className="space-y-4">
                         <div className="flex items-baseline justify-between px-1">
-                          <label className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em]">蓝球矩阵 - 原始数据</label>
-                          <div className="text-[9px] font-mono text-slate-600">输入范围: {ticketLotteryType === "ssq" ? "01-16" : "01-12"}</div>
+                          <label className="text-[10px] font-black text-blue-500 uppercase tracking-[0.2em]">
+                            蓝球号码
+                          </label>
+                          <div className="text-[9px] font-mono text-slate-600">
+                            范围:{" "}
+                            {ticketLotteryType === "ssq" ? "01-16" : "01-12"}
+                          </div>
                         </div>
                         <div className="flex gap-2">
                           {ticketBlueNumbers.map((num, idx) => (
@@ -744,7 +852,7 @@ export default function SettingsPage() {
                                 setTicketBlueNumbers(newNums);
                               }}
                               placeholder="--"
-                              className="w-14 h-14 text-center rounded-2xl bg-indigo-500/5 border border-indigo-500/10 text-indigo-400 font-black text-xl outline-none focus:bg-indigo-500/15 focus:border-indigo-500/40 transition-all placeholder:opacity-20"
+                              className="w-14 h-14 text-center rounded-2xl bg-blue-500/5 border border-blue-500/10 text-blue-400 font-black text-xl outline-none focus:bg-blue-500/15 focus:border-blue-500/40 transition-all placeholder:opacity-20"
                             />
                           ))}
                         </div>
@@ -755,16 +863,25 @@ export default function SettingsPage() {
                   <div className="flex flex-col sm:flex-row gap-4 pt-10 border-t border-white/5">
                     <button
                       onClick={handleSaveTicket}
-                      disabled={createTicketMutation.isPending || updateTicketMutation.isPending}
+                      disabled={
+                        createTicketMutation.isPending ||
+                        updateTicketMutation.isPending
+                      }
                       className="flex-1 h-16 rounded-[1.25rem] bg-white text-black font-black text-sm uppercase tracking-[0.2em] hover:bg-slate-200 transition-all shadow-xl active:scale-[0.98] disabled:opacity-50"
                     >
-                      {createTicketMutation.isPending || updateTicketMutation.isPending ? "正在下发指令..." : "同步至核心引擎"}
+                      {createTicketMutation.isPending ||
+                      updateTicketMutation.isPending
+                        ? "正在保存..."
+                        : "保存监控策略"}
                     </button>
                     <button
-                      onClick={() => { setShowTicketForm(false); setEditingTicket(null); }}
+                      onClick={() => {
+                        setShowTicketForm(false);
+                        setEditingTicket(null);
+                      }}
                       className="flex-1 h-16 rounded-[1.25rem] bg-white/5 border border-white/10 text-slate-400 hover:text-white font-black text-sm uppercase tracking-[0.2em] hover:bg-white/10 transition-all active:scale-[0.98]"
                     >
-                      中止当前操作
+                      取消操作
                     </button>
                   </div>
                 </div>
@@ -774,7 +891,9 @@ export default function SettingsPage() {
             {/* 列表显示 */}
             <div className="space-y-12">
               {ticketLoading ? (
-                <div className="flex items-center justify-center py-24 text-slate-500 font-black uppercase tracking-[0.3em] animate-pulse">正在初始化数据流...</div>
+                <div className="flex items-center justify-center py-24 text-slate-500 font-black uppercase tracking-[0.3em] animate-pulse">
+                  正在加载数据...
+                </div>
               ) : (
                 <>
                   {/* 双色球 */}
@@ -782,59 +901,113 @@ export default function SettingsPage() {
                     <div className="space-y-6">
                       <div className="flex items-center gap-3 px-2">
                         <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-red-500/20 to-transparent" />
-                        <div className="text-[10px] font-black text-red-500/60 uppercase tracking-[0.4em]">双色球策略集群</div>
+                        <div className="text-[10px] font-black text-red-500/60 uppercase tracking-[0.4em]">
+                          双色球监控节点
+                        </div>
                         <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-red-500/20 to-transparent" />
                       </div>
-                      
+
                       <div className="rounded-[2.5rem] bg-white/[0.01] border border-white/[0.06] overflow-hidden backdrop-blur-3xl shadow-2xl">
                         <Table>
                           <TableHeader className="bg-white/[0.02]">
                             <TableRow className="border-white/[0.05] hover:bg-transparent">
-                              <TableHead className="py-6 px-8 text-[10px] font-black text-slate-500 uppercase tracking-widest">信标模型</TableHead>
-                              <TableHead className="py-6 px-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">干预矩阵 (RED/BLUE)</TableHead>
-                              <TableHead className="py-6 px-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">监听状态</TableHead>
-                              <TableHead className="py-6 px-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">建立时间</TableHead>
-                              <TableHead className="py-6 px-8 text-right text-[10px] font-black text-slate-500 uppercase tracking-widest">操作终端</TableHead>
+                              <TableHead className="py-6 px-8 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                策略名称
+                              </TableHead>
+                              <TableHead className="py-6 px-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                号码组合
+                              </TableHead>
+                              <TableHead className="py-6 px-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                状态
+                              </TableHead>
+                              <TableHead className="py-6 px-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                创建时间
+                              </TableHead>
+                              <TableHead className="py-6 px-8 text-right text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                操作
+                              </TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
                             {groupedTickets.ssq.map((ticket: any) => (
-                              <TableRow key={ticket.id} className="border-white/[0.04] hover:bg-white/[0.02] transition-colors group">
+                              <TableRow
+                                key={ticket.id}
+                                className="border-white/[0.04] hover:bg-white/[0.02] transition-colors group"
+                              >
                                 <TableCell className="py-6 px-8">
-                                  <span className="font-bold text-white tracking-tight">{ticket.name}</span>
+                                  <span className="font-bold text-white tracking-tight">
+                                    {ticket.name}
+                                  </span>
                                 </TableCell>
                                 <TableCell className="py-6 px-4">
                                   <div className="flex items-center gap-2">
-                                    {ticket.numbers.red.map((num: string, idx: number) => (
-                                      <div key={idx} className="w-8 h-8 rounded-lg bg-red-500/10 border border-red-500/10 flex items-center justify-center text-[10px] font-black text-red-500 group-hover:bg-red-500 group-hover:text-white transition-all duration-300 shadow-[0_0_10px_rgba(239,68,68,0.1)]">
-                                        {num}
-                                      </div>
-                                    ))}
+                                    {ticket.numbers.red.map(
+                                      (num: string, idx: number) => (
+                                        <div
+                                          key={idx}
+                                          className="w-8 h-8 rounded-lg bg-red-500/10 border border-red-500/10 flex items-center justify-center text-[10px] font-black text-red-500 group-hover:bg-red-500 group-hover:text-white transition-all duration-300 shadow-[0_0_10px_rgba(239,68,68,0.1)]"
+                                        >
+                                          {num}
+                                        </div>
+                                      ),
+                                    )}
                                     <div className="w-[1px] h-6 bg-white/10 mx-1" />
-                                    {ticket.numbers.blue.map((num: string, idx: number) => (
-                                      <div key={idx} className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/10 flex items-center justify-center text-[10px] font-black text-indigo-400 group-hover:bg-indigo-500 group-hover:text-white transition-all duration-300 shadow-[0_0_10px_rgba(99,102,241,0.1)]">
-                                        {num}
-                                      </div>
-                                    ))}
+                                    {ticket.numbers.blue.map(
+                                      (num: string, idx: number) => (
+                                        <div
+                                          key={idx}
+                                          className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/10 flex items-center justify-center text-[10px] font-black text-indigo-400 group-hover:bg-indigo-500 group-hover:text-white transition-all duration-300 shadow-[0_0_10px_rgba(99,102,241,0.1)]"
+                                        >
+                                          {num}
+                                        </div>
+                                      ),
+                                    )}
                                   </div>
                                 </TableCell>
                                 <TableCell className="py-6 px-4">
-                                  <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border transition-colors ${
-                                    ticket.isActive ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-white/5 text-slate-600 border-white/5"
-                                  }`}>
-                                    <div className={`w-1.5 h-1.5 rounded-full ${ticket.isActive ? "bg-emerald-400 animate-pulse" : "bg-slate-700"}`} />
-                                    {ticket.isActive ? "激活" : "待命"}
+                                  <div
+                                    className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border transition-colors ${
+                                      ticket.isActive
+                                        ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                        : "bg-white/5 text-slate-600 border-white/5"
+                                    }`}
+                                  >
+                                    <div
+                                      className={`w-1.5 h-1.5 rounded-full ${ticket.isActive ? "bg-emerald-400 animate-pulse" : "bg-slate-700"}`}
+                                    />
+                                    {ticket.isActive ? "已启用" : "已禁用"}
                                   </div>
                                 </TableCell>
                                 <TableCell className="py-6 px-4 font-mono text-[10px] text-slate-500 tracking-tighter">
                                   {formatDate(ticket.createdAt)}
                                 </TableCell>
                                 <TableCell className="py-6 px-8 text-right">
-                                  <div className="flex justify-end gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <button onClick={() => handleEditTicket(ticket)} className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-indigo-600 hover:border-indigo-600 transition-all active:scale-[0.9]"><Edit3 className="w-4 h-4" /></button>
-                                    <button onClick={() => handleToggleTicketActive(ticket)} className={`p-2.5 rounded-xl bg-white/5 border border-white/10 transition-all active:scale-[0.9] ${ticket.isActive ? "text-amber-400 hover:bg-amber-600 hover:text-white hover:border-amber-600" : "text-emerald-400 hover:bg-emerald-600 hover:text-white hover:border-emerald-600"}`}><Zap className="w-4 h-4" /></button>
-                                    <button onClick={() => handleDeleteTicket(ticket.id)} className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-500 hover:text-white hover:bg-red-600 hover:border-red-600 transition-all active:scale-[0.9]"><Trash2 className="w-4 h-4" /></button>
-                                  </div>
+                                  {isAdmin && (
+                                    <div className="flex justify-end gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <button
+                                        onClick={() => handleEditTicket(ticket)}
+                                        className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-indigo-600 hover:border-indigo-600 transition-all active:scale-[0.9]"
+                                      >
+                                        <Edit3 className="w-4 h-4" />
+                                      </button>
+                                      <button
+                                        onClick={() =>
+                                          handleToggleTicketActive(ticket)
+                                        }
+                                        className={`p-2.5 rounded-xl bg-white/5 border border-white/10 transition-all active:scale-[0.9] ${ticket.isActive ? "text-amber-400 hover:bg-amber-600 hover:text-white hover:border-amber-600" : "text-emerald-400 hover:bg-emerald-600 hover:text-white hover:border-emerald-600"}`}
+                                      >
+                                        <Zap className="w-4 h-4" />
+                                      </button>
+                                      <button
+                                        onClick={() =>
+                                          handleDeleteTicket(ticket.id)
+                                        }
+                                        className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-500 hover:text-white hover:bg-red-600 hover:border-red-600 transition-all active:scale-[0.9]"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </button>
+                                    </div>
+                                  )}
                                 </TableCell>
                               </TableRow>
                             ))}
@@ -849,59 +1022,113 @@ export default function SettingsPage() {
                     <div className="space-y-6">
                       <div className="flex items-center gap-3 px-2">
                         <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-amber-500/20 to-transparent" />
-                        <div className="text-[10px] font-black text-amber-500/60 uppercase tracking-[0.4em]">大乐透策略集群</div>
+                        <div className="text-[10px] font-black text-amber-500/60 uppercase tracking-[0.4em]">
+                          大乐透监控节点
+                        </div>
                         <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-amber-500/20 to-transparent" />
                       </div>
-                      
+
                       <div className="rounded-[2.5rem] bg-white/[0.01] border border-white/[0.06] overflow-hidden backdrop-blur-3xl shadow-2xl">
                         <Table>
                           <TableHeader className="bg-white/[0.02]">
                             <TableRow className="border-white/[0.05] hover:bg-transparent">
-                              <TableHead className="py-6 px-8 text-[10px] font-black text-slate-500 uppercase tracking-widest">信标模型</TableHead>
-                              <TableHead className="py-6 px-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">干预矩阵 (RED/BLUE)</TableHead>
-                              <TableHead className="py-6 px-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">监听状态</TableHead>
-                              <TableHead className="py-6 px-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">建立时间</TableHead>
-                              <TableHead className="py-6 px-8 text-right text-[10px] font-black text-slate-500 uppercase tracking-widest">操作终端</TableHead>
+                              <TableHead className="py-6 px-8 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                策略名称
+                              </TableHead>
+                              <TableHead className="py-6 px-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                号码组合
+                              </TableHead>
+                              <TableHead className="py-6 px-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                状态
+                              </TableHead>
+                              <TableHead className="py-6 px-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                创建时间
+                              </TableHead>
+                              <TableHead className="py-6 px-8 text-right text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                操作
+                              </TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
                             {groupedTickets.dlt.map((ticket: any) => (
-                              <TableRow key={ticket.id} className="border-white/[0.04] hover:bg-white/[0.02] transition-colors group">
+                              <TableRow
+                                key={ticket.id}
+                                className="border-white/[0.04] hover:bg-white/[0.02] transition-colors group"
+                              >
                                 <TableCell className="py-6 px-8">
-                                  <span className="font-bold text-white tracking-tight">{ticket.name}</span>
+                                  <span className="font-bold text-white tracking-tight">
+                                    {ticket.name}
+                                  </span>
                                 </TableCell>
                                 <TableCell className="py-6 px-4">
                                   <div className="flex items-center gap-2">
-                                    {ticket.numbers.red.map((num: string, idx: number) => (
-                                      <div key={idx} className="w-8 h-8 rounded-lg bg-orange-500/10 border border-orange-500/10 flex items-center justify-center text-[10px] font-black text-orange-500 group-hover:bg-orange-500 group-hover:text-white transition-all duration-300 shadow-[0_0_10px_rgba(249,115,22,0.1)]">
-                                        {num}
-                                      </div>
-                                    ))}
+                                    {ticket.numbers.red.map(
+                                      (num: string, idx: number) => (
+                                        <div
+                                          key={idx}
+                                          className="w-8 h-8 rounded-lg bg-orange-500/10 border border-orange-500/10 flex items-center justify-center text-[10px] font-black text-orange-500 group-hover:bg-orange-500 group-hover:text-white transition-all duration-300 shadow-[0_0_10px_rgba(249,115,22,0.1)]"
+                                        >
+                                          {num}
+                                        </div>
+                                      ),
+                                    )}
                                     <div className="w-[1px] h-6 bg-white/10 mx-1" />
-                                    {ticket.numbers.blue.map((num: string, idx: number) => (
-                                      <div key={idx} className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/10 flex items-center justify-center text-[10px] font-black text-emerald-400 group-hover:bg-emerald-500 group-hover:text-white transition-all duration-300 shadow-[0_0_10px_rgba(16,185,129,0.1)]">
-                                        {num}
-                                      </div>
-                                    ))}
+                                    {ticket.numbers.blue.map(
+                                      (num: string, idx: number) => (
+                                        <div
+                                          key={idx}
+                                          className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/10 flex items-center justify-center text-[10px] font-black text-emerald-400 group-hover:bg-emerald-500 group-hover:text-white transition-all duration-300 shadow-[0_0_10px_rgba(16,185,129,0.1)]"
+                                        >
+                                          {num}
+                                        </div>
+                                      ),
+                                    )}
                                   </div>
                                 </TableCell>
                                 <TableCell className="py-6 px-4">
-                                  <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border transition-colors ${
-                                    ticket.isActive ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-white/5 text-slate-600 border-white/5"
-                                  }`}>
-                                    <div className={`w-1.5 h-1.5 rounded-full ${ticket.isActive ? "bg-emerald-400 animate-pulse" : "bg-slate-700"}`} />
-                                    {ticket.isActive ? "ACTIVE" : "STANDBY"}
+                                  <div
+                                    className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border transition-colors ${
+                                      ticket.isActive
+                                        ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                        : "bg-white/5 text-slate-600 border-white/5"
+                                    }`}
+                                  >
+                                    <div
+                                      className={`w-1.5 h-1.5 rounded-full ${ticket.isActive ? "bg-emerald-400 animate-pulse" : "bg-slate-700"}`}
+                                    />
+                                    {ticket.isActive ? "已启用" : "已禁用"}
                                   </div>
                                 </TableCell>
                                 <TableCell className="py-6 px-4 font-mono text-[10px] text-slate-500 tracking-tighter">
                                   {formatDate(ticket.createdAt)}
                                 </TableCell>
                                 <TableCell className="py-6 px-8 text-right">
-                                  <div className="flex justify-end gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <button onClick={() => handleEditTicket(ticket)} className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-indigo-600 hover:border-indigo-600 transition-all active:scale-[0.9]"><Edit3 className="w-4 h-4" /></button>
-                                    <button onClick={() => handleToggleTicketActive(ticket)} className={`p-2.5 rounded-xl bg-white/5 border border-white/10 transition-all active:scale-[0.9] ${ticket.isActive ? "text-amber-400 hover:bg-amber-600 hover:text-white hover:border-amber-600" : "text-emerald-400 hover:bg-emerald-600 hover:text-white hover:border-emerald-600"}`}><Zap className="w-4 h-4" /></button>
-                                    <button onClick={() => handleDeleteTicket(ticket.id)} className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-500 hover:text-white hover:bg-red-600 hover:border-red-600 transition-all active:scale-[0.9]"><Trash2 className="w-4 h-4" /></button>
-                                  </div>
+                                  {isAdmin && (
+                                    <div className="flex justify-end gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <button
+                                        onClick={() => handleEditTicket(ticket)}
+                                        className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-indigo-600 hover:border-indigo-600 transition-all active:scale-[0.9]"
+                                      >
+                                        <Edit3 className="w-4 h-4" />
+                                      </button>
+                                      <button
+                                        onClick={() =>
+                                          handleToggleTicketActive(ticket)
+                                        }
+                                        className={`p-2.5 rounded-xl bg-white/5 border border-white/10 transition-all active:scale-[0.9] ${ticket.isActive ? "text-amber-400 hover:bg-amber-600 hover:text-white hover:border-amber-600" : "text-emerald-400 hover:bg-emerald-600 hover:text-white hover:border-emerald-600"}`}
+                                      >
+                                        <Zap className="w-4 h-4" />
+                                      </button>
+                                      <button
+                                        onClick={() =>
+                                          handleDeleteTicket(ticket.id)
+                                        }
+                                        className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-500 hover:text-white hover:bg-red-600 hover:border-red-600 transition-all active:scale-[0.9]"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </button>
+                                    </div>
+                                  )}
                                 </TableCell>
                               </TableRow>
                             ))}
@@ -912,14 +1139,19 @@ export default function SettingsPage() {
                   )}
 
                   {/* 空状态 */}
-                  {groupedTickets.ssq.length === 0 && groupedTickets.dlt.length === 0 && (
+                  {groupedTickets.ssq.length === 0 &&
+                    groupedTickets.dlt.length === 0 && (
                       <div className="py-32 text-center bg-white/[0.01] border border-white/[0.05] border-dashed rounded-[3rem]">
                         <Activity className="w-12 h-12 text-slate-800 mx-auto mb-6" />
-                        <p className="text-slate-500 font-black uppercase tracking-[0.3em] text-sm mb-2">零节点检测</p>
-                        <p className="text-slate-600 text-xs text-center">当前集群内未发现活跃的干预模型，请先建立首个监控节点。</p>
+                        <p className="text-slate-500 font-black uppercase tracking-[0.3em] text-sm mb-2">
+                          暂无监控策略
+                        </p>
+                        <p className="text-slate-600 text-xs text-center">
+                          当前尚未配置号码监控节点。点击上方按钮开始守号。
+                        </p>
                       </div>
                     )}
-                  
+
                   {ticketTotalPages > 1 && (
                     <div className="flex justify-center pt-12">
                       <Pagination>
@@ -927,15 +1159,34 @@ export default function SettingsPage() {
                           <PaginationItem>
                             <PaginationPrevious
                               className="rounded-xl hover:bg-white/10 text-white disabled:opacity-30"
-                              onClick={() => { if (ticketPage > 1) setTicketPage(ticketPage - 1); }}
-                              style={{ cursor: ticketPage > 1 ? "pointer" : "not-allowed" }}
+                              onClick={() => {
+                                if (ticketPage > 1)
+                                  setTicketPage(ticketPage - 1);
+                              }}
+                              style={{
+                                cursor:
+                                  ticketPage > 1 ? "pointer" : "not-allowed",
+                              }}
                             />
                           </PaginationItem>
-                          {Array.from({ length: ticketTotalPages }, (_, i) => i + 1)
-                            .filter((page) => page === 1 || page === ticketTotalPages || (page >= ticketPage - 1 && page <= ticketPage + 1))
+                          {Array.from(
+                            { length: ticketTotalPages },
+                            (_, i) => i + 1,
+                          )
+                            .filter(
+                              (page) =>
+                                page === 1 ||
+                                page === ticketTotalPages ||
+                                (page >= ticketPage - 1 &&
+                                  page <= ticketPage + 1),
+                            )
                             .map((page, idx, arr) => (
                               <div key={page} className="flex items-center">
-                                {idx > 0 && arr[idx-1] !== page - 1 && <span className="text-slate-700 px-2 font-black pb-1">...</span>}
+                                {idx > 0 && arr[idx - 1] !== page - 1 && (
+                                  <span className="text-slate-700 px-2 font-black pb-1">
+                                    ...
+                                  </span>
+                                )}
                                 <PaginationItem>
                                   <PaginationLink
                                     className={`w-10 h-10 rounded-xl transition-all font-black text-xs ${ticketPage === page ? "bg-white text-black hover:bg-white shadow-xl" : "text-slate-500 hover:bg-white/10 hover:text-white"}`}
@@ -949,8 +1200,16 @@ export default function SettingsPage() {
                           <PaginationItem>
                             <PaginationNext
                               className="rounded-xl hover:bg-white/10 text-white disabled:opacity-30"
-                              onClick={() => { if (ticketPage < ticketTotalPages) setTicketPage(ticketPage + 1); }}
-                              style={{ cursor: ticketPage < ticketTotalPages ? "pointer" : "not-allowed" }}
+                              onClick={() => {
+                                if (ticketPage < ticketTotalPages)
+                                  setTicketPage(ticketPage + 1);
+                              }}
+                              style={{
+                                cursor:
+                                  ticketPage < ticketTotalPages
+                                    ? "pointer"
+                                    : "not-allowed",
+                              }}
                             />
                           </PaginationItem>
                         </PaginationContent>
@@ -972,8 +1231,12 @@ export default function SettingsPage() {
                   <Mail className="w-6 h-6" />
                 </div>
                 <div className="space-y-0.5">
-                  <h2 className="text-xl font-black tracking-tight text-white uppercase">投递终端 登记中心</h2>
-                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">通知推送终端资产池</p>
+                  <h2 className="text-xl font-black tracking-tight text-white uppercase">
+                    通知订阅列表
+                  </h2>
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                    接收推送通知的投递节点
+                  </p>
                 </div>
               </div>
 
@@ -982,31 +1245,39 @@ export default function SettingsPage() {
                 className="px-6 py-3 rounded-2xl bg-white text-black hover:bg-slate-200 transition-all shadow-xl flex items-center gap-2 ml-auto"
               >
                 <Plus className="w-4 h-4" />
-                <span className="text-sm font-black uppercase tracking-wider">挂载投递节点</span>
+                <span className="text-sm font-black uppercase tracking-wider">
+                  新增通知地址
+                </span>
               </button>
             </div>
 
             {showEmailForm && (
               <div className="p-8 lg:p-12 rounded-[3.5rem] bg-white/[0.03] border border-white/[0.08] backdrop-blur-3xl shadow-[0_0_100px_rgba(0,0,0,0.5)] animate-in slide-in-from-top-6 duration-700 relative group overflow-hidden">
                 <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-emerald-500/5 blur-[120px] rounded-full -mr-32 -mt-32 pointer-events-none" />
-                
+
                 <div className="relative z-10 space-y-12">
-                   <div className="flex items-center justify-between border-b border-white/5 pb-8">
+                  <div className="flex items-center justify-between border-b border-white/5 pb-8">
                     <div className="space-y-1">
                       <h3 className="text-3xl font-black tracking-tighter text-white uppercase italic">
-                        {editingEmail ? "维护投递终端" : "建立投递链路"}
+                        {editingEmail ? "编辑通知信息" : "添加通知地址"}
                       </h3>
-                      <p className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.4em]">邮件调度配置系统</p>
+                      <p className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.4em]">
+                        邮件通知配置
+                      </p>
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">节点在线</span>
+                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                        系统状态正常
+                      </span>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                     <div className="space-y-3">
-                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block px-1">终端地址 - 节点通讯录</label>
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block px-1">
+                        收件邮箱
+                      </label>
                       <input
                         type="email"
                         value={emailAddress}
@@ -1016,7 +1287,9 @@ export default function SettingsPage() {
                       />
                     </div>
                     <div className="space-y-3">
-                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block px-1">终端信标 - 资产标签</label>
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block px-1">
+                        备注名称
+                      </label>
                       <input
                         type="text"
                         value={emailName}
@@ -1029,30 +1302,52 @@ export default function SettingsPage() {
 
                   <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5 flex items-center justify-between">
                     <div className="space-y-1">
-                      <div className="text-xs font-black text-white uppercase tracking-wider">使能实时投递</div>
-                      <div className="text-[9px] text-slate-500 font-medium tracking-tight uppercase">实时负载传输协议</div>
+                      <div className="text-xs font-black text-white uppercase tracking-wider">
+                        启用通知订阅
+                      </div>
+                      <div className="text-[9px] text-slate-500 font-medium tracking-tight uppercase">
+                        开启后该地址将实时接收中奖匹配推送
+                      </div>
                     </div>
                     <label className="flex items-center cursor-pointer">
-                      <div className={`w-14 h-7 flex items-center rounded-full transition-all duration-500 ${emailIsActive ? 'bg-emerald-600 shadow-[0_0_20px_rgba(16,185,129,0.4)]' : 'bg-slate-800'}`}>
-                        <div className={`w-5 h-5 bg-white rounded-full transition-transform duration-500 transform mx-1 shadow-2xl ${emailIsActive ? 'translate-x-[28px]' : 'translate-x-0'}`} />
+                      <div
+                        className={`w-14 h-7 flex items-center rounded-full transition-all duration-500 ${emailIsActive ? "bg-emerald-600 shadow-[0_0_20px_rgba(16,185,129,0.4)]" : "bg-slate-800"}`}
+                      >
+                        <div
+                          className={`w-5 h-5 bg-white rounded-full transition-transform duration-500 transform mx-1 shadow-2xl ${emailIsActive ? "translate-x-[28px]" : "translate-x-0"}`}
+                        />
                       </div>
-                      <input type="checkbox" checked={emailIsActive} onChange={(e) => setEmailIsActive(e.target.checked)} className="hidden" />
+                      <input
+                        type="checkbox"
+                        checked={emailIsActive}
+                        onChange={(e) => setEmailIsActive(e.target.checked)}
+                        className="hidden"
+                      />
                     </label>
                   </div>
 
                   <div className="flex flex-col sm:flex-row gap-4 pt-10 border-t border-white/5">
                     <button
                       onClick={handleSaveEmail}
-                      disabled={createEmailMutation.isPending || updateEmailMutation.isPending}
+                      disabled={
+                        createEmailMutation.isPending ||
+                        updateEmailMutation.isPending
+                      }
                       className="flex-1 h-16 rounded-[1.25rem] bg-indigo-600 text-white font-black text-sm uppercase tracking-[0.2em] hover:bg-indigo-500 transition-all shadow-2xl shadow-indigo-500/20 active:scale-[0.98] disabled:opacity-50"
                     >
-                      {createEmailMutation.isPending || updateEmailMutation.isPending ? "正在建立连接..." : "确认下达链路指令"}
+                      {createEmailMutation.isPending ||
+                      updateEmailMutation.isPending
+                        ? "正在保存..."
+                        : "保存邮箱配置"}
                     </button>
                     <button
-                      onClick={() => { setShowEmailForm(false); setEditingEmail(null); }}
+                      onClick={() => {
+                        setShowEmailForm(false);
+                        setEditingEmail(null);
+                      }}
                       className="flex-1 h-16 rounded-[1.25rem] bg-white/5 border border-white/10 text-slate-400 hover:text-white font-black text-sm uppercase tracking-[0.2em] hover:bg-white/10 transition-all active:scale-[0.98]"
                     >
-                      中止当前操作
+                      取消
                     </button>
                   </div>
                 </div>
@@ -1061,51 +1356,100 @@ export default function SettingsPage() {
 
             {/* 邮箱列表 */}
             {emailLoading ? (
-              <div className="flex items-center justify-center py-24 text-slate-500 font-black uppercase tracking-[0.3em] animate-pulse">正在扫描终端资产...</div>
+              <div className="flex items-center justify-center py-24 text-slate-500 font-black uppercase tracking-[0.3em] animate-pulse">
+                正在扫描终端资产...
+              </div>
             ) : (
               <div className="space-y-6">
                 <div className="rounded-[2.5rem] bg-white/[0.01] border border-white/[0.06] overflow-hidden backdrop-blur-3xl shadow-2xl">
                   <Table>
                     <TableHeader className="bg-white/[0.02]">
                       <TableRow className="border-white/[0.05] hover:bg-transparent">
-                        <TableHead className="py-6 px-8 text-[10px] font-black text-slate-500 uppercase tracking-widest">终端链路地址</TableHead>
-                        <TableHead className="py-6 px-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">资产信标名称</TableHead>
-                        <TableHead className="py-6 px-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">寻呼应答状态</TableHead>
-                        <TableHead className="py-6 px-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">挂载时间</TableHead>
-                        <TableHead className="py-6 px-8 text-right text-[10px] font-black text-slate-500 uppercase tracking-widest">管理控制</TableHead>
+                        <TableHead className="py-6 px-8 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                          通知邮箱
+                        </TableHead>
+                        <TableHead className="py-6 px-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                          备注名称
+                        </TableHead>
+                        <TableHead className="py-6 px-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                          状态
+                        </TableHead>
+                        <TableHead className="py-6 px-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                          添加时间
+                        </TableHead>
+                        <TableHead className="py-6 px-8 text-right text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                          操作
+                        </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {emailData?.data?.list.map((email: any) => (
-                        <TableRow key={email.id} className="border-white/[0.04] hover:bg-white/[0.02] transition-colors group">
+                        <TableRow
+                          key={email.id}
+                          className="border-white/[0.04] hover:bg-white/[0.02] transition-colors group"
+                        >
                           <TableCell className="py-6 px-8">
-                            <span className="font-mono text-xs font-bold text-white/90">{email.email}</span>
+                            <span className="font-mono text-xs font-bold text-white/90">
+                              {email.email}
+                            </span>
                           </TableCell>
-                          <TableCell className="py-6 px-4 font-bold text-slate-400">{email.name || "未命名资产"}</TableCell>
+                          <TableCell className="py-6 px-4 font-bold text-slate-400">
+                            {email.name || "无备注节点"}
+                          </TableCell>
                           <TableCell className="py-6 px-4">
-                            <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border transition-colors ${
-                              email.isActive ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-white/5 text-slate-600 border-white/5"
-                            }`}>
-                              <div className={`w-1.5 h-1.5 rounded-full ${email.isActive ? "bg-emerald-400 animate-pulse" : "bg-slate-700"}`} />
-                              {email.isActive ? "接收中" : "已挂起"}
+                            <div
+                              className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border transition-colors ${
+                                email.isActive
+                                  ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                  : "bg-white/5 text-slate-600 border-white/5"
+                              }`}
+                            >
+                              <div
+                                className={`w-1.5 h-1.5 rounded-full ${email.isActive ? "bg-emerald-400 animate-pulse" : "bg-slate-700"}`}
+                              />
+                              {email.isActive ? "已启用" : "已停用"}
                             </div>
                           </TableCell>
-                          <TableCell className="py-6 px-4 font-mono text-[10px] text-slate-500 tracking-tighter">{formatDate(email.createdAt)}</TableCell>
+                          <TableCell className="py-6 px-4 font-mono text-[10px] text-slate-500 tracking-tighter">
+                            {formatDate(email.createdAt)}
+                          </TableCell>
                           <TableCell className="py-6 px-8 text-right">
-                            <div className="flex justify-end gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button onClick={() => handleEditEmail(email)} className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-emerald-600 hover:border-emerald-600 transition-all active:scale-[0.9]"><Edit3 className="w-4 h-4" /></button>
-                              <button onClick={() => handleToggleEmailActive(email)} className={`p-2.5 rounded-xl bg-white/5 border border-white/10 transition-all active:scale-[0.9] ${email.isActive ? "text-amber-400 hover:bg-amber-600 hover:text-white hover:border-amber-600" : "text-emerald-400 hover:bg-emerald-600 hover:text-white hover:border-emerald-600"}`}><Zap className="w-4 h-4" /></button>
-                              <button onClick={() => handleDeleteEmail(email.id)} className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-500 hover:text-white hover:bg-red-600 hover:border-red-600 transition-all active:scale-[0.9]"><Trash2 className="w-4 h-4" /></button>
-                            </div>
+                            {isAdmin && (
+                              <div className="flex justify-end gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button
+                                  onClick={() => handleEditEmail(email)}
+                                  className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-emerald-600 hover:border-emerald-600 transition-all active:scale-[0.9]"
+                                >
+                                  <Edit3 className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleToggleEmailActive(email)}
+                                  className={`p-2.5 rounded-xl bg-white/5 border border-white/10 transition-all active:scale-[0.9] ${email.isActive ? "text-amber-400 hover:bg-amber-600 hover:text-white hover:border-amber-600" : "text-emerald-400 hover:bg-emerald-600 hover:text-white hover:border-emerald-600"}`}
+                                >
+                                  <Zap className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteEmail(email.id)}
+                                  className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-500 hover:text-white hover:bg-red-600 hover:border-red-600 transition-all active:scale-[0.9]"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            )}
                           </TableCell>
                         </TableRow>
                       ))}
-                      {(!emailData?.data?.list || emailData.data.list.length === 0) && (
+                      {(!emailData?.data?.list ||
+                        emailData.data.list.length === 0) && (
                         <TableRow className="border-white/10 hover:bg-transparent">
                           <TableCell colSpan={5} className="py-32 text-center">
                             <Moon className="w-12 h-12 text-slate-800 mx-auto mb-6" />
-                            <p className="text-slate-500 font-black uppercase tracking-[0.3em] text-sm mb-2">链路中断</p>
-                            <p className="text-slate-600 text-xs text-center max-w-xs mx-auto">当前没有任何挂载的投递终端，所有系统通知将被暂存于缓冲区直至链路建立。</p>
+                            <p className="text-slate-500 font-black uppercase tracking-[0.3em] text-sm mb-2">
+                              暂无投递目标
+                            </p>
+                            <p className="text-slate-600 text-xs text-center max-w-xs mx-auto">
+                              尚未配置通知接收地址。请添加邮箱以接收实时中奖预警。
+                            </p>
                           </TableCell>
                         </TableRow>
                       )}
@@ -1120,15 +1464,31 @@ export default function SettingsPage() {
                         <PaginationItem>
                           <PaginationPrevious
                             className="rounded-xl hover:bg-white/10 text-white disabled:opacity-30"
-                            onClick={() => { if (emailPage > 1) setEmailPage(emailPage - 1); }}
-                            style={{ cursor: emailPage > 1 ? "pointer" : "not-allowed" }}
+                            onClick={() => {
+                              if (emailPage > 1) setEmailPage(emailPage - 1);
+                            }}
+                            style={{
+                              cursor: emailPage > 1 ? "pointer" : "not-allowed",
+                            }}
                           />
                         </PaginationItem>
-                        {Array.from({ length: emailTotalPages }, (_, i) => i + 1)
-                          .filter((page) => page === 1 || page === emailTotalPages || (page >= emailPage - 1 && page <= emailPage + 1))
+                        {Array.from(
+                          { length: emailTotalPages },
+                          (_, i) => i + 1,
+                        )
+                          .filter(
+                            (page) =>
+                              page === 1 ||
+                              page === emailTotalPages ||
+                              (page >= emailPage - 1 && page <= emailPage + 1),
+                          )
                           .map((page, idx, arr) => (
                             <div key={page} className="flex items-center">
-                               {idx > 0 && arr[idx-1] !== page - 1 && <span className="text-slate-700 px-2 font-black pb-1">...</span>}
+                              {idx > 0 && arr[idx - 1] !== page - 1 && (
+                                <span className="text-slate-700 px-2 font-black pb-1">
+                                  ...
+                                </span>
+                              )}
                               <PaginationItem>
                                 <PaginationLink
                                   className={`w-10 h-10 rounded-xl transition-all font-black text-xs ${emailPage === page ? "bg-white text-black hover:bg-white shadow-xl" : "text-slate-500 hover:bg-white/10 hover:text-white"}`}
@@ -1142,8 +1502,16 @@ export default function SettingsPage() {
                         <PaginationItem>
                           <PaginationNext
                             className="rounded-xl hover:bg-white/10 text-white disabled:opacity-30"
-                            onClick={() => { if (emailPage < emailTotalPages) setEmailPage(emailPage + 1); }}
-                            style={{ cursor: emailPage < emailTotalPages ? "pointer" : "not-allowed" }}
+                            onClick={() => {
+                              if (emailPage < emailTotalPages)
+                                setEmailPage(emailPage + 1);
+                            }}
+                            style={{
+                              cursor:
+                                emailPage < emailTotalPages
+                                  ? "pointer"
+                                  : "not-allowed",
+                            }}
                           />
                         </PaginationItem>
                       </PaginationContent>
