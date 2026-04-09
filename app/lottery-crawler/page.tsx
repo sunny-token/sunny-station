@@ -237,650 +237,400 @@ export default function LotteryCrawlerPage() {
   };
 
   return (
-    <div style={{ padding: 32 }}>
-      <div
-        style={{ display: "flex", gap: 12, marginBottom: 16, flexWrap: "wrap" }}
-      >
-        <Button
-          variant="outline"
-          className="mb-4 px-8 py-3 rounded-full font-bold text-white shadow-lg transition-all duration-200 bg-linear-to-r from-blue-500 to-purple-500 hover:from-purple-500 hover:to-blue-500 hover:scale-105 border-0"
-          onClick={() => router.push("/lottery-dlt-crawler")}
-        >
-          去大乐透爬虫
-        </Button>
-        <Button
-          variant="outline"
-          style={{
-            padding: "12px 24px",
-            fontSize: 14,
-            background: "#f3f4f6",
-            color: "#374151",
-            border: "1px solid #d1d5db",
-            borderRadius: 6,
-            cursor: "pointer",
-          }}
-          onClick={() => router.push("/settings")}
-        >
-          ⚙️ 系统设置
-        </Button>
+    <div className="min-h-screen bg-[#050505] text-slate-200 selection:bg-red-500/30">
+      {/* 氛围背景 */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-red-900/10 blur-[120px] rounded-full animate-pulse" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-900/10 blur-[120px] rounded-full animate-pulse" style={{ animationDelay: '2s' }} />
       </div>
-      <h1 style={{ fontSize: 24, marginBottom: 16 }}>双色球开奖爬虫</h1>
-      <div
-        style={{
-          marginBottom: 16,
-          display: "flex",
-          alignItems: "center",
-          gap: 16,
-          flexWrap: "wrap",
-        }}
-      >
-        <select
-          value={selectedYear}
-          onChange={(e) => setSelectedYear(e.target.value)}
-          style={{
-            padding: "8px 12px",
-            fontSize: 16,
-            borderRadius: 6,
-            border: "1px solid #e2e8f0",
-            outline: "none",
-          }}
-        >
-          {Array.from(
-            { length: new Date().getFullYear() - 1999 },
-            (_, i) => new Date().getFullYear() - i,
-          ).map((year) => (
-            <option key={year} value={year}>
-              {year}年
-            </option>
-          ))}
-        </select>
-        <button
-          onClick={handleStart}
-          disabled={loading}
-          style={{
-            padding: "8px 24px",
-            fontSize: 18,
-            background: "#2563eb",
-            color: "#fff",
-            border: "none",
-            borderRadius: 6,
-            cursor: loading ? "not-allowed" : "pointer",
-          }}
-        >
-          {loading ? "正在爬取..." : "启动爬虫"}
-        </button>
-        <button
-          onClick={handleRefreshAll}
-          disabled={loading}
-          style={{
-            padding: "8px 24px",
-            fontSize: 18,
-            background: "#10b981",
-            color: "#fff",
-            border: "none",
-            borderRadius: 6,
-            cursor: loading ? "not-allowed" : "pointer",
-          }}
-        >
-          {loading ? "正在刷新..." : "一键刷新所有数据"}
-        </button>
-        <input
-          type="text"
-          value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
-          placeholder="搜索号码（7个号码，空格或逗号分隔）"
-          style={{
-            width: 250,
-            padding: "8px 12px",
-            fontSize: 16,
-            borderRadius: 6,
-            border: "1px solid #e2e8f0",
-            outline: "none",
-          }}
-        />
-        <label
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            fontSize: 14,
-            cursor: "pointer",
-          }}
-        >
-          <input
-            type="checkbox"
-            checked={isExactMatch}
-            onChange={(e) => setIsExactMatch(e.target.checked)}
-            style={{
-              width: 16,
-              height: 16,
-              cursor: "pointer",
-            }}
-          />
-          <span>全匹配</span>
-        </label>
-        <button
-          onClick={handleSearch}
-          disabled={searchLoading}
-          style={{
-            padding: "8px 24px",
-            fontSize: 16,
-            background: "#10b981",
-            color: "#fff",
-            border: "none",
-            borderRadius: 6,
-            cursor: searchLoading ? "not-allowed" : "pointer",
-          }}
-        >
-          {searchLoading ? "搜索中..." : "搜索"}
-        </button>
-        {isSearching && (
-          <button
-            onClick={handleClearSearch}
-            style={{
-              padding: "8px 24px",
-              fontSize: 16,
-              background: "#6b7280",
-              color: "#fff",
-              border: "none",
-              borderRadius: 6,
-              cursor: "pointer",
-            }}
-          >
-            清除搜索
-          </button>
-        )}
-      </div>
-      {result && <div style={{ marginTop: 24, fontSize: 16 }}>{result}</div>}
-      {isSearching && searchData && (
-        <div style={{ marginTop: 16, fontSize: 16, color: "#059669" }}>
-          找到 {searchData.data?.total || 0} 条匹配记录
-        </div>
-      )}
 
-      <div style={{ marginTop: 40 }}>
-        <h2 style={{ fontSize: 20, marginBottom: 16 }}>
-          {isSearching ? "搜索结果" : "开奖历史"}
-        </h2>
-        {/* 显示守号号码 */}
-        {!isSearching &&
-          ticketData?.data?.list &&
-          ticketData.data.list.length > 0 && (
-            <div
-              style={{
-                marginBottom: 16,
-                padding: "12px 16px",
-                background: "#f9fafb",
-                borderRadius: 8,
-                border: "1px solid #e5e7eb",
-              }}
+      <div className="relative z-10 w-full max-w-6xl mx-auto p-4 md:p-12 animate-in fade-in slide-in-from-bottom-12 duration-1000">
+        {/* Header Section */}
+        <header className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8 mb-16">
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/10 border border-red-500/20 text-red-500 text-[10px] uppercase tracking-[0.2em] font-bold">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+              </span>
+              核心数据处理节点
+            </div>
+            <h1 className="text-5xl md:text-6xl font-black tracking-tighter text-white">
+              双色球 <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-rose-500 to-orange-500">开奖引擎</span>
+            </h1>
+            <p className="text-slate-500 text-lg font-light max-w-md">
+              双色球开奖数据深度追踪与模式干预分析系统
+            </p>
+          </div>
+          
+          <div className="flex flex-wrap gap-4">
+            <button
+              onClick={() => router.push("/lottery-dlt-crawler")}
+              className="group relative px-6 py-3 rounded-2xl bg-white/5 border border-white/10 text-white font-medium hover:bg-white/10 transition-all duration-300 overflow-hidden"
             >
-              <div
-                style={{
-                  fontSize: 14,
-                  fontWeight: 600,
-                  color: "#374151",
-                  marginBottom: 8,
-                }}
-              >
-                我的守号号码：
+              <div className="absolute inset-0 bg-gradient-to-r from-amber-500/0 via-amber-500/10 to-amber-500/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+              <span className="relative flex items-center gap-2">
+                切换大乐透节点 <span className="group-hover:translate-x-1 transition-transform">→</span>
+              </span>
+            </button>
+            <button
+              onClick={() => router.push("/settings")}
+              className="px-6 py-3 rounded-2xl bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:border-white/20 transition-all duration-300 flex items-center gap-2"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+              设置中心
+            </button>
+          </div>
+        </header>
+
+        {/* Control Panel Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-12">
+          {/* Main Controls */}
+          <section className="lg:col-span-3 p-8 rounded-[2.5rem] bg-white/[0.03] border border-white/[0.06] backdrop-blur-2xl shadow-2xl space-y-8">
+            <div className="flex flex-wrap items-center gap-6">
+              <div className="space-y-1.5 min-w-[120px]">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1">数据年度</label>
+                <select
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(e.target.value)}
+                  className="w-full h-12 px-4 rounded-xl bg-black/40 border border-white/10 text-white outline-none cursor-pointer focus:border-red-500/50 transition-all appearance-none"
+                >
+                  {Array.from(
+                    { length: new Date().getFullYear() - 1999 },
+                    (_, i) => new Date().getFullYear() - i,
+                  ).map((year) => (
+                    <option key={year} value={year} className="bg-slate-900">
+                      {year} 年度
+                    </option>
+                  ))}
+                </select>
               </div>
-              <div
-                style={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: 16,
-                  alignItems: "center",
-                }}
-              >
+
+              <div className="flex items-end gap-3 flex-1">
+                <button
+                  onClick={handleStart}
+                  disabled={loading}
+                  className="flex-1 h-12 px-6 rounded-xl bg-white text-black font-bold hover:bg-slate-200 disabled:opacity-50 transition-all shadow-xl active:scale-[0.98]"
+                >
+                  {loading ? "正在抓取数据..." : "启动抓取任务"}
+                </button>
+                <button
+                  onClick={handleRefreshAll}
+                  disabled={loading}
+                  className="px-6 h-12 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold disabled:opacity-50 transition-all shadow-[0_0_20px_rgba(220,38,38,0.3)] active:scale-[0.98]"
+                >
+                  {loading ? "加载中" : "一键全量同步"}
+                </button>
+              </div>
+            </div>
+
+            <div className="relative group">
+              <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+                <svg className="w-5 h-5 text-slate-500 group-focus-within:text-red-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+              </div>
+              <input
+                type="text"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="在此输入模式检索号码 (空格或逗号分隔)"
+                className="w-full h-14 pl-12 pr-32 rounded-2xl bg-black/40 border border-white/10 text-white placeholder-slate-600 outline-none focus:border-red-500/50 focus:bg-black/60 transition-all text-lg"
+              />
+              <div className="absolute inset-y-2 right-2 flex items-center gap-2">
+                 <button
+                  onClick={handleClearSearch}
+                  className={`h-full px-4 rounded-xl text-xs font-bold transition-all ${isSearching ? 'bg-red-500/20 text-red-500 opacity-100' : 'opacity-0 pointer-events-none'}`}
+                >
+                  重置
+                </button>
+                <button
+                  onClick={handleSearch}
+                  disabled={searchLoading}
+                  className="h-full px-6 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-black tracking-widest disabled:opacity-50"
+                >
+                  {searchLoading ? "搜索中" : "开始检索"}
+                </button>
+               
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4 px-1">
+              <label className="flex items-center gap-3 cursor-pointer group">
+                <div className={`w-10 h-6 flex items-center rounded-full transition-colors ${isExactMatch ? 'bg-red-500' : 'bg-slate-800'}`}>
+                  <div className={`w-4 h-4 bg-white rounded-full transition-transform transform mx-1 ${isExactMatch ? 'translate-x-4' : 'translate-x-0'}`} />
+                </div>
+                <input
+                  type="checkbox"
+                  checked={isExactMatch}
+                  onChange={(e) => setIsExactMatch(e.target.checked)}
+                  className="hidden"
+                />
+                <span className="text-xs font-bold text-slate-500 group-hover:text-slate-300 transition-colors tracking-tight uppercase">完全匹配模式 (严格搜索)</span>
+              </label>
+            </div>
+          </section>
+
+          {/* Side Info Cards */}
+          <aside className="space-y-6">
+            <div className="p-6 rounded-[2rem] bg-gradient-to-br from-red-500/20 to-orange-500/20 border border-red-500/20 backdrop-blur-xl">
+              <h3 className="text-xs font-black text-red-400 uppercase tracking-widest mb-4">系统反馈</h3>
+              {result ? (
+                <p className="text-sm font-medium leading-relaxed italic text-red-200">"{result}"</p>
+              ) : (
+                <p className="text-sm text-slate-500 italic">等待系统指令下达...</p>
+              )}
+            </div>
+
+            {isSearching && searchData && (
+              <div className="p-6 rounded-[2rem] bg-emerald-500/20 border border-emerald-500/20 backdrop-blur-xl animate-in zoom-in-95 duration-500">
+                <h3 className="text-xs font-black text-emerald-400 uppercase tracking-widest mb-1">检索完成</h3>
+                <div className="text-3xl font-black text-white">{searchData.data?.total || 0}</div>
+                <p className="text-[10px] text-emerald-400/70 uppercase tracking-tighter mt-1">发现匹配的数据模式</p>
+              </div>
+            )}
+          </aside>
+        </div>
+
+        {/* Content Area */}
+        <div className="space-y-12">
+          {/* Tickets Section */}
+          {!isSearching && ticketData?.data?.list && ticketData.data.list.length > 0 && (
+            <div className="space-y-6">
+              <div className="flex items-center gap-3 px-2">
+                <div className="h-px flex-1 bg-white/10" />
+                <h2 className="text-xs font-black text-slate-500 uppercase tracking-[0.3em]">活跃干预模型</h2>
+                <div className="h-px flex-1 bg-white/10" />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {ticketData.data.list.map((ticket: any) => (
                   <div
                     key={ticket.id}
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                    }}
+                    className="group p-5 rounded-3xl bg-white/[0.02] border border-white/[0.05] hover:border-red-500/30 hover:bg-white/[0.04] transition-all duration-300"
                   >
-                    <span
-                      style={{
-                        fontSize: 13,
-                        color: "#6b7280",
-                        marginRight: 6,
-                        fontWeight: 500,
-                      }}
-                    >
-                      {ticket.name}:
-                    </span>
-                    {ticket.numbers?.red?.map((num: string, idx: number) => (
-                      <span
-                        key={`ticket-${ticket.id}-red-${idx}`}
-                        style={{
-                          display: "inline-block",
-                          width: 28,
-                          height: 28,
-                          lineHeight: "28px",
-                          borderRadius: "50%",
-                          background: "#fff",
-                          color: "#e53e3e",
-                          border: "1px solid #e53e3e",
-                          textAlign: "center",
-                          marginRight: 2,
-                          fontWeight: 600,
-                          fontSize: 12,
-                        }}
-                      >
-                        {num}
-                      </span>
-                    ))}
-                    {ticket.numbers?.blue?.map((num: string, idx: number) => (
-                      <span
-                        key={`ticket-${ticket.id}-blue-${idx}`}
-                        style={{
-                          display: "inline-block",
-                          width: 28,
-                          height: 28,
-                          lineHeight: "28px",
-                          borderRadius: "50%",
-                          background: "#fff",
-                          color: "#2563eb",
-                          border: "1px solid #2563eb",
-                          textAlign: "center",
-                          marginLeft: 4,
-                          marginRight: 2,
-                          fontWeight: 600,
-                          fontSize: 12,
-                        }}
-                      >
-                        {num}
-                      </span>
-                    ))}
+                    <div className="flex items-center justify-between mb-4">
+                      <span className="text-xs font-black text-slate-400 uppercase tracking-wider">{ticket.name}</span>
+                      <div className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]" />
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {ticket.numbers?.red?.map((num: string, idx: number) => (
+                        <div key={idx} className="w-8 h-8 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center text-[10px] font-black text-red-500 group-hover:bg-red-500 group-hover:text-white transition-all">
+                          {num}
+                        </div>
+                      ))}
+                      <div className="w-px h-6 bg-white/10 mx-1" />
+                      {ticket.numbers?.blue?.map((num: string, idx: number) => (
+                        <div key={idx} className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-[10px] font-black text-indigo-400 group-hover:bg-indigo-500 group-hover:text-white transition-all">
+                          {num}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
           )}
-        {displayLoading ? (
-          <div>加载中...</div>
-        ) : (
-          <>
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>期号</TableHead>
-                    <TableHead>开奖日期</TableHead>
-                    <TableHead>开奖号码</TableHead>
-                    <TableHead>奖项信息</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {displayData?.data?.list.map((item: any) => (
-                    <TableRow key={item.issueNumber}>
-                      <TableCell>{item.issueNumber}</TableCell>
-                      <TableCell>{formatDate(item.openDate)}</TableCell>
-                      <TableCell>
-                        {item.openNumbers?.red?.map(
-                          (num: string, idx: number) => {
-                            const matched = isNumberMatched(num, true);
-                            // 在搜索模式下，根据匹配状态设置样式
-                            const bgColor = isSearching
-                              ? matched
-                                ? "#e53e3e"
-                                : "#fff"
-                              : "#e53e3e";
-                            const textColor = isSearching
-                              ? matched
-                                ? "#fff"
-                                : "#000"
-                              : "#fff";
-                            const borderStyle = isSearching
-                              ? matched
-                                ? "none"
-                                : "1px solid #e2e8f0"
-                              : "none";
-                            return (
-                              <span
-                                key={num + idx}
-                                style={{
-                                  display: "inline-block",
-                                  width: 28,
-                                  height: 28,
-                                  lineHeight: "28px",
-                                  borderRadius: "50%",
-                                  background: bgColor,
-                                  color: textColor,
-                                  border: borderStyle,
-                                  textAlign: "center",
-                                  marginRight: 4,
-                                  fontWeight: 600,
-                                }}
-                              >
-                                {num}
-                              </span>
-                            );
-                          },
-                        )}
-                        {item.openNumbers?.blue &&
-                          (() => {
-                            const blueMatched = isNumberMatched(
-                              item.openNumbers.blue,
-                              false,
-                            );
-                            // 在搜索模式下，根据匹配状态设置样式
-                            const bgColor = isSearching
-                              ? blueMatched
-                                ? "#2563eb"
-                                : "#fff"
-                              : "#2563eb";
-                            const textColor = isSearching
-                              ? blueMatched
-                                ? "#fff"
-                                : "#000"
-                              : "#fff";
-                            const borderStyle = isSearching
-                              ? blueMatched
-                                ? "none"
-                                : "1px solid #e2e8f0"
-                              : "none";
-                            return (
-                              <span
-                                style={{
-                                  display: "inline-block",
-                                  width: 28,
-                                  height: 28,
-                                  lineHeight: "28px",
-                                  borderRadius: "50%",
-                                  background: bgColor,
-                                  color: textColor,
-                                  border: borderStyle,
-                                  textAlign: "center",
-                                  marginLeft: 8,
-                                  fontWeight: 600,
-                                }}
-                              >
-                                {item.openNumbers.blue}
-                              </span>
-                            );
-                          })()}
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            let prizeAmounts = item.prizeAmounts;
-                            // 如果 prizeAmounts 是字符串，尝试解析
-                            if (
-                              typeof prizeAmounts === "string" &&
-                              prizeAmounts.trim()
-                            ) {
-                              try {
-                                prizeAmounts = JSON.parse(prizeAmounts);
-                              } catch {
-                                prizeAmounts = null;
-                              }
-                            }
-                            setSelectedPrizeInfo({
-                              issueNumber: item.issueNumber,
-                              openDate: formatDate(item.openDate),
-                              prizeAmounts:
-                                prizeAmounts &&
-                                Array.isArray(prizeAmounts) &&
-                                prizeAmounts.length > 0
-                                  ? prizeAmounts
-                                  : null,
-                            });
-                            setIsDialogOpen(true);
-                          }}
-                          style={{
-                            padding: "4px 12px",
-                            fontSize: 14,
-                          }}
-                        >
-                          奖项信息
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-            <div
-              style={{
-                marginTop: 20,
-                display: "flex",
-                justifyContent: "center",
-              }}
-            >
-              <Pagination>
-                <PaginationContent>
-                  <PaginationItem>
-                    <PaginationPrevious
-                      size="default"
-                      onClick={() => {
-                        if (isSearching) {
-                          if (searchCurrentPage > 1) {
-                            handleSearchPageChange(searchCurrentPage - 1);
-                          }
-                        } else {
-                          if (currentPage > 1) {
-                            handlePageChange(currentPage - 1);
-                          }
-                        }
-                      }}
-                      style={{
-                        cursor: (
-                          isSearching ? searchCurrentPage > 1 : currentPage > 1
-                        )
-                          ? "pointer"
-                          : "not-allowed",
-                        opacity: (
-                          isSearching ? searchCurrentPage > 1 : currentPage > 1
-                        )
-                          ? 1
-                          : 0.5,
-                      }}
-                    />
-                  </PaginationItem>
-                  <PaginationItem>
-                    <PaginationLink
-                      size="default"
-                      onClick={() =>
-                        isSearching
-                          ? handleSearchPageChange(1)
-                          : handlePageChange(1)
-                      }
-                      isActive={
-                        isSearching
-                          ? searchCurrentPage === 1
-                          : currentPage === 1
-                      }
-                      style={{ cursor: "pointer" }}
-                    >
-                      1
-                    </PaginationLink>
-                  </PaginationItem>
-                  {(isSearching ? searchCurrentPage > 4 : currentPage > 4) && (
-                    <PaginationItem>
-                      <PaginationLink size="default">...</PaginationLink>
-                    </PaginationItem>
-                  )}
-                  {Array.from(
-                    {
-                      length: isSearching ? searchTotalPages : totalPages,
-                    },
-                    (_, i) => i + 1,
-                  )
-                    .filter((page) => {
-                      const current = isSearching
-                        ? searchCurrentPage
-                        : currentPage;
-                      return (
-                        page !== 1 &&
-                        page !==
-                          (isSearching ? searchTotalPages : totalPages) &&
-                        page >= current - 1 &&
-                        page <= current + 1
-                      );
-                    })
-                    .map((page) => (
-                      <PaginationItem key={page}>
-                        <PaginationLink
-                          size="default"
-                          onClick={() =>
-                            isSearching
-                              ? handleSearchPageChange(page)
-                              : handlePageChange(page)
-                          }
-                          isActive={
-                            isSearching
-                              ? searchCurrentPage === page
-                              : currentPage === page
-                          }
-                          style={{ cursor: "pointer" }}
-                        >
-                          {page}
-                        </PaginationLink>
-                      </PaginationItem>
-                    ))}
-                  {(isSearching
-                    ? searchCurrentPage < searchTotalPages - 3
-                    : currentPage < totalPages - 3) && (
-                    <PaginationItem>
-                      <PaginationLink size="default">...</PaginationLink>
-                    </PaginationItem>
-                  )}
-                  {(isSearching ? searchTotalPages : totalPages) > 1 && (
-                    <PaginationItem>
-                      <PaginationLink
-                        size="default"
-                        onClick={() =>
-                          isSearching
-                            ? handleSearchPageChange(searchTotalPages)
-                            : handlePageChange(totalPages)
-                        }
-                        isActive={
-                          isSearching
-                            ? searchCurrentPage === searchTotalPages
-                            : currentPage === totalPages
-                        }
-                        style={{ cursor: "pointer" }}
-                      >
-                        {isSearching ? searchTotalPages : totalPages}
-                      </PaginationLink>
-                    </PaginationItem>
-                  )}
-                  <PaginationItem>
-                    <PaginationNext
-                      size="default"
-                      onClick={() => {
-                        if (isSearching) {
-                          if (searchCurrentPage < searchTotalPages) {
-                            handleSearchPageChange(searchCurrentPage + 1);
-                          }
-                        } else {
-                          if (currentPage < totalPages) {
-                            handlePageChange(currentPage + 1);
-                          }
-                        }
-                      }}
-                      style={{
-                        cursor: (
-                          isSearching
-                            ? searchCurrentPage < searchTotalPages
-                            : currentPage < totalPages
-                        )
-                          ? "pointer"
-                          : "not-allowed",
-                        opacity: (
-                          isSearching
-                            ? searchCurrentPage < searchTotalPages
-                            : currentPage < totalPages
-                        )
-                          ? 1
-                          : 0.5,
-                      }}
-                    />
-                  </PaginationItem>
-                </PaginationContent>
-              </Pagination>
-            </div>
-          </>
-        )}
-      </div>
 
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              奖项信息 - {selectedPrizeInfo?.issueNumber}
-            </DialogTitle>
-            <DialogDescription>
-              开奖日期：{selectedPrizeInfo?.openDate}
-            </DialogDescription>
-          </DialogHeader>
-          <div style={{ marginTop: 16 }}>
-            {selectedPrizeInfo?.prizeAmounts &&
-            selectedPrizeInfo.prizeAmounts.length > 0 ? (
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 12,
-                }}
-              >
-                {selectedPrizeInfo.prizeAmounts.map(
-                  (prize: { level: string; amount: string }, idx: number) => (
-                    <div
-                      key={idx}
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        padding: "12px 16px",
-                        background: "#f9fafb",
-                        borderRadius: 8,
-                        border: "1px solid #e5e7eb",
-                      }}
-                    >
-                      <span
-                        style={{
-                          color: "#059669",
-                          fontWeight: 600,
-                          fontSize: 16,
-                        }}
-                      >
-                        {prize.level}
-                      </span>
-                      <span
-                        style={{
-                          color: "#dc2626",
-                          fontWeight: 700,
-                          fontSize: 18,
-                        }}
-                      >
-                        {prize.amount
-                          ? `${parseInt(prize.amount).toLocaleString()}元`
-                          : "待定"}
-                      </span>
-                    </div>
-                  ),
-                )}
+          {/* Table Section */}
+          <div className="space-y-6">
+            <h2 className="text-2xl font-black tracking-tight px-2 text-white">
+              {isSearching ? "模式分析报告" : "历史开奖记录"}
+            </h2>
+            
+            {displayLoading ? (
+              <div className="flex flex-col items-center justify-center py-32 space-y-4">
+                <div className="w-12 h-12 border-2 border-red-500/30 border-t-red-500 rounded-full animate-spin" />
+                <p className="text-xs font-black text-slate-500 uppercase tracking-widest">正在访问加密数据记录...</p>
               </div>
             ) : (
-              <div
-                style={{
-                  padding: "24px",
-                  textAlign: "center",
-                  color: "#9ca3af",
-                }}
-              >
-                暂无奖项信息
+              <div className="relative rounded-[2.5rem] bg-white/[0.01] border border-white/[0.06] overflow-hidden shadow-2xl">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader className="bg-white/[0.02]">
+                      <TableRow className="border-white/[0.05] hover:bg-transparent">
+                        <TableHead className="py-6 px-8 text-xs font-black text-slate-500 uppercase tracking-widest">开奖期号</TableHead>
+                        <TableHead className="py-6 px-4 text-xs font-black text-slate-500 uppercase tracking-widest">开奖日期</TableHead>
+                        <TableHead className="py-6 px-4 text-xs font-black text-slate-500 uppercase tracking-widest">号码图谱</TableHead>
+                        <TableHead className="py-6 px-8 text-right text-xs font-black text-slate-500 uppercase tracking-widest">操作</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {displayData?.data?.list.map((item: any) => (
+                        <TableRow key={item.issueNumber} className="border-white/[0.04] hover:bg-white/[0.02] transition-colors group">
+                          <TableCell className="py-6 px-8 font-mono text-white/90 font-bold">{item.issueNumber}</TableCell>
+                          <TableCell className="py-6 px-4 text-slate-500 text-sm">{formatDate(item.openDate)}</TableCell>
+                          <TableCell className="py-6 px-4">
+                            <div className="flex flex-wrap items-center gap-2">
+                              {item.openNumbers?.red?.map((num: string, idx: number) => {
+                                const matched = isNumberMatched(num, true);
+                                const isActive = isSearching && matched;
+                                return (
+                                  <div
+                                    key={num + idx}
+                                    className={`relative w-9 h-9 flex items-center justify-center rounded-xl text-sm font-black transition-all duration-500 ${
+                                      isActive 
+                                        ? "bg-red-600 text-white shadow-[0_0_20px_rgba(220,38,38,0.5)] scale-110 z-10" 
+                                        : isSearching 
+                                          ? "bg-slate-900/50 text-slate-700 opacity-40" 
+                                          : "bg-white/5 text-red-500/80 border border-white/5"
+                                    }`}
+                                  >
+                                    {num}
+                                    {isActive && <div className="absolute -inset-0.5 bg-red-400/20 blur-sm rounded-xl animate-pulse" />}
+                                  </div>
+                                );
+                              })}
+                              <div className="w-px h-6 bg-white/10 mx-1" />
+                              {item.openNumbers?.blue && (() => {
+                                const matched = isNumberMatched(item.openNumbers.blue, false);
+                                const isActive = isSearching && matched;
+                                return (
+                                  <div
+                                    className={`relative w-9 h-9 flex items-center justify-center rounded-xl text-sm font-black transition-all duration-500 ${
+                                      isActive 
+                                        ? "bg-indigo-600 text-white shadow-[0_0_20px_rgba(79,70,229,0.5)] scale-110 z-10" 
+                                        : isSearching 
+                                          ? "bg-slate-900/50 text-slate-700 opacity-40" 
+                                          : "bg-white/5 text-indigo-400 border border-white/5"
+                                    }`}
+                                  >
+                                    {item.openNumbers.blue}
+                                     {isActive && <div className="absolute -inset-0.5 bg-indigo-400/20 blur-sm rounded-xl animate-pulse" />}
+                                  </div>
+                                );
+                              })()}
+                            </div>
+                          </TableCell>
+                          <TableCell className="py-6 px-8 text-right">
+                            <button
+                               onClick={() => {
+                                let prizeAmounts = item.prizeAmounts;
+                                if (typeof prizeAmounts === "string" && prizeAmounts.trim()) {
+                                  try { prizeAmounts = JSON.parse(prizeAmounts); } catch { prizeAmounts = null; }
+                                }
+                                setSelectedPrizeInfo({
+                                  issueNumber: item.issueNumber,
+                                  openDate: formatDate(item.openDate),
+                                  prizeAmounts: prizeAmounts && Array.isArray(prizeAmounts) && prizeAmounts.length > 0 ? prizeAmounts : null,
+                                });
+                                setIsDialogOpen(true);
+                              }}
+                              className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white hover:bg-red-600 hover:border-red-600 hover:shadow-[0_0_15px_rgba(220,38,38,0.3)] transition-all"
+                            >
+                              详情
+                            </button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )}
+
+            {/* Pagination */}
+            {!displayLoading && (isSearching ? searchTotalPages : totalPages) > 1 && (
+              <div className="flex justify-center pt-8">
+                <Pagination>
+                  <PaginationContent className="bg-white/5 p-1 rounded-2xl border border-white/5">
+                    <PaginationItem>
+                      <PaginationPrevious
+                        className="rounded-xl hover:bg-white/10 text-white disabled:opacity-30"
+                        onClick={() => {
+                          const current = isSearching ? searchCurrentPage : currentPage;
+                          if (current > 1) isSearching ? handleSearchPageChange(current - 1) : handlePageChange(current - 1);
+                        }}
+                      />
+                    </PaginationItem>
+                    
+                    {Array.from({ length: isSearching ? searchTotalPages : totalPages }, (_, i) => i + 1)
+                      .filter(page => {
+                        const current = isSearching ? searchCurrentPage : currentPage;
+                        const total = isSearching ? searchTotalPages : totalPages;
+                        return page === 1 || page === total || (page >= current - 1 && page <= current + 1);
+                      })
+                      .map((page, idx, arr) => (
+                        <div key={page} className="flex items-center">
+                          {idx > 0 && arr[idx-1] !== page - 1 && <span className="text-slate-600 px-2">...</span>}
+                          <PaginationItem>
+                            <PaginationLink
+                              className={`w-10 h-10 rounded-xl transition-all font-bold ${
+                                (isSearching ? searchCurrentPage : currentPage) === page 
+                                  ? "bg-white text-black hover:bg-white" 
+                                  : "text-slate-500 hover:bg-white/10 hover:text-white"
+                              }`}
+                              onClick={() => isSearching ? handleSearchPageChange(page) : handlePageChange(page)}
+                            >
+                              {page}
+                            </PaginationLink>
+                          </PaginationItem>
+                        </div>
+                      ))}
+
+                    <PaginationItem>
+                      <PaginationNext
+                        className="rounded-xl hover:bg-white/10 text-white disabled:opacity-30"
+                        onClick={() => {
+                          const current = isSearching ? searchCurrentPage : currentPage;
+                          const total = isSearching ? searchTotalPages : totalPages;
+                          if (current < total) isSearching ? handleSearchPageChange(current + 1) : handlePageChange(current + 1);
+                        }}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
               </div>
             )}
           </div>
-        </DialogContent>
-      </Dialog>
+        </div>
+
+        {/* Details Dialog */}
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogContent className="max-w-md bg-[#0a0a0c] border border-white/10 p-0 rounded-[2.5rem] overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)]">
+            <div className="p-8 pb-4">
+              <DialogHeader>
+                <DialogTitle className="text-2xl font-black text-white tracking-tight">奖项详细统计</DialogTitle>
+                <DialogDescription className="text-slate-500 font-mono text-xs uppercase tracking-widest mt-1">
+                  期号: {selectedPrizeInfo?.issueNumber} / {selectedPrizeInfo?.openDate}
+                </DialogDescription>
+              </DialogHeader>
+            </div>
+            
+            <div className="p-8 pt-4 space-y-4">
+              {selectedPrizeInfo?.prizeAmounts && selectedPrizeInfo.prizeAmounts.length > 0 ? (
+                <div className="space-y-3">
+                  {selectedPrizeInfo.prizeAmounts.map((prize: any, idx: number) => (
+                    <div key={idx} className="flex justify-between items-center p-5 bg-white/[0.03] rounded-[1.5rem] border border-white/5 hover:border-red-500/20 transition-colors group">
+                      <div className="space-y-1">
+                        <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">奖项能级</div>
+                        <div className="text-sm font-bold text-white group-hover:text-red-400 transition-colors tracking-tight">{prize.level}</div>
+                      </div>
+                      <div className="text-right space-y-1">
+                        <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">单注金额</div>
+                        <div className="text-xl font-black text-white tracking-tighter">
+                          {prize.amount ? `${parseInt(prize.amount).toLocaleString()}` : "待定"}
+                          <span className="text-[10px] text-slate-500 ml-1 font-bold">元</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="py-20 text-center rounded-[1.5rem] bg-white/[0.02] border border-white/5 border-dashed">
+                  <p className="text-slate-600 font-bold uppercase tracking-widest text-xs">暂无采集数据</p>
+                </div>
+              )}
+              
+              <button
+                onClick={() => setIsDialogOpen(false)}
+                className="w-full h-14 rounded-2xl bg-white text-black font-black text-sm uppercase tracking-[0.2em] hover:bg-slate-200 transition-all mt-4"
+              >
+                关闭视图
+              </button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
     </div>
   );
+
+
 }

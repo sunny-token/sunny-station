@@ -16,6 +16,26 @@ import {
   TableHeader,
   TableRow,
 } from "../../components/ui/table";
+import { 
+  Settings2, 
+  ArrowLeft, 
+  Download, 
+  Upload, 
+  Plus, 
+  Activity, 
+  Mail, 
+  Database,
+  Search,
+  CheckCircle2,
+  AlertCircle,
+  FileSpreadsheet,
+  Moon,
+  Zap,
+  Trash2,
+  Edit3,
+  ExternalLink,
+  ShieldCheck
+} from "lucide-react";
 import { formatDate } from "../../lib/utils";
 import { Button } from "../../components/ui/button";
 import { useRouter } from "next/navigation";
@@ -464,1155 +484,682 @@ export default function SettingsPage() {
   };
 
   return (
-    <div style={{ padding: 32, maxWidth: 1200, margin: "0 auto" }}>
-      <div style={{ marginBottom: 24 }}>
-        <Button
-          variant="outline"
-          onClick={() => router.push("/")}
-          style={{ marginBottom: 16 }}
-        >
-          ← 返回首页
-        </Button>
-        <h1 style={{ fontSize: 28, fontWeight: "bold", marginBottom: 8 }}>
-          系统设置
-        </h1>
-        <p style={{ color: "#6b7280", fontSize: 14 }}>
-          管理预设号码和邮件收件人
-        </p>
+    <div className="min-h-screen bg-[#050505] text-slate-200 selection:bg-indigo-500/30 font-sans">
+      {/* 氛围背景 */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_-20%,rgba(99,102,241,0.08),transparent_70%)]" />
+        <div className="absolute top-0 left-0 w-full h-full opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'radial-gradient(#ffffff 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
       </div>
 
-      {result && (
-        <div
-          style={{
-            marginBottom: 16,
-            padding: 12,
-            borderRadius: 6,
-            background: result.includes("成功") ? "#d1fae5" : "#fee2e2",
-            color: result.includes("成功") ? "#065f46" : "#991b1b",
-            fontSize: 14,
-          }}
-        >
-          {result}
-        </div>
-      )}
-
-      {/* 标签页切换 */}
-      <div
-        style={{
-          display: "flex",
-          gap: 8,
-          marginBottom: 24,
-          borderBottom: "1px solid #e2e8f0",
-        }}
-      >
-        <button
-          onClick={() => setActiveTab("tickets")}
-          style={{
-            padding: "12px 24px",
-            fontSize: 16,
-            fontWeight: 500,
-            background: "transparent",
-            border: "none",
-            borderBottom:
-              activeTab === "tickets"
-                ? "2px solid #2563eb"
-                : "2px solid transparent",
-            color: activeTab === "tickets" ? "#2563eb" : "#6b7280",
-            cursor: "pointer",
-          }}
-        >
-          预设号码管理
-        </button>
-        <button
-          onClick={() => setActiveTab("emails")}
-          style={{
-            padding: "12px 24px",
-            fontSize: 16,
-            fontWeight: 500,
-            background: "transparent",
-            border: "none",
-            borderBottom:
-              activeTab === "emails"
-                ? "2px solid #2563eb"
-                : "2px solid transparent",
-            color: activeTab === "emails" ? "#2563eb" : "#6b7280",
-            cursor: "pointer",
-          }}
-        >
-          邮件收件人管理
-        </button>
-      </div>
-
-      {/* 预设号码管理 */}
-      {activeTab === "tickets" && (
-        <div>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: 20,
-            }}
+      <div className="relative z-10 w-full max-w-6xl mx-auto p-6 md:p-16 animate-in fade-in slide-in-from-bottom-12 duration-1000">
+        {/* Navigation & Header */}
+        <header className="mb-16 space-y-10">
+          <button
+            onClick={() => router.push("/")}
+            className="group flex items-center gap-3 px-5 py-2.5 rounded-2xl bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10 hover:border-white/20 transition-all duration-300 font-medium"
           >
-            <h2 style={{ fontSize: 20 }}>预设号码管理</h2>
-            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-              <a
-                href="/批量导入模板.xlsx"
-                download
-                style={{
-                  padding: "6px 12px",
-                  fontSize: 13,
-                  background: "#3b82f6",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: 6,
-                  cursor: "pointer",
-                  textDecoration: "none",
-                  display: "inline-block",
-                }}
-              >
-                📥 下载模板
-              </a>
-              {/* 批量导入 */}
-              <div
-                style={{
-                  display: "flex",
-                  gap: 8,
-                  alignItems: "center",
-                  flexWrap: "wrap",
-                }}
-              >
-                <input
-                  id="import-file-input"
-                  type="file"
-                  accept=".xlsx,.xls,.csv"
-                  onChange={handleFileSelect}
-                  style={{ display: "none" }}
-                />
-                <label
-                  htmlFor="import-file-input"
-                  style={{
-                    padding: "8px 16px",
-                    fontSize: 14,
-                    background: "#f3f4f6",
-                    color: "#374151",
-                    border: "1px solid #d1d5db",
-                    borderRadius: 6,
-                    cursor: "pointer",
-                    display: "inline-block",
-                  }}
-                >
-                  📁 选择 Excel 文件
-                </label>
-                {importFile && (
-                  <>
-                    <span style={{ fontSize: 14, color: "#6b7280" }}>
-                      {importFile.name}
-                    </span>
-                    <button
-                      onClick={handleBatchImport}
-                      disabled={isImporting}
-                      style={{
-                        padding: "8px 24px",
-                        fontSize: 14,
-                        background: isImporting ? "#9ca3af" : "#3b82f6",
-                        color: "#fff",
-                        border: "none",
-                        borderRadius: 6,
-                        cursor: isImporting ? "not-allowed" : "pointer",
-                      }}
-                    >
-                      {isImporting ? "导入中..." : "开始导入"}
-                    </button>
-                  </>
-                )}
+            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+            <span className="text-sm tracking-tight">返回控制中心</span>
+          </button>
+
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
+            <div className="space-y-3">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[10px] uppercase tracking-[0.2em] font-black">
+                <Settings2 className="w-3 h-3" />
+                底层系统架构
               </div>
+              <h1 className="text-5xl md:text-6xl font-black tracking-tighter text-white">
+                核心运行 <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 via-violet-500 to-purple-500">配置参数</span>
+              </h1>
+              <p className="text-slate-500 text-lg font-light max-w-xl leading-relaxed">
+                管理全局干预逻辑、模型信标及其监听节点。此处的所有改动将实时同步至核心执行引擎。
+              </p>
+            </div>
+          </div>
+        </header>
+
+        {/* Global Feedback */}
+        {result && (
+          <div className={`p-5 rounded-3xl mb-12 flex items-start gap-4 border backdrop-blur-3xl shadow-2xl animate-in zoom-in-95 duration-500 ${
+            result.includes("成功") || result.includes("完成")
+              ? "bg-emerald-500/5 border-emerald-500/20 text-emerald-400"
+              : "bg-red-500/5 border-red-500/20 text-red-400"
+          }`}>
+            {result.includes("成功") || result.includes("完成") ? (
+              <CheckCircle2 className="w-5 h-5 flex-shrink-0 mt-0.5" />
+            ) : (
+              <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+            )}
+            <div className="space-y-1">
+              <p className="text-sm font-bold tracking-tight whitespace-pre-line leading-relaxed">{result}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Tab System */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-12 p-1.5 rounded-[2rem] bg-white/[0.03] border border-white/[0.06] backdrop-blur-xl">
+          <button
+            onClick={() => setActiveTab("tickets")}
+            className={`group relative flex items-center justify-center gap-3 px-8 py-5 rounded-[1.75rem] transition-all duration-500 overflow-hidden ${
+              activeTab === "tickets"
+                ? "bg-white text-black shadow-2xl"
+                : "text-slate-500 hover:text-white hover:bg-white/5"
+            }`}
+          >
+            {activeTab === "tickets" && (
+              <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/10 via-transparent to-transparent opacity-50" />
+            )}
+            <Zap className={`w-5 h-5 transition-transform duration-500 ${activeTab === "tickets" ? "scale-110" : "group-hover:scale-110"}`} />
+            <div className="text-center">
+              <div className="text-sm font-black uppercase tracking-widest leading-none">干预模型</div>
+              <div className="text-[10px] font-medium opacity-50 uppercase tracking-tighter mt-1">干预策略模型</div>
+            </div>
+          </button>
+          
+          <button
+            onClick={() => setActiveTab("emails")}
+            className={`group relative flex items-center justify-center gap-3 px-8 py-5 rounded-[1.75rem] transition-all duration-500 overflow-hidden ${
+              activeTab === "emails"
+                ? "bg-white text-black shadow-2xl"
+                : "text-slate-500 hover:text-white hover:bg-white/5"
+            }`}
+          >
+            {activeTab === "emails" && (
+              <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/10 via-transparent to-transparent opacity-50" />
+            )}
+            <Mail className={`w-5 h-5 transition-transform duration-500 ${activeTab === "emails" ? "scale-110" : "group-hover:scale-110"}`} />
+            <div className="text-center">
+              <div className="text-sm font-black uppercase tracking-widest leading-none">投递终端</div>
+              <div className="text-[10px] font-medium opacity-50 uppercase tracking-tighter mt-1">通知推送节点</div>
+            </div>
+          </button>
+        </div>
+
+        {/* 预设号码管理 */}
+        {activeTab === "tickets" && (
+          <div className="animate-in fade-in zoom-in-95 duration-500 space-y-12">
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center p-6 rounded-[2.5rem] bg-white/[0.03] border border-white/[0.06] backdrop-blur-xl gap-6">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+                  <Database className="w-6 h-6" />
+                </div>
+                <div className="space-y-0.5">
+                  <h2 className="text-xl font-black tracking-tight text-white uppercase">活跃执行池</h2>
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">活跃执行池登记中心</p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3">
+                <a
+                  href="/批量导入模板.xlsx"
+                  download
+                  className="group px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-slate-400 hover:text-white transition-all flex items-center gap-2"
+                >
+                  <Download className="w-4 h-4 group-hover:translate-y-0.5 transition-transform" />
+                  <span className="text-xs font-bold uppercase tracking-wider">下载导入规范</span>
+                </a>
+                
+                <div className="flex items-center bg-black/20 p-1.5 rounded-xl border border-white/[0.05]">
+                  <input
+                    id="import-file-input"
+                    type="file"
+                    accept=".xlsx,.xls,.csv"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                  />
+                  <label
+                    htmlFor="import-file-input"
+                    className="px-4 py-2 text-xs font-bold uppercase tracking-widest bg-white/5 hover:bg-white/10 text-slate-300 rounded-lg transition-all cursor-pointer flex items-center gap-2 border border-white/5"
+                  >
+                    <FileSpreadsheet className="w-4 h-4" />
+                    选择规范文件
+                  </label>
+                  {importFile && (
+                    <div className="flex items-center gap-2 ml-2 animate-in slide-in-from-left-2">
+                      <span className="text-[10px] font-mono text-indigo-400 max-w-[120px] truncate">
+                        {importFile.name}
+                      </span>
+                      <button
+                        onClick={handleBatchImport}
+                        disabled={isImporting}
+                        className="px-4 py-2 text-[10px] font-black uppercase tracking-[0.2em] bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-all disabled:opacity-50 shadow-[0_0_15px_rgba(79,70,229,0.3)]"
+                      >
+                        {isImporting ? "正在同步" : "执行导入"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  onClick={handleAddTicket}
+                  className="px-6 py-3 rounded-2xl bg-white text-black hover:bg-slate-200 transition-all shadow-xl flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span className="text-sm font-black uppercase tracking-wider">增加策略节点</span>
+                </button>
+              </div>
+            </div>
+
+            {showTicketForm && (
+              <div className="p-8 lg:p-12 rounded-[3.5rem] bg-white/[0.03] border border-white/[0.08] backdrop-blur-3xl shadow-[0_0_100px_rgba(0,0,0,0.5)] animate-in slide-in-from-top-6 duration-700 relative group overflow-hidden">
+                 <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-500/5 blur-[120px] rounded-full -mr-32 -mt-32 pointer-events-none" />
+                 
+                 <div className="relative z-10 space-y-12">
+                  <div className="flex items-center justify-between border-b border-white/5 pb-8">
+                    <div className="space-y-1">
+                      <h3 className="text-3xl font-black tracking-tighter text-white uppercase italic">
+                        {editingTicket ? "重构策略模型" : "新建策略节点"}
+                      </h3>
+                      <p className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.4em]">策略配置子系统</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">系统链路激活</span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                    <div className="space-y-8">
+                      <div className="space-y-3">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block px-1">数据路由 - 数据中心</label>
+                        <select
+                          value={ticketLotteryType}
+                          onChange={(e) => {
+                            const newType = e.target.value as "ssq" | "dlt";
+                            setTicketLotteryType(newType);
+                            setTicketRedNumbers(newType === "ssq" ? ["", "", "", "", "", ""] : ["", "", "", "", ""]);
+                            setTicketBlueNumbers(newType === "ssq" ? [""] : ["", ""]);
+                          }}
+                          className="w-full h-14 px-6 rounded-2xl bg-black/40 border border-white/10 text-white outline-none focus:border-indigo-500 hover:bg-black/60 transition-all appearance-none cursor-pointer font-bold tracking-tight"
+                        >
+                          <option value="ssq" className="bg-slate-900 px-4 py-2">双色球 - 代理链路激活</option>
+                          <option value="dlt" className="bg-slate-900 px-4 py-2">大乐透 - 代理链路激活</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-3">
+                         <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block px-1">信标标识 - 节点 ID</label>
+                        <input
+                          type="text"
+                          value={ticketName}
+                          onChange={(e) => setTicketName(e.target.value)}
+                          placeholder="例：策略模型_A"
+                          className="w-full h-14 px-6 rounded-2xl bg-black/40 border border-white/10 text-white outline-none focus:border-indigo-500 hover:bg-black/60 transition-all placeholder:text-slate-800 font-bold tracking-tight"
+                        />
+                      </div>
+
+                      <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5 space-y-4">
+                        <div className="flex items-center justify-between">
+                          <div className="space-y-1">
+                            <div className="text-xs font-black text-white uppercase tracking-wider">周期性监听协议</div>
+                            <div className="text-[9px] text-slate-500 font-medium tracking-tight uppercase">持续自动同步协议</div>
+                          </div>
+                          <label className="flex items-center cursor-pointer">
+                            <div className={`w-14 h-7 flex items-center rounded-full transition-all duration-500 ${ticketIsActive ? 'bg-indigo-600 shadow-[0_0_20px_rgba(79,70,229,0.4)]' : 'bg-slate-800'}`}>
+                              <div className={`w-5 h-5 bg-white rounded-full transition-transform duration-500 transform mx-1 shadow-2xl ${ticketIsActive ? 'translate-x-[28px]' : 'translate-x-0'}`} />
+                            </div>
+                            <input type="checkbox" checked={ticketIsActive} onChange={(e) => setTicketIsActive(e.target.checked)} className="hidden" />
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-10">
+                      <div className="space-y-4">
+                        <div className="flex items-baseline justify-between px-1">
+                          <label className="text-[10px] font-black text-red-500 uppercase tracking-[0.2em]">红球矩阵 - 原始数据</label>
+                          <div className="text-[9px] font-mono text-slate-600">输入范围: {ticketLotteryType === "ssq" ? "01-33" : "01-35"}</div>
+                        </div>
+                        <div className="grid grid-cols-6 gap-2">
+                          {ticketRedNumbers.map((num, idx) => (
+                            <input
+                              key={idx}
+                              type="number"
+                              min="1"
+                              max={ticketLotteryType === "ssq" ? "33" : "35"}
+                              value={num}
+                              onChange={(e) => {
+                                const newNums = [...ticketRedNumbers];
+                                newNums[idx] = e.target.value;
+                                setTicketRedNumbers(newNums);
+                              }}
+                              placeholder="--"
+                              className="w-full h-14 text-center rounded-2xl bg-red-500/5 border border-red-500/10 text-red-500 font-black text-xl outline-none focus:bg-red-500/15 focus:border-red-500/40 transition-all placeholder:opacity-20"
+                            />
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div className="flex items-baseline justify-between px-1">
+                          <label className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em]">蓝球矩阵 - 原始数据</label>
+                          <div className="text-[9px] font-mono text-slate-600">输入范围: {ticketLotteryType === "ssq" ? "01-16" : "01-12"}</div>
+                        </div>
+                        <div className="flex gap-2">
+                          {ticketBlueNumbers.map((num, idx) => (
+                            <input
+                              key={idx}
+                              type="number"
+                              min="1"
+                              max={ticketLotteryType === "ssq" ? "16" : "12"}
+                              value={num}
+                              onChange={(e) => {
+                                const newNums = [...ticketBlueNumbers];
+                                newNums[idx] = e.target.value;
+                                setTicketBlueNumbers(newNums);
+                              }}
+                              placeholder="--"
+                              className="w-14 h-14 text-center rounded-2xl bg-indigo-500/5 border border-indigo-500/10 text-indigo-400 font-black text-xl outline-none focus:bg-indigo-500/15 focus:border-indigo-500/40 transition-all placeholder:opacity-20"
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-4 pt-10 border-t border-white/5">
+                    <button
+                      onClick={handleSaveTicket}
+                      disabled={createTicketMutation.isPending || updateTicketMutation.isPending}
+                      className="flex-1 h-16 rounded-[1.25rem] bg-white text-black font-black text-sm uppercase tracking-[0.2em] hover:bg-slate-200 transition-all shadow-xl active:scale-[0.98] disabled:opacity-50"
+                    >
+                      {createTicketMutation.isPending || updateTicketMutation.isPending ? "正在下发指令..." : "同步至核心引擎"}
+                    </button>
+                    <button
+                      onClick={() => { setShowTicketForm(false); setEditingTicket(null); }}
+                      className="flex-1 h-16 rounded-[1.25rem] bg-white/5 border border-white/10 text-slate-400 hover:text-white font-black text-sm uppercase tracking-[0.2em] hover:bg-white/10 transition-all active:scale-[0.98]"
+                    >
+                      中止当前操作
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 列表显示 */}
+            <div className="space-y-12">
+              {ticketLoading ? (
+                <div className="flex items-center justify-center py-24 text-slate-500 font-black uppercase tracking-[0.3em] animate-pulse">正在初始化数据流...</div>
+              ) : (
+                <>
+                  {/* 双色球 */}
+                  {groupedTickets.ssq.length > 0 && (
+                    <div className="space-y-6">
+                      <div className="flex items-center gap-3 px-2">
+                        <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-red-500/20 to-transparent" />
+                        <div className="text-[10px] font-black text-red-500/60 uppercase tracking-[0.4em]">双色球策略集群</div>
+                        <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-red-500/20 to-transparent" />
+                      </div>
+                      
+                      <div className="rounded-[2.5rem] bg-white/[0.01] border border-white/[0.06] overflow-hidden backdrop-blur-3xl shadow-2xl">
+                        <Table>
+                          <TableHeader className="bg-white/[0.02]">
+                            <TableRow className="border-white/[0.05] hover:bg-transparent">
+                              <TableHead className="py-6 px-8 text-[10px] font-black text-slate-500 uppercase tracking-widest">信标模型</TableHead>
+                              <TableHead className="py-6 px-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">干预矩阵 (RED/BLUE)</TableHead>
+                              <TableHead className="py-6 px-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">监听状态</TableHead>
+                              <TableHead className="py-6 px-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">建立时间</TableHead>
+                              <TableHead className="py-6 px-8 text-right text-[10px] font-black text-slate-500 uppercase tracking-widest">操作终端</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {groupedTickets.ssq.map((ticket: any) => (
+                              <TableRow key={ticket.id} className="border-white/[0.04] hover:bg-white/[0.02] transition-colors group">
+                                <TableCell className="py-6 px-8">
+                                  <span className="font-bold text-white tracking-tight">{ticket.name}</span>
+                                </TableCell>
+                                <TableCell className="py-6 px-4">
+                                  <div className="flex items-center gap-2">
+                                    {ticket.numbers.red.map((num: string, idx: number) => (
+                                      <div key={idx} className="w-8 h-8 rounded-lg bg-red-500/10 border border-red-500/10 flex items-center justify-center text-[10px] font-black text-red-500 group-hover:bg-red-500 group-hover:text-white transition-all duration-300 shadow-[0_0_10px_rgba(239,68,68,0.1)]">
+                                        {num}
+                                      </div>
+                                    ))}
+                                    <div className="w-[1px] h-6 bg-white/10 mx-1" />
+                                    {ticket.numbers.blue.map((num: string, idx: number) => (
+                                      <div key={idx} className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/10 flex items-center justify-center text-[10px] font-black text-indigo-400 group-hover:bg-indigo-500 group-hover:text-white transition-all duration-300 shadow-[0_0_10px_rgba(99,102,241,0.1)]">
+                                        {num}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </TableCell>
+                                <TableCell className="py-6 px-4">
+                                  <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border transition-colors ${
+                                    ticket.isActive ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-white/5 text-slate-600 border-white/5"
+                                  }`}>
+                                    <div className={`w-1.5 h-1.5 rounded-full ${ticket.isActive ? "bg-emerald-400 animate-pulse" : "bg-slate-700"}`} />
+                                    {ticket.isActive ? "激活" : "待命"}
+                                  </div>
+                                </TableCell>
+                                <TableCell className="py-6 px-4 font-mono text-[10px] text-slate-500 tracking-tighter">
+                                  {formatDate(ticket.createdAt)}
+                                </TableCell>
+                                <TableCell className="py-6 px-8 text-right">
+                                  <div className="flex justify-end gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button onClick={() => handleEditTicket(ticket)} className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-indigo-600 hover:border-indigo-600 transition-all active:scale-[0.9]"><Edit3 className="w-4 h-4" /></button>
+                                    <button onClick={() => handleToggleTicketActive(ticket)} className={`p-2.5 rounded-xl bg-white/5 border border-white/10 transition-all active:scale-[0.9] ${ticket.isActive ? "text-amber-400 hover:bg-amber-600 hover:text-white hover:border-amber-600" : "text-emerald-400 hover:bg-emerald-600 hover:text-white hover:border-emerald-600"}`}><Zap className="w-4 h-4" /></button>
+                                    <button onClick={() => handleDeleteTicket(ticket.id)} className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-500 hover:text-white hover:bg-red-600 hover:border-red-600 transition-all active:scale-[0.9]"><Trash2 className="w-4 h-4" /></button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 大乐透 */}
+                  {groupedTickets.dlt.length > 0 && (
+                    <div className="space-y-6">
+                      <div className="flex items-center gap-3 px-2">
+                        <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-amber-500/20 to-transparent" />
+                        <div className="text-[10px] font-black text-amber-500/60 uppercase tracking-[0.4em]">大乐透策略集群</div>
+                        <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-amber-500/20 to-transparent" />
+                      </div>
+                      
+                      <div className="rounded-[2.5rem] bg-white/[0.01] border border-white/[0.06] overflow-hidden backdrop-blur-3xl shadow-2xl">
+                        <Table>
+                          <TableHeader className="bg-white/[0.02]">
+                            <TableRow className="border-white/[0.05] hover:bg-transparent">
+                              <TableHead className="py-6 px-8 text-[10px] font-black text-slate-500 uppercase tracking-widest">信标模型</TableHead>
+                              <TableHead className="py-6 px-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">干预矩阵 (RED/BLUE)</TableHead>
+                              <TableHead className="py-6 px-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">监听状态</TableHead>
+                              <TableHead className="py-6 px-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">建立时间</TableHead>
+                              <TableHead className="py-6 px-8 text-right text-[10px] font-black text-slate-500 uppercase tracking-widest">操作终端</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {groupedTickets.dlt.map((ticket: any) => (
+                              <TableRow key={ticket.id} className="border-white/[0.04] hover:bg-white/[0.02] transition-colors group">
+                                <TableCell className="py-6 px-8">
+                                  <span className="font-bold text-white tracking-tight">{ticket.name}</span>
+                                </TableCell>
+                                <TableCell className="py-6 px-4">
+                                  <div className="flex items-center gap-2">
+                                    {ticket.numbers.red.map((num: string, idx: number) => (
+                                      <div key={idx} className="w-8 h-8 rounded-lg bg-orange-500/10 border border-orange-500/10 flex items-center justify-center text-[10px] font-black text-orange-500 group-hover:bg-orange-500 group-hover:text-white transition-all duration-300 shadow-[0_0_10px_rgba(249,115,22,0.1)]">
+                                        {num}
+                                      </div>
+                                    ))}
+                                    <div className="w-[1px] h-6 bg-white/10 mx-1" />
+                                    {ticket.numbers.blue.map((num: string, idx: number) => (
+                                      <div key={idx} className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/10 flex items-center justify-center text-[10px] font-black text-emerald-400 group-hover:bg-emerald-500 group-hover:text-white transition-all duration-300 shadow-[0_0_10px_rgba(16,185,129,0.1)]">
+                                        {num}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </TableCell>
+                                <TableCell className="py-6 px-4">
+                                  <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border transition-colors ${
+                                    ticket.isActive ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-white/5 text-slate-600 border-white/5"
+                                  }`}>
+                                    <div className={`w-1.5 h-1.5 rounded-full ${ticket.isActive ? "bg-emerald-400 animate-pulse" : "bg-slate-700"}`} />
+                                    {ticket.isActive ? "ACTIVE" : "STANDBY"}
+                                  </div>
+                                </TableCell>
+                                <TableCell className="py-6 px-4 font-mono text-[10px] text-slate-500 tracking-tighter">
+                                  {formatDate(ticket.createdAt)}
+                                </TableCell>
+                                <TableCell className="py-6 px-8 text-right">
+                                  <div className="flex justify-end gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button onClick={() => handleEditTicket(ticket)} className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-indigo-600 hover:border-indigo-600 transition-all active:scale-[0.9]"><Edit3 className="w-4 h-4" /></button>
+                                    <button onClick={() => handleToggleTicketActive(ticket)} className={`p-2.5 rounded-xl bg-white/5 border border-white/10 transition-all active:scale-[0.9] ${ticket.isActive ? "text-amber-400 hover:bg-amber-600 hover:text-white hover:border-amber-600" : "text-emerald-400 hover:bg-emerald-600 hover:text-white hover:border-emerald-600"}`}><Zap className="w-4 h-4" /></button>
+                                    <button onClick={() => handleDeleteTicket(ticket.id)} className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-500 hover:text-white hover:bg-red-600 hover:border-red-600 transition-all active:scale-[0.9]"><Trash2 className="w-4 h-4" /></button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 空状态 */}
+                  {groupedTickets.ssq.length === 0 && groupedTickets.dlt.length === 0 && (
+                      <div className="py-32 text-center bg-white/[0.01] border border-white/[0.05] border-dashed rounded-[3rem]">
+                        <Activity className="w-12 h-12 text-slate-800 mx-auto mb-6" />
+                        <p className="text-slate-500 font-black uppercase tracking-[0.3em] text-sm mb-2">零节点检测</p>
+                        <p className="text-slate-600 text-xs text-center">当前集群内未发现活跃的干预模型，请先建立首个监控节点。</p>
+                      </div>
+                    )}
+                  
+                  {ticketTotalPages > 1 && (
+                    <div className="flex justify-center pt-12">
+                      <Pagination>
+                        <PaginationContent className="bg-white/5 p-1 rounded-2xl border border-white/5">
+                          <PaginationItem>
+                            <PaginationPrevious
+                              className="rounded-xl hover:bg-white/10 text-white disabled:opacity-30"
+                              onClick={() => { if (ticketPage > 1) setTicketPage(ticketPage - 1); }}
+                              style={{ cursor: ticketPage > 1 ? "pointer" : "not-allowed" }}
+                            />
+                          </PaginationItem>
+                          {Array.from({ length: ticketTotalPages }, (_, i) => i + 1)
+                            .filter((page) => page === 1 || page === ticketTotalPages || (page >= ticketPage - 1 && page <= ticketPage + 1))
+                            .map((page, idx, arr) => (
+                              <div key={page} className="flex items-center">
+                                {idx > 0 && arr[idx-1] !== page - 1 && <span className="text-slate-700 px-2 font-black pb-1">...</span>}
+                                <PaginationItem>
+                                  <PaginationLink
+                                    className={`w-10 h-10 rounded-xl transition-all font-black text-xs ${ticketPage === page ? "bg-white text-black hover:bg-white shadow-xl" : "text-slate-500 hover:bg-white/10 hover:text-white"}`}
+                                    onClick={() => setTicketPage(page)}
+                                  >
+                                    {page}
+                                  </PaginationLink>
+                                </PaginationItem>
+                              </div>
+                            ))}
+                          <PaginationItem>
+                            <PaginationNext
+                              className="rounded-xl hover:bg-white/10 text-white disabled:opacity-30"
+                              onClick={() => { if (ticketPage < ticketTotalPages) setTicketPage(ticketPage + 1); }}
+                              style={{ cursor: ticketPage < ticketTotalPages ? "pointer" : "not-allowed" }}
+                            />
+                          </PaginationItem>
+                        </PaginationContent>
+                      </Pagination>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* 邮箱管理 */}
+        {activeTab === "emails" && (
+          <div className="animate-in fade-in zoom-in-95 duration-500 space-y-12">
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center p-6 rounded-[2.5rem] bg-white/[0.03] border border-white/[0.06] backdrop-blur-xl gap-6">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                  <Mail className="w-6 h-6" />
+                </div>
+                <div className="space-y-0.5">
+                  <h2 className="text-xl font-black tracking-tight text-white uppercase">投递终端 登记中心</h2>
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">通知推送终端资产池</p>
+                </div>
+              </div>
+
               <button
-                onClick={handleAddTicket}
-                style={{
-                  padding: "8px 24px",
-                  fontSize: 16,
-                  background: "#10b981",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: 6,
-                  cursor: "pointer",
-                }}
+                onClick={handleAddEmail}
+                className="px-6 py-3 rounded-2xl bg-white text-black hover:bg-slate-200 transition-all shadow-xl flex items-center gap-2 ml-auto"
               >
-                + 添加预设号码
+                <Plus className="w-4 h-4" />
+                <span className="text-sm font-black uppercase tracking-wider">挂载投递节点</span>
               </button>
             </div>
-          </div>
 
-          {/* 添加/编辑表单 */}
-          {showTicketForm && (
-            <div
-              style={{
-                marginBottom: 24,
-                padding: 20,
-                border: "1px solid #e2e8f0",
-                borderRadius: 8,
-                background: "#f9fafb",
-              }}
-            >
-              <h3 style={{ fontSize: 18, marginBottom: 16 }}>
-                {editingTicket ? "编辑预设号码" : "添加预设号码"}
-              </h3>
-              <div
-                style={{ display: "flex", flexDirection: "column", gap: 12 }}
-              >
-                <div>
-                  <label
-                    style={{
-                      display: "block",
-                      marginBottom: 4,
-                      fontSize: 14,
-                      fontWeight: 500,
-                    }}
-                  >
-                    彩票类型
-                  </label>
-                  <select
-                    value={ticketLotteryType}
-                    onChange={(e) => {
-                      const newType = e.target.value as "ssq" | "dlt";
-                      setTicketLotteryType(newType);
-                      // 根据类型调整号码输入框
-                      setTicketRedNumbers(
-                        newType === "ssq"
-                          ? ["", "", "", "", "", ""]
-                          : ["", "", "", "", ""],
-                      );
-                      setTicketBlueNumbers(newType === "ssq" ? [""] : ["", ""]);
-                    }}
-                    style={{
-                      width: "100%",
-                      maxWidth: 400,
-                      padding: "8px 12px",
-                      fontSize: 14,
-                      borderRadius: 6,
-                      border: "1px solid #e2e8f0",
-                      outline: "none",
-                    }}
-                  >
-                    <option value="ssq">双色球</option>
-                    <option value="dlt">大乐透</option>
-                  </select>
-                </div>
-                <div>
-                  <label
-                    style={{
-                      display: "block",
-                      marginBottom: 4,
-                      fontSize: 14,
-                      fontWeight: 500,
-                    }}
-                  >
-                    名称/备注
-                  </label>
-                  <input
-                    type="text"
-                    value={ticketName}
-                    onChange={(e) => setTicketName(e.target.value)}
-                    placeholder="例如：我的幸运号码"
-                    style={{
-                      width: "100%",
-                      maxWidth: 400,
-                      padding: "8px 12px",
-                      fontSize: 14,
-                      borderRadius: 6,
-                      border: "1px solid #e2e8f0",
-                      outline: "none",
-                    }}
-                  />
-                </div>
-                <div>
-                  <label
-                    style={{
-                      display: "block",
-                      marginBottom: 8,
-                      fontSize: 14,
-                      fontWeight: 500,
-                    }}
-                  >
-                    红球号码（
-                    {ticketLotteryType === "ssq" ? "6个，01-33" : "5个，01-35"}
-                    ）
-                  </label>
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    {ticketRedNumbers.map((num, idx) => (
-                      <input
-                        key={idx}
-                        type="number"
-                        min="1"
-                        max={ticketLotteryType === "ssq" ? "33" : "35"}
-                        value={num}
-                        onChange={(e) => {
-                          const newNums = [...ticketRedNumbers];
-                          newNums[idx] = e.target.value;
-                          setTicketRedNumbers(newNums);
-                        }}
-                        placeholder={`红${idx + 1}`}
-                        style={{
-                          width: 60,
-                          padding: "8px 12px",
-                          fontSize: 14,
-                          borderRadius: 6,
-                          border: "1px solid #e2e8f0",
-                          outline: "none",
-                        }}
-                      />
-                    ))}
+            {showEmailForm && (
+              <div className="p-8 lg:p-12 rounded-[3.5rem] bg-white/[0.03] border border-white/[0.08] backdrop-blur-3xl shadow-[0_0_100px_rgba(0,0,0,0.5)] animate-in slide-in-from-top-6 duration-700 relative group overflow-hidden">
+                <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-emerald-500/5 blur-[120px] rounded-full -mr-32 -mt-32 pointer-events-none" />
+                
+                <div className="relative z-10 space-y-12">
+                   <div className="flex items-center justify-between border-b border-white/5 pb-8">
+                    <div className="space-y-1">
+                      <h3 className="text-3xl font-black tracking-tighter text-white uppercase italic">
+                        {editingEmail ? "维护投递终端" : "建立投递链路"}
+                      </h3>
+                      <p className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.4em]">邮件调度配置系统</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">节点在线</span>
+                    </div>
                   </div>
-                </div>
-                <div>
-                  <label
-                    style={{
-                      display: "block",
-                      marginBottom: 8,
-                      fontSize: 14,
-                      fontWeight: 500,
-                    }}
-                  >
-                    蓝球号码（
-                    {ticketLotteryType === "ssq" ? "1个，01-16" : "2个，01-12"}
-                    ）
-                  </label>
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    {ticketBlueNumbers.map((num, idx) => (
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block px-1">终端地址 - 节点通讯录</label>
                       <input
-                        key={idx}
-                        type="number"
-                        min="1"
-                        max={ticketLotteryType === "ssq" ? "16" : "12"}
-                        value={num}
-                        onChange={(e) => {
-                          const newNums = [...ticketBlueNumbers];
-                          newNums[idx] = e.target.value;
-                          setTicketBlueNumbers(newNums);
-                        }}
-                        placeholder={`蓝${idx + 1}`}
-                        style={{
-                          width: 60,
-                          padding: "8px 12px",
-                          fontSize: 14,
-                          borderRadius: 6,
-                          border: "1px solid #e2e8f0",
-                          outline: "none",
-                        }}
+                        type="email"
+                        value={emailAddress}
+                        onChange={(e) => setEmailAddress(e.target.value)}
+                        placeholder="管理员邮箱@example.com"
+                        className="w-full h-14 px-6 rounded-2xl bg-black/40 border border-white/10 text-white outline-none focus:border-emerald-500 hover:bg-black/60 transition-all placeholder:text-slate-800 font-bold tracking-tight"
                       />
-                    ))}
+                    </div>
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block px-1">终端信标 - 资产标签</label>
+                      <input
+                        type="text"
+                        value={emailName}
+                        onChange={(e) => setEmailName(e.target.value)}
+                        placeholder="例：主节点_01"
+                        className="w-full h-14 px-6 rounded-2xl bg-black/40 border border-white/10 text-white outline-none focus:border-emerald-500 hover:bg-black/60 transition-all placeholder:text-slate-800 font-bold tracking-tight"
+                      />
+                    </div>
                   </div>
-                </div>
-                <div>
-                  <label
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                      fontSize: 14,
-                      cursor: "pointer",
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={ticketIsActive}
-                      onChange={(e) => setTicketIsActive(e.target.checked)}
-                      style={{ width: 16, height: 16, cursor: "pointer" }}
-                    />
-                    <span>激活（激活的预设号码会在开奖时自动匹配）</span>
-                  </label>
-                </div>
-                <div style={{ display: "flex", gap: 12 }}>
-                  <button
-                    onClick={handleSaveTicket}
-                    disabled={
-                      createTicketMutation.isPending ||
-                      updateTicketMutation.isPending
-                    }
-                    style={{
-                      padding: "8px 24px",
-                      fontSize: 14,
-                      background: "#2563eb",
-                      color: "#fff",
-                      border: "none",
-                      borderRadius: 6,
-                      cursor: "pointer",
-                    }}
-                  >
-                    {createTicketMutation.isPending ||
-                    updateTicketMutation.isPending
-                      ? "保存中..."
-                      : "保存"}
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowTicketForm(false);
-                      setEditingTicket(null);
-                    }}
-                    style={{
-                      padding: "8px 24px",
-                      fontSize: 14,
-                      background: "#6b7280",
-                      color: "#fff",
-                      border: "none",
-                      borderRadius: 6,
-                      cursor: "pointer",
-                    }}
-                  >
-                    取消
-                  </button>
+
+                  <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5 flex items-center justify-between">
+                    <div className="space-y-1">
+                      <div className="text-xs font-black text-white uppercase tracking-wider">使能实时投递</div>
+                      <div className="text-[9px] text-slate-500 font-medium tracking-tight uppercase">实时负载传输协议</div>
+                    </div>
+                    <label className="flex items-center cursor-pointer">
+                      <div className={`w-14 h-7 flex items-center rounded-full transition-all duration-500 ${emailIsActive ? 'bg-emerald-600 shadow-[0_0_20px_rgba(16,185,129,0.4)]' : 'bg-slate-800'}`}>
+                        <div className={`w-5 h-5 bg-white rounded-full transition-transform duration-500 transform mx-1 shadow-2xl ${emailIsActive ? 'translate-x-[28px]' : 'translate-x-0'}`} />
+                      </div>
+                      <input type="checkbox" checked={emailIsActive} onChange={(e) => setEmailIsActive(e.target.checked)} className="hidden" />
+                    </label>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-4 pt-10 border-t border-white/5">
+                    <button
+                      onClick={handleSaveEmail}
+                      disabled={createEmailMutation.isPending || updateEmailMutation.isPending}
+                      className="flex-1 h-16 rounded-[1.25rem] bg-indigo-600 text-white font-black text-sm uppercase tracking-[0.2em] hover:bg-indigo-500 transition-all shadow-2xl shadow-indigo-500/20 active:scale-[0.98] disabled:opacity-50"
+                    >
+                      {createEmailMutation.isPending || updateEmailMutation.isPending ? "正在建立连接..." : "确认下达链路指令"}
+                    </button>
+                    <button
+                      onClick={() => { setShowEmailForm(false); setEditingEmail(null); }}
+                      className="flex-1 h-16 rounded-[1.25rem] bg-white/5 border border-white/10 text-slate-400 hover:text-white font-black text-sm uppercase tracking-[0.2em] hover:bg-white/10 transition-all active:scale-[0.98]"
+                    >
+                      中止当前操作
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* 预设号码列表 - 按类型分组显示 */}
-          {ticketLoading ? (
-            <div>加载中...</div>
-          ) : (
-            <>
-              {/* 双色球分组 */}
-              {groupedTickets.ssq.length > 0 && (
-                <div style={{ marginBottom: 32 }}>
-                  <h3
-                    style={{
-                      fontSize: 18,
-                      fontWeight: 600,
-                      marginBottom: 16,
-                      color: "#1e40af",
-                    }}
-                  >
-                    🎯 双色球 ({groupedTickets.ssq.length} 条)
-                  </h3>
-                  <div className="rounded-md border">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>名称</TableHead>
-                          <TableHead>号码</TableHead>
-                          <TableHead>状态</TableHead>
-                          <TableHead>创建时间</TableHead>
-                          <TableHead>操作</TableHead>
+            {/* 邮箱列表 */}
+            {emailLoading ? (
+              <div className="flex items-center justify-center py-24 text-slate-500 font-black uppercase tracking-[0.3em] animate-pulse">正在扫描终端资产...</div>
+            ) : (
+              <div className="space-y-6">
+                <div className="rounded-[2.5rem] bg-white/[0.01] border border-white/[0.06] overflow-hidden backdrop-blur-3xl shadow-2xl">
+                  <Table>
+                    <TableHeader className="bg-white/[0.02]">
+                      <TableRow className="border-white/[0.05] hover:bg-transparent">
+                        <TableHead className="py-6 px-8 text-[10px] font-black text-slate-500 uppercase tracking-widest">终端链路地址</TableHead>
+                        <TableHead className="py-6 px-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">资产信标名称</TableHead>
+                        <TableHead className="py-6 px-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">寻呼应答状态</TableHead>
+                        <TableHead className="py-6 px-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">挂载时间</TableHead>
+                        <TableHead className="py-6 px-8 text-right text-[10px] font-black text-slate-500 uppercase tracking-widest">管理控制</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {emailData?.data?.list.map((email: any) => (
+                        <TableRow key={email.id} className="border-white/[0.04] hover:bg-white/[0.02] transition-colors group">
+                          <TableCell className="py-6 px-8">
+                            <span className="font-mono text-xs font-bold text-white/90">{email.email}</span>
+                          </TableCell>
+                          <TableCell className="py-6 px-4 font-bold text-slate-400">{email.name || "未命名资产"}</TableCell>
+                          <TableCell className="py-6 px-4">
+                            <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border transition-colors ${
+                              email.isActive ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-white/5 text-slate-600 border-white/5"
+                            }`}>
+                              <div className={`w-1.5 h-1.5 rounded-full ${email.isActive ? "bg-emerald-400 animate-pulse" : "bg-slate-700"}`} />
+                              {email.isActive ? "接收中" : "已挂起"}
+                            </div>
+                          </TableCell>
+                          <TableCell className="py-6 px-4 font-mono text-[10px] text-slate-500 tracking-tighter">{formatDate(email.createdAt)}</TableCell>
+                          <TableCell className="py-6 px-8 text-right">
+                            <div className="flex justify-end gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button onClick={() => handleEditEmail(email)} className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-emerald-600 hover:border-emerald-600 transition-all active:scale-[0.9]"><Edit3 className="w-4 h-4" /></button>
+                              <button onClick={() => handleToggleEmailActive(email)} className={`p-2.5 rounded-xl bg-white/5 border border-white/10 transition-all active:scale-[0.9] ${email.isActive ? "text-amber-400 hover:bg-amber-600 hover:text-white hover:border-amber-600" : "text-emerald-400 hover:bg-emerald-600 hover:text-white hover:border-emerald-600"}`}><Zap className="w-4 h-4" /></button>
+                              <button onClick={() => handleDeleteEmail(email.id)} className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-500 hover:text-white hover:bg-red-600 hover:border-red-600 transition-all active:scale-[0.9]"><Trash2 className="w-4 h-4" /></button>
+                            </div>
+                          </TableCell>
                         </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {groupedTickets.ssq.map((ticket: any) => (
-                          <TableRow key={ticket.id}>
-                            <TableCell>{ticket.name}</TableCell>
-                            <TableCell>
-                              <div
-                                style={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: 4,
-                                  flexWrap: "wrap",
-                                }}
-                              >
-                                {ticket.numbers.red.map(
-                                  (num: string, idx: number) => (
-                                    <span
-                                      key={idx}
-                                      style={{
-                                        display: "inline-block",
-                                        width: 28,
-                                        height: 28,
-                                        lineHeight: "28px",
-                                        borderRadius: "50%",
-                                        background: "#e53e3e",
-                                        color: "#fff",
-                                        textAlign: "center",
-                                        marginRight: 4,
-                                        fontWeight: 600,
-                                        fontSize: 12,
-                                      }}
-                                    >
-                                      {num}
-                                    </span>
-                                  ),
-                                )}
-                                {ticket.numbers.blue.map(
-                                  (num: string, idx: number) => (
-                                    <span
-                                      key={idx}
-                                      style={{
-                                        display: "inline-block",
-                                        width: 28,
-                                        height: 28,
-                                        lineHeight: "28px",
-                                        borderRadius: "50%",
-                                        background: "#2563eb",
-                                        color: "#fff",
-                                        textAlign: "center",
-                                        marginLeft: 8,
-                                        marginRight: 4,
-                                        fontWeight: 600,
-                                        fontSize: 12,
-                                      }}
-                                    >
-                                      {num}
-                                    </span>
-                                  ),
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <span
-                                style={{
-                                  padding: "4px 12px",
-                                  borderRadius: 12,
-                                  fontSize: 12,
-                                  background: ticket.isActive
-                                    ? "#d1fae5"
-                                    : "#f3f4f6",
-                                  color: ticket.isActive
-                                    ? "#065f46"
-                                    : "#6b7280",
-                                }}
-                              >
-                                {ticket.isActive ? "激活" : "停用"}
-                              </span>
-                            </TableCell>
-                            <TableCell>
-                              {formatDate(ticket.createdAt)}
-                            </TableCell>
-                            <TableCell>
-                              <div style={{ display: "flex", gap: 8 }}>
-                                <button
-                                  onClick={() => handleEditTicket(ticket)}
-                                  style={{
-                                    padding: "4px 12px",
-                                    fontSize: 12,
-                                    background: "#2563eb",
-                                    color: "#fff",
-                                    border: "none",
-                                    borderRadius: 4,
-                                    cursor: "pointer",
-                                  }}
-                                >
-                                  编辑
-                                </button>
-                                <button
-                                  onClick={() =>
-                                    handleToggleTicketActive(ticket)
-                                  }
-                                  style={{
-                                    padding: "4px 12px",
-                                    fontSize: 12,
-                                    background: ticket.isActive
-                                      ? "#f59e0b"
-                                      : "#10b981",
-                                    color: "#fff",
-                                    border: "none",
-                                    borderRadius: 4,
-                                    cursor: "pointer",
-                                  }}
-                                >
-                                  {ticket.isActive ? "停用" : "激活"}
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteTicket(ticket.id)}
-                                  style={{
-                                    padding: "4px 12px",
-                                    fontSize: 12,
-                                    background: "#ef4444",
-                                    color: "#fff",
-                                    border: "none",
-                                    borderRadius: 4,
-                                    cursor: "pointer",
-                                  }}
-                                >
-                                  删除
-                                </button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </div>
-              )}
-
-              {/* 大乐透分组 */}
-              {groupedTickets.dlt.length > 0 && (
-                <div style={{ marginBottom: 32 }}>
-                  <h3
-                    style={{
-                      fontSize: 18,
-                      fontWeight: 600,
-                      marginBottom: 16,
-                      color: "#dc2626",
-                    }}
-                  >
-                    🎲 大乐透 ({groupedTickets.dlt.length} 条)
-                  </h3>
-                  <div className="rounded-md border">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>名称</TableHead>
-                          <TableHead>号码</TableHead>
-                          <TableHead>状态</TableHead>
-                          <TableHead>创建时间</TableHead>
-                          <TableHead>操作</TableHead>
+                      ))}
+                      {(!emailData?.data?.list || emailData.data.list.length === 0) && (
+                        <TableRow className="border-white/10 hover:bg-transparent">
+                          <TableCell colSpan={5} className="py-32 text-center">
+                            <Moon className="w-12 h-12 text-slate-800 mx-auto mb-6" />
+                            <p className="text-slate-500 font-black uppercase tracking-[0.3em] text-sm mb-2">链路中断</p>
+                            <p className="text-slate-600 text-xs text-center max-w-xs mx-auto">当前没有任何挂载的投递终端，所有系统通知将被暂存于缓冲区直至链路建立。</p>
+                          </TableCell>
                         </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {groupedTickets.dlt.map((ticket: any) => (
-                          <TableRow key={ticket.id}>
-                            <TableCell>{ticket.name}</TableCell>
-                            <TableCell>
-                              <div
-                                style={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: 4,
-                                  flexWrap: "wrap",
-                                }}
-                              >
-                                {ticket.numbers.red.map(
-                                  (num: string, idx: number) => (
-                                    <span
-                                      key={idx}
-                                      style={{
-                                        display: "inline-block",
-                                        width: 28,
-                                        height: 28,
-                                        lineHeight: "28px",
-                                        borderRadius: "50%",
-                                        background: "#e53e3e",
-                                        color: "#fff",
-                                        textAlign: "center",
-                                        marginRight: 4,
-                                        fontWeight: 600,
-                                        fontSize: 12,
-                                      }}
-                                    >
-                                      {num}
-                                    </span>
-                                  ),
-                                )}
-                                {ticket.numbers.blue.map(
-                                  (num: string, idx: number) => (
-                                    <span
-                                      key={idx}
-                                      style={{
-                                        display: "inline-block",
-                                        width: 28,
-                                        height: 28,
-                                        lineHeight: "28px",
-                                        borderRadius: "50%",
-                                        background: "#2563eb",
-                                        color: "#fff",
-                                        textAlign: "center",
-                                        marginLeft: 8,
-                                        marginRight: 4,
-                                        fontWeight: 600,
-                                        fontSize: 12,
-                                      }}
-                                    >
-                                      {num}
-                                    </span>
-                                  ),
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <span
-                                style={{
-                                  padding: "4px 12px",
-                                  borderRadius: 12,
-                                  fontSize: 12,
-                                  background: ticket.isActive
-                                    ? "#d1fae5"
-                                    : "#f3f4f6",
-                                  color: ticket.isActive
-                                    ? "#065f46"
-                                    : "#6b7280",
-                                }}
-                              >
-                                {ticket.isActive ? "激活" : "停用"}
-                              </span>
-                            </TableCell>
-                            <TableCell>
-                              {formatDate(ticket.createdAt)}
-                            </TableCell>
-                            <TableCell>
-                              <div style={{ display: "flex", gap: 8 }}>
-                                <button
-                                  onClick={() => handleEditTicket(ticket)}
-                                  style={{
-                                    padding: "4px 12px",
-                                    fontSize: 12,
-                                    background: "#2563eb",
-                                    color: "#fff",
-                                    border: "none",
-                                    borderRadius: 4,
-                                    cursor: "pointer",
-                                  }}
-                                >
-                                  编辑
-                                </button>
-                                <button
-                                  onClick={() =>
-                                    handleToggleTicketActive(ticket)
-                                  }
-                                  style={{
-                                    padding: "4px 12px",
-                                    fontSize: 12,
-                                    background: ticket.isActive
-                                      ? "#f59e0b"
-                                      : "#10b981",
-                                    color: "#fff",
-                                    border: "none",
-                                    borderRadius: 4,
-                                    cursor: "pointer",
-                                  }}
-                                >
-                                  {ticket.isActive ? "停用" : "激活"}
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteTicket(ticket.id)}
-                                  style={{
-                                    padding: "4px 12px",
-                                    fontSize: 12,
-                                    background: "#ef4444",
-                                    color: "#fff",
-                                    border: "none",
-                                    borderRadius: 4,
-                                    cursor: "pointer",
-                                  }}
-                                >
-                                  删除
-                                </button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
+                      )}
+                    </TableBody>
+                  </Table>
                 </div>
-              )}
 
-              {/* 空状态 */}
-              {groupedTickets.ssq.length === 0 &&
-                groupedTickets.dlt.length === 0 && (
-                  <div
-                    style={{
-                      padding: 40,
-                      textAlign: "center",
-                      color: "#6b7280",
-                      background: "#f9fafb",
-                      borderRadius: 8,
-                      border: "1px solid #e2e8f0",
-                    }}
-                  >
-                    <p style={{ fontSize: 16, marginBottom: 8 }}>
-                      暂无预设号码
-                    </p>
-                    <p style={{ fontSize: 14 }}>
-                      点击&ldquo;添加预设号码&rdquo;创建
-                    </p>
+                {emailTotalPages > 1 && (
+                  <div className="flex justify-center pt-12">
+                    <Pagination>
+                      <PaginationContent className="bg-white/5 p-1 rounded-2xl border border-white/5">
+                        <PaginationItem>
+                          <PaginationPrevious
+                            className="rounded-xl hover:bg-white/10 text-white disabled:opacity-30"
+                            onClick={() => { if (emailPage > 1) setEmailPage(emailPage - 1); }}
+                            style={{ cursor: emailPage > 1 ? "pointer" : "not-allowed" }}
+                          />
+                        </PaginationItem>
+                        {Array.from({ length: emailTotalPages }, (_, i) => i + 1)
+                          .filter((page) => page === 1 || page === emailTotalPages || (page >= emailPage - 1 && page <= emailPage + 1))
+                          .map((page, idx, arr) => (
+                            <div key={page} className="flex items-center">
+                               {idx > 0 && arr[idx-1] !== page - 1 && <span className="text-slate-700 px-2 font-black pb-1">...</span>}
+                              <PaginationItem>
+                                <PaginationLink
+                                  className={`w-10 h-10 rounded-xl transition-all font-black text-xs ${emailPage === page ? "bg-white text-black hover:bg-white shadow-xl" : "text-slate-500 hover:bg-white/10 hover:text-white"}`}
+                                  onClick={() => setEmailPage(page)}
+                                >
+                                  {page}
+                                </PaginationLink>
+                              </PaginationItem>
+                            </div>
+                          ))}
+                        <PaginationItem>
+                          <PaginationNext
+                            className="rounded-xl hover:bg-white/10 text-white disabled:opacity-30"
+                            onClick={() => { if (emailPage < emailTotalPages) setEmailPage(emailPage + 1); }}
+                            style={{ cursor: emailPage < emailTotalPages ? "pointer" : "not-allowed" }}
+                          />
+                        </PaginationItem>
+                      </PaginationContent>
+                    </Pagination>
                   </div>
                 )}
-              {ticketTotalPages > 1 && (
-                <div
-                  style={{
-                    marginTop: 20,
-                    display: "flex",
-                    justifyContent: "center",
-                  }}
-                >
-                  <Pagination>
-                    <PaginationContent>
-                      <PaginationItem>
-                        <PaginationPrevious
-                          onClick={() => {
-                            if (ticketPage > 1) {
-                              setTicketPage(ticketPage - 1);
-                            }
-                          }}
-                          style={{
-                            cursor: ticketPage > 1 ? "pointer" : "not-allowed",
-                            opacity: ticketPage > 1 ? 1 : 0.5,
-                          }}
-                        />
-                      </PaginationItem>
-                      {Array.from({ length: ticketTotalPages }, (_, i) => i + 1)
-                        .filter((page) => {
-                          return (
-                            page === 1 ||
-                            page === ticketTotalPages ||
-                            (page >= ticketPage - 1 && page <= ticketPage + 1)
-                          );
-                        })
-                        .map((page) => (
-                          <PaginationItem key={page}>
-                            <PaginationLink
-                              onClick={() => setTicketPage(page)}
-                              isActive={ticketPage === page}
-                              style={{ cursor: "pointer" }}
-                            >
-                              {page}
-                            </PaginationLink>
-                          </PaginationItem>
-                        ))}
-                      <PaginationItem>
-                        <PaginationNext
-                          onClick={() => {
-                            if (ticketPage < ticketTotalPages) {
-                              setTicketPage(ticketPage + 1);
-                            }
-                          }}
-                          style={{
-                            cursor:
-                              ticketPage < ticketTotalPages
-                                ? "pointer"
-                                : "not-allowed",
-                            opacity: ticketPage < ticketTotalPages ? 1 : 0.5,
-                          }}
-                        />
-                      </PaginationItem>
-                    </PaginationContent>
-                  </Pagination>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      )}
-
-      {/* 邮箱管理 */}
-      {activeTab === "emails" && (
-        <div>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: 20,
-            }}
-          >
-            <h2 style={{ fontSize: 20 }}>邮件收件人管理</h2>
-            <button
-              onClick={handleAddEmail}
-              style={{
-                padding: "8px 24px",
-                fontSize: 16,
-                background: "#10b981",
-                color: "#fff",
-                border: "none",
-                borderRadius: 6,
-                cursor: "pointer",
-              }}
-            >
-              + 添加收件人
-            </button>
+              </div>
+            )}
           </div>
-
-          {/* 添加/编辑表单 */}
-          {showEmailForm && (
-            <div
-              style={{
-                marginBottom: 24,
-                padding: 20,
-                border: "1px solid #e2e8f0",
-                borderRadius: 8,
-                background: "#f9fafb",
-              }}
-            >
-              <h3 style={{ fontSize: 18, marginBottom: 16 }}>
-                {editingEmail ? "编辑收件人" : "添加收件人"}
-              </h3>
-              <div
-                style={{ display: "flex", flexDirection: "column", gap: 12 }}
-              >
-                <div>
-                  <label
-                    style={{
-                      display: "block",
-                      marginBottom: 4,
-                      fontSize: 14,
-                      fontWeight: 500,
-                    }}
-                  >
-                    邮箱地址 *
-                  </label>
-                  <input
-                    type="email"
-                    value={emailAddress}
-                    onChange={(e) => setEmailAddress(e.target.value)}
-                    placeholder="example@email.com"
-                    style={{
-                      width: "100%",
-                      maxWidth: 400,
-                      padding: "8px 12px",
-                      fontSize: 14,
-                      borderRadius: 6,
-                      border: "1px solid #e2e8f0",
-                      outline: "none",
-                    }}
-                  />
-                </div>
-                <div>
-                  <label
-                    style={{
-                      display: "block",
-                      marginBottom: 4,
-                      fontSize: 14,
-                      fontWeight: 500,
-                    }}
-                  >
-                    名称（可选）
-                  </label>
-                  <input
-                    type="text"
-                    value={emailName}
-                    onChange={(e) => setEmailName(e.target.value)}
-                    placeholder="收件人名称"
-                    style={{
-                      width: "100%",
-                      maxWidth: 400,
-                      padding: "8px 12px",
-                      fontSize: 14,
-                      borderRadius: 6,
-                      border: "1px solid #e2e8f0",
-                      outline: "none",
-                    }}
-                  />
-                </div>
-                <div>
-                  <label
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                      fontSize: 14,
-                      cursor: "pointer",
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={emailIsActive}
-                      onChange={(e) => setEmailIsActive(e.target.checked)}
-                      style={{ width: 16, height: 16, cursor: "pointer" }}
-                    />
-                    <span>激活（激活的收件人会收到中奖通知邮件）</span>
-                  </label>
-                </div>
-                <div style={{ display: "flex", gap: 12 }}>
-                  <button
-                    onClick={handleSaveEmail}
-                    disabled={
-                      createEmailMutation.isPending ||
-                      updateEmailMutation.isPending
-                    }
-                    style={{
-                      padding: "8px 24px",
-                      fontSize: 14,
-                      background: "#2563eb",
-                      color: "#fff",
-                      border: "none",
-                      borderRadius: 6,
-                      cursor: "pointer",
-                    }}
-                  >
-                    {createEmailMutation.isPending ||
-                    updateEmailMutation.isPending
-                      ? "保存中..."
-                      : "保存"}
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowEmailForm(false);
-                      setEditingEmail(null);
-                    }}
-                    style={{
-                      padding: "8px 24px",
-                      fontSize: 14,
-                      background: "#6b7280",
-                      color: "#fff",
-                      border: "none",
-                      borderRadius: 6,
-                      cursor: "pointer",
-                    }}
-                  >
-                    取消
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* 邮箱列表 */}
-          {emailLoading ? (
-            <div>加载中...</div>
-          ) : (
-            <>
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>邮箱地址</TableHead>
-                      <TableHead>名称</TableHead>
-                      <TableHead>状态</TableHead>
-                      <TableHead>创建时间</TableHead>
-                      <TableHead>操作</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {emailData?.data?.list.map((email: any) => (
-                      <TableRow key={email.id}>
-                        <TableCell>{email.email}</TableCell>
-                        <TableCell>{email.name || "-"}</TableCell>
-                        <TableCell>
-                          <span
-                            style={{
-                              padding: "4px 12px",
-                              borderRadius: 12,
-                              fontSize: 12,
-                              background: email.isActive
-                                ? "#d1fae5"
-                                : "#f3f4f6",
-                              color: email.isActive ? "#065f46" : "#6b7280",
-                            }}
-                          >
-                            {email.isActive ? "激活" : "停用"}
-                          </span>
-                        </TableCell>
-                        <TableCell>{formatDate(email.createdAt)}</TableCell>
-                        <TableCell>
-                          <div style={{ display: "flex", gap: 8 }}>
-                            <button
-                              onClick={() => handleEditEmail(email)}
-                              style={{
-                                padding: "4px 12px",
-                                fontSize: 12,
-                                background: "#2563eb",
-                                color: "#fff",
-                                border: "none",
-                                borderRadius: 4,
-                                cursor: "pointer",
-                              }}
-                            >
-                              编辑
-                            </button>
-                            <button
-                              onClick={() => handleToggleEmailActive(email)}
-                              style={{
-                                padding: "4px 12px",
-                                fontSize: 12,
-                                background: email.isActive
-                                  ? "#f59e0b"
-                                  : "#10b981",
-                                color: "#fff",
-                                border: "none",
-                                borderRadius: 4,
-                                cursor: "pointer",
-                              }}
-                            >
-                              {email.isActive ? "停用" : "激活"}
-                            </button>
-                            <button
-                              onClick={() => handleDeleteEmail(email.id)}
-                              style={{
-                                padding: "4px 12px",
-                                fontSize: 12,
-                                background: "#ef4444",
-                                color: "#fff",
-                                border: "none",
-                                borderRadius: 4,
-                                cursor: "pointer",
-                              }}
-                            >
-                              删除
-                            </button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                    {(!emailData?.data?.list ||
-                      emailData.data.list.length === 0) && (
-                      <TableRow>
-                        <TableCell
-                          colSpan={5}
-                          style={{ textAlign: "center", color: "#6b7280" }}
-                        >
-                          暂无收件人，点击&ldquo;添加收件人&rdquo;创建
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-              {emailTotalPages > 1 && (
-                <div
-                  style={{
-                    marginTop: 20,
-                    display: "flex",
-                    justifyContent: "center",
-                  }}
-                >
-                  <Pagination>
-                    <PaginationContent>
-                      <PaginationItem>
-                        <PaginationPrevious
-                          onClick={() => {
-                            if (emailPage > 1) {
-                              setEmailPage(emailPage - 1);
-                            }
-                          }}
-                          style={{
-                            cursor: emailPage > 1 ? "pointer" : "not-allowed",
-                            opacity: emailPage > 1 ? 1 : 0.5,
-                          }}
-                        />
-                      </PaginationItem>
-                      {Array.from({ length: emailTotalPages }, (_, i) => i + 1)
-                        .filter((page) => {
-                          return (
-                            page === 1 ||
-                            page === emailTotalPages ||
-                            (page >= emailPage - 1 && page <= emailPage + 1)
-                          );
-                        })
-                        .map((page) => (
-                          <PaginationItem key={page}>
-                            <PaginationLink
-                              onClick={() => setEmailPage(page)}
-                              isActive={emailPage === page}
-                              style={{ cursor: "pointer" }}
-                            >
-                              {page}
-                            </PaginationLink>
-                          </PaginationItem>
-                        ))}
-                      <PaginationItem>
-                        <PaginationNext
-                          onClick={() => {
-                            if (emailPage < emailTotalPages) {
-                              setEmailPage(emailPage + 1);
-                            }
-                          }}
-                          style={{
-                            cursor:
-                              emailPage < emailTotalPages
-                                ? "pointer"
-                                : "not-allowed",
-                            opacity: emailPage < emailTotalPages ? 1 : 0.5,
-                          }}
-                        />
-                      </PaginationItem>
-                    </PaginationContent>
-                  </Pagination>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

@@ -66,13 +66,13 @@ function PaginationPrevious({
 }: React.ComponentProps<typeof PaginationLink>) {
   return (
     <PaginationLink
-      aria-label="Go to previous page"
+      aria-label="跳转至上一页"
       size="default"
       className={cn("gap-1 pl-2.5", className)}
       {...props}
     >
       <ChevronLeftIcon className="h-4 w-4" />
-      <span>Previous</span>
+      <span>上一页</span>
     </PaginationLink>
   );
 }
@@ -83,12 +83,12 @@ function PaginationNext({
 }: React.ComponentProps<typeof PaginationLink>) {
   return (
     <PaginationLink
-      aria-label="Go to next page"
+      aria-label="跳转至下一页"
       size="default"
       className={cn("gap-1 pr-2.5", className)}
       {...props}
     >
-      <span>Next</span>
+      <span>下一页</span>
       <ChevronRightIcon className="h-4 w-4" />
     </PaginationLink>
   );
@@ -105,7 +105,7 @@ function PaginationEllipsis({
       {...props}
     >
       <MoreHorizontalIcon className="h-4 w-4" />
-      <span className="sr-only">More pages</span>
+      <span className="sr-only">更多页码</span>
     </span>
   );
 }
