@@ -3,7 +3,7 @@
  * 使用 Node.js 内置的邮件发送功能
  */
 
-import { MatchResult, PrizeLevel } from "./lotteryRules";
+import { MatchResult } from "./lotteryRules";
 
 interface EmailConfig {
   smtpHost: string;
@@ -13,7 +13,6 @@ interface EmailConfig {
   fromEmail: string;
   fromName: string;
 }
-
 
 interface MultipleWinnerNotification {
   lotteryType: "ssq" | "dlt";
@@ -77,7 +76,6 @@ export function parsePrizeDetails(detail: string): Record<string, string> {
 
   return prizeDetails;
 }
-
 
 /**
  * 格式化金额显示（添加千位分隔符）
