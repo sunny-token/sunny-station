@@ -14,19 +14,6 @@ interface EmailConfig {
   fromName: string;
 }
 
-interface WinnerNotification {
-  lotteryType: "ssq" | "dlt";
-  issueNumber: string;
-  openDate: string;
-  ticketName: string;
-  matchResult: MatchResult;
-  openNumbers: {
-    red: string[];
-    blue: string[];
-  };
-  jackpot?: string;
-  prizeDetails?: Record<string, string>; // 各等奖的金额信息
-}
 
 interface MultipleWinnerNotification {
   lotteryType: "ssq" | "dlt";
@@ -91,20 +78,6 @@ export function parsePrizeDetails(detail: string): Record<string, string> {
   return prizeDetails;
 }
 
-/**
- * 将 parsePrizeDetails 的结果转换为数组格式
- * 用于存储到数据库的 prizeAmounts 字段
- * @param prizeDetails Record<string, string> 格式的奖项奖金数据
- * @returns 数组格式 [{ level: "一等奖", amount: "5000000" }, ...]
- */
-export function convertPrizeDetailsToArray(
-  prizeDetails: Record<string, string>,
-): Array<{ level: string; amount: string }> {
-  return Object.entries(prizeDetails).map(([level, amount]) => ({
-    level,
-    amount,
-  }));
-}
 
 /**
  * 格式化金额显示（添加千位分隔符）
@@ -143,395 +116,9 @@ function getEmailConfig(): EmailConfig | null {
 }
 
 /**
- * 生成中奖通知邮件 HTML 内容
- */
-function generateWinnerEmailHTML(notification: WinnerNotification): string {
-  const {
-    lotteryType,
-    issueNumber,
-    openDate,
-    ticketName,
-    matchResult,
-    openNumbers,
-    jackpot,
-    prizeDetails,
-  } = notification;
-  const lotteryName = lotteryType === "ssq" ? "双色球" : "大乐透";
-  const highestPrize = matchResult.prizeLevels[0];
-
-  // 调试日志
-  console.log(
-    `[EMAIL] 生成单个中奖邮件 - 期号: ${issueNumber}, prizeDetails: ${prizeDetails ? JSON.stringify(prizeDetails) : "无"}`,
-  );
-
-  return `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      line-height: 1.6;
-      color: #333;
-      max-width: 600px;
-      margin: 0 auto;
-      padding: 20px;
-      background-color: #f5f5f5;
-    }
-    .container {
-      background-color: #ffffff;
-      border-radius: 8px;
-      padding: 30px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    .header {
-      text-align: center;
-      border-bottom: 3px solid #ff6b6b;
-      padding-bottom: 20px;
-      margin-bottom: 30px;
-    }
-    .header h1 {
-      color: #ff6b6b;
-      margin: 0;
-      font-size: 28px;
-    }
-    .prize-badge {
-      display: inline-block;
-      background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
-      color: white;
-      padding: 10px 20px;
-      border-radius: 20px;
-      font-size: 18px;
-      font-weight: bold;
-      margin: 10px 0;
-    }
-    .section {
-      margin: 25px 0;
-      padding: 20px;
-      background-color: #f9f9f9;
-      border-radius: 6px;
-      border-left: 4px solid #4ecdc4;
-    }
-    .section-title {
-      font-size: 18px;
-      font-weight: bold;
-      color: #2c3e50;
-      margin-bottom: 15px;
-    }
-    .numbers {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin: 10px 0;
-    }
-    .number-ball {
-      display: inline-block;
-      width: 40px;
-      height: 40px;
-      line-height: 40px;
-      text-align: center;
-      border-radius: 50%;
-      font-weight: bold;
-      color: white;
-    }
-    .red-ball {
-      background-color: #e74c3c;
-    }
-    .blue-ball {
-      background-color: #3498db;
-    }
-    .match-info {
-      background-color: #fff3cd;
-      border: 2px solid #ffc107;
-      border-radius: 6px;
-      padding: 15px;
-      margin: 15px 0;
-    }
-    .prize-levels {
-      margin: 15px 0;
-    }
-    .prize-item {
-      background-color: white;
-      padding: 12px;
-      margin: 8px 0;
-      border-radius: 4px;
-      border-left: 3px solid #4ecdc4;
-    }
-    .prize-name {
-      font-weight: bold;
-      color: #27ae60;
-      font-size: 16px;
-    }
-    .footer {
-      text-align: center;
-      margin-top: 30px;
-      padding-top: 20px;
-      border-top: 1px solid #eee;
-      color: #7f8c8d;
-      font-size: 12px;
-    }
-    .info-row {
-      display: flex;
-      justify-content: space-between;
-      padding: 8px 0;
-      border-bottom: 1px solid #eee;
-    }
-    .info-label {
-      font-weight: bold;
-      color: #555;
-    }
-    .info-value {
-      color: #333;
-    }
-    .number-comparison {
-      display: flex;
-      gap: 20px;
-      margin: 20px 0;
-    }
-    .number-group {
-      flex: 1;
-      padding: 15px;
-      background-color: white;
-      border-radius: 6px;
-      border: 2px solid #e0e0e0;
-    }
-    .number-group-title {
-      font-size: 16px;
-      font-weight: bold;
-      color: #2c3e50;
-      margin-bottom: 12px;
-      padding-bottom: 8px;
-      border-bottom: 2px solid #4ecdc4;
-    }
-    .number-group.open {
-      border-color: #4ecdc4;
-    }
-    .number-group.yours {
-      border-color: #27ae60;
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h1>🎉 恭喜中奖！</h1>
-      <div class="prize-badge">${highestPrize.name}</div>
-    </div>
-
-    <div class="section">
-      <div class="section-title">📋 开奖信息</div>
-      <div class="info-row">
-        <span class="info-label">彩票类型：</span>
-        <span class="info-value">${lotteryName}</span>
-      </div>
-      <div class="info-row">
-        <span class="info-label">期号：</span>
-        <span class="info-value">${issueNumber}</span>
-      </div>
-      <div class="info-row">
-        <span class="info-label">开奖日期：</span>
-        <span class="info-value">${openDate}</span>
-      </div>
-      ${
-        jackpot
-          ? `<div class="info-row">
-        <span class="info-label">奖池金额：</span>
-        <span class="info-value">${jackpot}</span>
-      </div>`
-          : ""
-      }
-    </div>
-
-    <div class="section">
-      <div class="section-title">🏆 中奖等级</div>
-      <div class="prize-levels">
-        ${matchResult.prizeLevels
-          .map(
-            (prize: PrizeLevel) => `
-          <div class="prize-item">
-            <div class="prize-name">${prize.name}</div>
-            <div style="margin-top: 5px; color: #666; font-size: 14px;">
-              ${prize.description}
-            </div>
-            <div style="margin-top: 5px; color: #999; font-size: 12px;">
-              红球匹配：${prize.redMatch} 个 | 蓝球匹配：${prize.blueMatch} 个
-            </div>
-            ${
-              notification.prizeDetails && notification.prizeDetails[prize.name]
-                ? `<div style="margin-top: 8px; color: #e74c3c; font-size: 18px; font-weight: bold;">
-              💰 中奖金额：${formatAmount(notification.prizeDetails[prize.name])}
-            </div>`
-                : ""
-            }
-          </div>
-        `,
-          )
-          .join("")}
-      </div>
-    </div>
-
-    ${
-      notification.prizeDetails &&
-      Object.keys(notification.prizeDetails).length > 0
-        ? `<div class="section">
-      <div class="section-title">💰 本期奖项奖金</div>
-      <div class="prize-levels">
-        ${Object.entries(notification.prizeDetails)
-          .map(
-            ([level, amount]) => `
-          <div class="prize-item">
-            <div class="prize-name">${level}</div>
-            <div style="margin-top: 8px; color: #e74c3c; font-size: 18px; font-weight: bold;">
-              ${formatAmount(amount)}
-            </div>
-          </div>
-        `,
-          )
-          .join("")}
-      </div>
-    </div>`
-        : ""
-    }
-
-    <div class="section">
-      <div class="section-title">🎱 号码对比</div>
-      <div class="number-comparison">
-        <div class="number-group open">
-          <div class="number-group-title">🎱 开奖号码</div>
-          <div style="margin-bottom: 15px;">
-            <strong>红球：</strong>
-            <div class="numbers">
-              ${openNumbers.red.map((n) => `<span class="number-ball red-ball">${n.padStart(2, "0")}</span>`).join("")}
-            </div>
-          </div>
-          <div>
-            <strong>蓝球：</strong>
-            <div class="numbers">
-              ${openNumbers.blue.map((n) => `<span class="number-ball blue-ball">${n.padStart(2, "0")}</span>`).join("")}
-            </div>
-          </div>
-        </div>
-        <div class="number-group yours">
-          <div class="number-group-title">🎫 您的号码</div>
-          <div style="margin-bottom: 8px; font-size: 13px; color: #666;">
-            <strong>预设名称：</strong> ${ticketName}
-          </div>
-          <div style="margin-bottom: 15px;">
-            <strong>红球：</strong>
-            <div class="numbers">
-              ${matchResult.ticketNumbers.red.map((n) => `<span class="number-ball red-ball">${n.padStart(2, "0")}</span>`).join("")}
-            </div>
-          </div>
-          <div>
-            <strong>蓝球：</strong>
-            <div class="numbers">
-              ${matchResult.ticketNumbers.blue.map((n) => `<span class="number-ball blue-ball">${n.padStart(2, "0")}</span>`).join("")}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="match-info">
-      <div class="section-title">✅ 匹配结果</div>
-      <div class="info-row">
-        <span class="info-label">红球匹配：</span>
-        <span class="info-value">${matchResult.redMatch} 个</span>
-      </div>
-      <div class="info-row">
-        <span class="info-label">蓝球匹配：</span>
-        <span class="info-value">${matchResult.blueMatch} 个</span>
-      </div>
-    </div>
-
-    <div class="footer">
-      <p>此邮件由彩票爬虫系统自动发送</p>
-      <p>请及时核对中奖信息，祝您好运！</p>
-    </div>
-  </div>
-</body>
-</html>
-  `.trim();
-}
-
-/**
- * 发送中奖通知邮件
- */
-export async function sendWinnerNotification(
-  recipientEmail: string,
-  notification: WinnerNotification,
-): Promise<boolean> {
-  const config = getEmailConfig();
-  if (!config) {
-    console.warn(`[EMAIL] 跳过发送邮件到 ${recipientEmail}：邮件配置不完整`);
-    return false;
-  }
-
-  try {
-    // 使用 Node.js 内置的邮件发送（需要安装 nodemailer 或使用其他邮件服务）
-    // 这里我们使用 fetch API 调用邮件服务 API，或者使用 nodemailer
-    // 为了简化，我们使用一个通用的邮件发送方法
-
-    const emailHTML = generateWinnerEmailHTML(notification);
-    const lotteryName =
-      notification.lotteryType === "ssq" ? "双色球" : "大乐透";
-    const subject = `🎉 ${lotteryName}中奖通知 - ${notification.issueNumber}期 - ${notification.matchResult.prizeLevels[0]?.name || "中奖"}`;
-
-    // 如果使用 SMTP，需要安装 nodemailer
-    // 这里提供一个使用 nodemailer 的实现示例
-    const nodemailer = await import("nodemailer");
-    const transporter = nodemailer.default.createTransport({
-      host: config.smtpHost,
-      port: config.smtpPort,
-      secure: config.smtpPort === 465, // true for 465, false for other ports
-      auth: {
-        user: config.smtpUser,
-        pass: config.smtpPassword,
-      },
-    });
-
-    const info = await transporter.sendMail({
-      from: `"${config.fromName}" <${config.fromEmail}>`,
-      to: recipientEmail,
-      subject,
-      html: emailHTML,
-      text: `恭喜中奖！${lotteryName} ${notification.issueNumber}期，中奖等级：${notification.matchResult.prizeLevels[0]?.name || "中奖"}`,
-    });
-
-    console.log(
-      `[EMAIL] ✅ 邮件发送成功到 ${recipientEmail}，MessageId: ${info.messageId}`,
-    );
-    return true;
-  } catch (error) {
-    console.error(`[EMAIL] ❌ 发送邮件到 ${recipientEmail} 失败:`, error);
-    return false;
-  }
-}
-
-/**
- * 批量发送中奖通知（单个中奖号码）
- */
-export async function sendWinnerNotifications(
-  recipientEmails: string[],
-  notification: WinnerNotification,
-): Promise<{ success: number; failed: number }> {
-  const results = await Promise.allSettled(
-    recipientEmails.map((email) => sendWinnerNotification(email, notification)),
-  );
-
-  const success = results.filter(
-    (r) => r.status === "fulfilled" && r.value,
-  ).length;
-  const failed = recipientEmails.length - success;
-
-  return { success, failed };
-}
-
-/**
  * 生成多个中奖号码的邮件 HTML 内容
  */
-function generateMultipleWinnersEmailHTML(
+export function generateMultipleWinnersEmailHTML(
   notification: MultipleWinnerNotification,
 ): string {
   const {
@@ -552,285 +139,266 @@ function generateMultipleWinnersEmailHTML(
 
   return `
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      line-height: 1.6;
-      color: #333;
-      max-width: 600px;
-      margin: 0 auto;
-      padding: 20px;
-      background-color: #f5f5f5;
+      margin: 0;
+      padding: 0;
+      background-color: #f5f5f7;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: #1d1d1f;
+      -webkit-font-smoothing: antialiased;
     }
-    .container {
-      background-color: #ffffff;
-      border-radius: 8px;
-      padding: 30px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    .wrapper {
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 20px 16px;
+    }
+    .card {
+      background: #ffffff;
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.05);
     }
     .header {
-      text-align: center;
-      border-bottom: 3px solid #ff6b6b;
-      padding-bottom: 20px;
-      margin-bottom: 30px;
+      padding: 32px 24px;
+      background: #1d1d1f;
+      color: #ffffff;
+      text-align: left;
     }
-    .header h1 {
-      color: #ff6b6b;
-      margin: 0;
-      font-size: 28px;
-    }
-    .prize-badge {
+    .badge {
       display: inline-block;
-      background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
-      color: white;
-      padding: 10px 20px;
-      border-radius: 20px;
-      font-size: 18px;
-      font-weight: bold;
-      margin: 10px 0;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      background: #e30000;
+      color: #ffffff;
+      padding: 6px 12px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+    }
+    .title {
+      font-size: 28px;
+      font-weight: 700;
+      line-height: 1.2;
+      margin: 0;
+      letter-spacing: -0.5px;
+    }
+    .content {
+      padding: 24px;
     }
     .section {
-      margin: 25px 0;
-      padding: 20px;
-      background-color: #f9f9f9;
-      border-radius: 6px;
-      border-left: 4px solid #4ecdc4;
+      margin-bottom: 32px;
     }
-    .section-title {
-      font-size: 18px;
-      font-weight: bold;
-      color: #2c3e50;
-      margin-bottom: 15px;
+    .section:last-child {
+      margin-bottom: 0;
     }
-    .numbers {
+    .sec-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: #86868b;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #e8e8ed;
+    }
+    .row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 12px;
+      font-size: 15px;
+    }
+    .row:last-child {
+      margin-bottom: 0;
+    }
+    .label {
+      color: #86868b;
+    }
+    .value {
+      font-weight: 600;
+      text-align: right;
+    }
+    .prize-box {
+      background: #fafafc;
+      border: 1px solid #e8e8ed;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+    .prize-name {
+      font-weight: 700;
+      font-size: 16px;
+      color: #1d1d1f;
+    }
+    .prize-desc {
+      font-size: 13px;
+      color: #86868b;
+      margin-top: 4px;
+      line-height: 1.4;
+    }
+    .prize-amount {
+      font-size: 24px;
+      font-weight: 700;
+      color: #e30000;
+      margin-top: 8px;
+      letter-spacing: -0.5px;
+    }
+    .balls-label {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: #1d1d1f;
+    }
+    .balls {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
-      margin: 10px 0;
     }
-    .number-ball {
-      display: inline-block;
-      width: 40px;
-      height: 40px;
-      line-height: 40px;
-      text-align: center;
+    .ball {
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       border-radius: 50%;
-      font-weight: bold;
-      color: white;
+      font-size: 15px;
+      font-weight: 600;
+      font-family: inherit;
+      color: #ffffff;
+      background: #86868b;
     }
-    .red-ball {
-      background-color: #e74c3c;
-    }
-    .blue-ball {
-      background-color: #3498db;
-    }
-    .winner-item {
-      background-color: white;
-      padding: 20px;
-      margin: 15px 0;
-      border-radius: 6px;
-      border: 2px solid #4ecdc4;
-    }
-    .winner-header {
-      font-size: 20px;
-      font-weight: bold;
-      color: #27ae60;
-      margin-bottom: 15px;
-      padding-bottom: 10px;
-      border-bottom: 2px solid #4ecdc4;
-    }
-    .prize-item {
-      background-color: #f0f9ff;
-      padding: 12px;
-      margin: 8px 0;
-      border-radius: 4px;
-      border-left: 3px solid #4ecdc4;
-    }
-    .prize-name {
-      font-weight: bold;
-      color: #27ae60;
-      font-size: 16px;
-    }
-    .info-row {
-      display: flex;
-      justify-content: space-between;
-      padding: 8px 0;
-      border-bottom: 1px solid #eee;
-    }
-    .info-label {
-      font-weight: bold;
-      color: #555;
-    }
-    .info-value {
-      color: #333;
-    }
-    .number-comparison {
-      display: flex;
-      gap: 20px;
-      margin: 20px 0;
-    }
-    .number-group {
-      flex: 1;
-      padding: 15px;
-      background-color: white;
-      border-radius: 6px;
-      border: 2px solid #e0e0e0;
-    }
-    .number-group-title {
-      font-size: 16px;
-      font-weight: bold;
-      color: #2c3e50;
-      margin-bottom: 12px;
-      padding-bottom: 8px;
-      border-bottom: 2px solid #4ecdc4;
-    }
-    .number-group.open {
-      border-color: #4ecdc4;
-    }
-    .number-group.yours {
-      border-color: #27ae60;
-    }
+    .ball.red { background: #e30000; }
+    .ball.blue { background: #0066cc; }
+    
     .footer {
       text-align: center;
-      margin-top: 30px;
-      padding-top: 20px;
-      border-top: 1px solid #eee;
-      color: #7f8c8d;
+      padding: 24px 0;
       font-size: 12px;
+      color: #86868b;
+    }
+    .footer p { margin: 4px 0; }
+    
+    @media only screen and (max-width: 480px) {
+      .wrapper { padding: 16px 12px; }
+      .title { font-size: 24px; }
+      .header, .content { padding: 20px; }
+      .ball { width: 32px; height: 32px; font-size: 14px; }
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="header">
-      <h1>🎉 恭喜中奖！</h1>
-      <div class="prize-badge">共 ${winners.length} 个预设号码中奖</div>
-    </div>
-
-    <div class="section">
-      <div class="section-title">📋 开奖信息</div>
-      <div class="info-row">
-        <span class="info-label">彩票类型：</span>
-        <span class="info-value">${lotteryName}</span>
+  <div class="wrapper">
+    <div class="card">
+      <div class="header">
+        <div class="badge">共 ${winners.length} 注获奖</div>
+        <h1 class="title">您有多条中奖记录</h1>
       </div>
-      <div class="info-row">
-        <span class="info-label">期号：</span>
-        <span class="info-value">${issueNumber}</span>
-      </div>
-      <div class="info-row">
-        <span class="info-label">开奖日期：</span>
-        <span class="info-value">${openDate}</span>
-      </div>
-      ${
-        jackpot
-          ? `<div class="info-row">
-        <span class="info-label">奖池金额：</span>
-        <span class="info-value">${jackpot}</span>
-      </div>`
-          : ""
-      }
-    </div>
-
-    <div class="section">
-      <div class="section-title">🏆 中奖详情</div>
-      ${winners
-        .map(
-          (winner) => `
-      <div class="winner-item">
-        <div class="winner-header">🎫 ${winner.ticketName}</div>
-        <div class="number-comparison">
-          <div class="number-group open">
-            <div class="number-group-title">🎱 开奖号码</div>
-            <div style="margin-bottom: 15px;">
-              <strong>红球：</strong>
-              <div class="numbers">
-                ${openNumbers.red.map((n) => `<span class="number-ball red-ball">${n.padStart(2, "0")}</span>`).join("")}
-              </div>
-            </div>
-            <div>
-              <strong>蓝球：</strong>
-              <div class="numbers">
-                ${openNumbers.blue.map((n) => `<span class="number-ball blue-ball">${n.padStart(2, "0")}</span>`).join("")}
-              </div>
-            </div>
+      
+      <div class="content">
+        <div class="section">
+          <div class="sec-title">开奖概览</div>
+          <div class="row">
+            <span class="label">彩票类型</span>
+            <span class="value">${lotteryName}</span>
           </div>
-          <div class="number-group yours">
-            <div class="number-group-title">🎫 您的号码</div>
-            <div style="margin-bottom: 15px;">
-              <strong>红球：</strong>
-              <div class="numbers">
-                ${winner.matchResult.ticketNumbers.red.map((n: string) => `<span class="number-ball red-ball">${n.padStart(2, "0")}</span>`).join("")}
-              </div>
-            </div>
-            <div>
-              <strong>蓝球：</strong>
-              <div class="numbers">
-                ${winner.matchResult.ticketNumbers.blue.map((n: string) => `<span class="number-ball blue-ball">${n.padStart(2, "0")}</span>`).join("")}
-              </div>
-            </div>
+          <div class="row">
+            <span class="label">期号</span>
+            <span class="value">${issueNumber}</span>
           </div>
-        </div>
-        <div style="background-color: #fff3cd; border: 2px solid #ffc107; border-radius: 6px; padding: 15px; margin: 15px 0;">
-          <div class="info-row">
-            <span class="info-label">红球匹配：</span>
-            <span class="info-value">${winner.matchResult.redMatch} 个</span>
-          </div>
-          <div class="info-row">
-            <span class="info-label">蓝球匹配：</span>
-            <span class="info-value">${winner.matchResult.blueMatch} 个</span>
-          </div>
-        </div>
-        <div class="prize-item">
-          <div class="prize-name">${winner.matchResult.prizeLevels[0]?.name || "中奖"}</div>
-          <div style="margin-top: 5px; color: #666; font-size: 14px;">
-            ${winner.matchResult.prizeLevels[0]?.description || ""}
+          <div class="row">
+            <span class="label">开奖日期</span>
+            <span class="value">${openDate}</span>
           </div>
           ${
-            notification.prizeDetails &&
-            notification.prizeDetails[
-              winner.matchResult.prizeLevels[0]?.name || ""
-            ]
-              ? `<div style="margin-top: 8px; color: #e74c3c; font-size: 18px; font-weight: bold;">
-            💰 中奖金额：${formatAmount(notification.prizeDetails[winner.matchResult.prizeLevels[0]?.name || ""])}
+            jackpot
+              ? `<div class="row">
+            <span class="label">奖池金额</span>
+            <span class="value">${jackpot}</span>
           </div>`
               : ""
           }
         </div>
-      </div>
-      `,
-        )
-        .join("")}
-    </div>
 
-    ${
-      notification.prizeDetails &&
-      Object.keys(notification.prizeDetails).length > 0
-        ? `<div class="section">
-      <div class="section-title">💰 本期奖项奖金</div>
-      <div class="prize-levels">
-        ${Object.entries(notification.prizeDetails)
-          .map(
-            ([level, amount]) => `
-          <div class="prize-item">
-            <div class="prize-name">${level}</div>
-            <div style="margin-top: 8px; color: #e74c3c; font-size: 18px; font-weight: bold;">
-              ${formatAmount(amount)}
+        <div class="section">
+          <div class="sec-title">官方开奖号码</div>
+          <div class="prize-box">
+            <div class="balls">
+              ${openNumbers.red.map((n) => `<div class="ball red">${n.padStart(2, "0")}</div>`).join("")}
+              ${openNumbers.blue.map((n) => `<div class="ball blue">${n.padStart(2, "0")}</div>`).join("")}
             </div>
           </div>
-        `,
-          )
-          .join("")}
-      </div>
-    </div>`
-        : ""
-    }
+        </div>
 
+        <div class="section">
+          <div class="sec-title">您的中奖详情</div>
+          ${winners
+            .map(
+              (winner) => `
+            <div class="prize-box">
+              <div class="balls-label" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <span style="color: #86868b; font-size: 13px; font-weight: 500;">${winner.ticketName}</span>
+                <span style="color: #e30000; font-size: 14px; font-weight: 600;">
+                  ${winner.matchResult.prizeLevels[0]?.name || "中奖"}
+                </span>
+              </div>
+              <div class="balls" style="margin-bottom: 12px;">
+                ${winner.matchResult.ticketNumbers.red.map((n: string) => `<div class="ball red">${n.padStart(2, "0")}</div>`).join("")}
+                ${winner.matchResult.ticketNumbers.blue.map((n: string) => `<div class="ball blue">${n.padStart(2, "0")}</div>`).join("")}
+              </div>
+              <div class="prize-desc">
+                ${winner.matchResult.prizeLevels[0]?.description || ""}
+                <br />
+                匹配：红球 ${winner.matchResult.redMatch} 个 / 蓝球 ${winner.matchResult.blueMatch} 个
+              </div>
+              ${
+                notification.prizeDetails &&
+                notification.prizeDetails[
+                  winner.matchResult.prizeLevels[0]?.name || ""
+                ]
+                  ? `<div class="prize-amount">
+                  ${formatAmount(
+                    notification.prizeDetails[
+                      winner.matchResult.prizeLevels[0]?.name || ""
+                    ],
+                  )}
+                </div>`
+                  : ""
+              }
+            </div>
+            `,
+            )
+            .join("")}
+        </div>
+
+        ${
+          notification.prizeDetails &&
+          Object.keys(notification.prizeDetails).length > 0
+            ? `<div class="section">
+          <div class="sec-title">本期所有奖项</div>
+          ${Object.entries(notification.prizeDetails)
+            .map(
+              ([level, amount]) => `
+            <div class="row">
+              <span class="label">${level}</span>
+              <span class="value" style="color: #e30000;">${formatAmount(amount)}</span>
+            </div>
+          `,
+            )
+            .join("")}
+        </div>`
+            : ""
+        }
+      </div>
+    </div>
+    
     <div class="footer">
-      <p>此邮件由彩票爬虫系统自动发送</p>
-      <p>请及时核对中奖信息，祝您好运！</p>
+      <p>此邮件由系统自动发送</p>
+      <p>实际中奖信息以官方发布为准</p>
     </div>
   </div>
 </body>
