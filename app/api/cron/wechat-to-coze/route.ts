@@ -65,26 +65,100 @@ export async function POST(req: Request) {
       timeZone: "Asia/Shanghai",
     });
 
-    const geminiPrompt = `今天是实时的 ${today}。作为资深的新媒体运营和热点分析师，请你结合当下最新的互联网关注风向或者能引发情绪共鸣的现象，生成【过去7天内，微信公众号${track}赛道最具爆发力和高讨论度的3个核心爆款主题/话题】。
-强烈要求：
-1. 绝对不要输出老生常谈的经典痛点（比如“35岁职场危机”、“如何搞副业”这种不论哪年都能写的话题），必须具备“极高近期热度”或“新颖反差感”。
-2. 仅输出这3个核心主题的名称（简短精准概括，不要带序号，用逗号分隔，绝不要任何前言后语和分析）。`;
+    // 引入随机的受众情绪/内容切入视角，作为微小的“随机扰动系统（Random Trigger）”
+    // 强制每次请求迫使模型更换思考路径，大幅降低重复率
+    const angleList = [
+      "反常识/打破认知",
+      "隐秘的痛点/难以启齿的烦恼",
+      "极端情绪/出离愤怒或极度共鸣",
+      "社交货币/用来在群里吹牛聊天的谈资",
+      "阶层平替/消费降级下的自我安慰",
+      "新物种观察/最近刚出来的奇葩现象",
+      "大厂黑话与行业内幕",
+      "搞钱鄙视链与新型副业",
+    ];
+    const randomAngle = angleList[Math.floor(Math.random() * angleList.length)];
 
-    // 使用 Gemini 的 REST API
-    const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: geminiPrompt }] }],
-          generationConfig: {
-            temperature: 0.9,
-            maxOutputTokens: 200,
+    // ============================================
+    // [主动重构] 方案3升级：抓取真实的实时热搜数据冲减幻觉
+    // ============================================
+    let realTimeKeywords = "";
+    try {
+      // 改用百度官方公共热榜 API（无跨域，无鉴权，绝不会 401 拦截）
+      const hotRes = await fetch(
+        "https://top.baidu.com/api/board?platform=pc&sa=pcindex_a_right",
+        {
+          headers: {
+            "User-Agent":
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)",
           },
-        }),
-      },
-    );
+          next: { revalidate: 3600 },
+        },
+      );
+      if (hotRes.ok) {
+        const hotData = await hotRes.json();
+        // 百度热搜的结构在 data.cards[0].content 数组里
+        if (hotData.data?.cards?.[0]?.content) {
+          const topList = hotData.data.cards[0].content;
+          const top5 = topList.slice(0, 5).map((item: any) => item.word);
+          realTimeKeywords = `目前全网最真实的实时热搜前五名是：[${top5.join("、")}]。`;
+          console.log("[Hot Keywords Fetched Successfully]:", top5);
+        }
+      } else {
+        console.warn(
+          `[Hot Search API Blocked/Failed Code]: HTTP ${hotRes.status}`,
+        );
+      }
+    } catch (e) {
+      console.warn("[Hot Search API Throw, gracefully downgrading]:", e);
+    }
+
+    const geminiPrompt = `今天是实时的 ${today}。${realTimeKeywords}请重点采用【${randomAngle}】切入点。
+生成【微信公众号${track}赛道极简的 3 个核心讨论话题（Topic Keywords）】。
+要求：
+1. 不要长句标题！只需要核心关键词组合（比如“微信支付出海”、“大厂隐性降薪”、“千万打赏陷阱”）。
+2. 字数极致压缩！每个话题绝对不要超过 8 个字！
+3. 请严格以 JSON 字符串数组格式输出这 3 个话题！绝不要多说任何废话。
+示例格式：
+["微信出海","降薪现状","打赏乱象"]`;
+
+    // 使用 Gemini 的 REST API (增加高频并发下 503 错误的自动重试机制)
+    let geminiRes: Response | null = null;
+    let retries = 3;
+    while (retries > 0) {
+      geminiRes = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: geminiPrompt }] }],
+            generationConfig: {
+              temperature: 0.8, // 稍微降低一点温度，增加输出稳定性
+              maxOutputTokens: 800,
+            },
+          }),
+        },
+      );
+
+      // 如果遇到对方服务器满载拥堵（503），等待 2 秒再重试
+      if (geminiRes.status === 503) {
+        retries--;
+        if (retries === 0) break;
+        console.warn(
+          `[Gemini API 503 Unavailable] 官方服务器高负荷拥堵中，暂停 2 秒后开启第 ${4 - retries} 次自动重试...`,
+        );
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        continue;
+      }
+
+      // 如果是其他错误或者 200 成功，直接跳出重试逻辑
+      break;
+    }
+
+    if (!geminiRes) {
+      throw new Error("Gemini API Error: 服务持续不可用，重试多次后依然失败。");
+    }
 
     if (!geminiRes.ok) {
       const gErr = await geminiRes.json();
@@ -92,9 +166,42 @@ export async function POST(req: Request) {
     }
 
     const geminiData = await geminiRes.json();
-    const trendingTopics =
-      geminiData.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ||
-      "未正常获取到热门主题";
+
+    // 合并所有的 parts（有些实验性模型会把长文本切开在非流式下返回）
+    const parts = geminiData.candidates?.[0]?.content?.parts || [];
+    let rawText = parts
+      .map((p: any) => p.text || "")
+      .join("")
+      .trim();
+
+    // ============================================
+    // 硬核诊断日志展示：检查大模型底层是否因为限制截断
+    // ============================================
+    console.log("[Gemini Raw Diagnostic]:", {
+      finishReason: geminiData.candidates?.[0]?.finishReason,
+      totalWords: rawText.length,
+      first50Chars: rawText.slice(0, 50),
+    });
+
+    if (!rawText) {
+      rawText = "未正常获取到热门主题";
+    }
+
+    // ============================================
+    // 采用正则容错提取 JSON 数组，防止它多说了废话
+    // ============================================
+    let trendingTopics = rawText;
+    try {
+      // 使用 [\s\S]* 替代 .* 配合 /s 标志，从而兼容老版本 TS 的编译规则
+      const match = rawText.match(/\[[\s\S]*\]/);
+      if (match) {
+        const arr = JSON.parse(match[0]);
+        // 提取完毕后用逗号拼接，还原成 Coze 需要的格式
+        trendingTopics = arr.join(",");
+      }
+    } catch (e) {
+      console.warn("解析 JSON 数组失败，使用原始兜底文本:", e);
+    }
 
     // const trendingTopics = "35岁职场危机"; // 暂时写死测试 Coze 流转
     console.log("[Gemini Topics generated]:", trendingTopics);
