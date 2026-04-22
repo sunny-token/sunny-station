@@ -89,3 +89,12 @@ model User {
   
   @@index([email])
 }
+
+// 记录已发送的 GitHub 项目，防止重复推荐
+model GitHubProject {
+  id        Int      @id @default(autoincrement())
+  repoPath  String   @unique // 例如 "facebook/react"
+  sentAt    DateTime @default(now())
+
+  @@index([repoPath])
+}
