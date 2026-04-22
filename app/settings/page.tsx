@@ -613,7 +613,7 @@ export default function SettingsPage() {
                 通知配置
               </div>
               <div className="text-[10px] font-medium opacity-50 uppercase tracking-tighter mt-1">
-                邮件提醒设置
+                邮件提醒配置
               </div>
             </div>
           </button>
@@ -708,12 +708,12 @@ export default function SettingsPage() {
                         监控配置管理
                       </p>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
-                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                        系统链路激活
-                      </span>
-                    </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                          系统状态: 正常
+                        </span>
+                      </div>
                   </div>
 
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
@@ -742,13 +742,13 @@ export default function SettingsPage() {
                             value="ssq"
                             className="bg-slate-900 px-4 py-2"
                           >
-                            双色球 (Standard Edition)
+                            双色球 (标准版)
                           </option>
                           <option
                             value="dlt"
                             className="bg-slate-900 px-4 py-2"
                           >
-                            大乐透 (Super Lotto)
+                            大乐透 (超级版)
                           </option>
                         </select>
                       </div>

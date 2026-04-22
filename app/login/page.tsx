@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { trpc } from "../../server/client";
 import { ShieldAlert, ArrowRight, Fingerprint, ScanEye, TerminalSquare, AlertTriangle } from "lucide-react";
@@ -11,10 +11,15 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorText, setErrorText] = useState("");
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const loginMutation = trpc.auth.login.useMutation({
     onSuccess: () => {
-      router.push("/settings");
+      router.push("/");
       router.refresh(); // 刷新 Server Components 状态
     },
     onError: (err) => {
@@ -85,13 +90,13 @@ export default function LoginPage() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-red-500"></span>
               </span>
-              终端鉴权网络
+              身份安全验证
             </div>
             <h1 className="text-3xl font-black tracking-tight text-white uppercase">
-              {isLogin ? "系统登录" : "创建账号"}
+              系统登录
             </h1>
             <p className="text-slate-500 text-xs font-mono tracking-widest uppercase mt-1">
-              {isLogin ? "System Login" : "Create Account"}
+              Administrator Login
             </p>
           </div>
         </div>
@@ -99,21 +104,7 @@ export default function LoginPage() {
         {/* 核心面板 */}
         <div className="relative rounded-[2rem] bg-[#0a0a0c]/80 backdrop-blur-3xl border border-white/[0.06] p-8 shadow-2xl overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-b before:from-white/[0.02] before:to-transparent before:pointer-events-none">
           
-          {isSuccess ? (
-            <div className="py-12 flex flex-col items-center justify-center text-center space-y-4 animate-in zoom-in-95 duration-500">
-               <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mb-2 shadow-[0_0_20px_rgba(16,185,129,0.2)]">
-                  <ShieldAlert className="w-8 h-8 text-emerald-400" />
-               </div>
-               <h3 className="text-xl font-black text-white">账号注册成功</h3>
-               <p className="text-sm text-slate-400 max-w-[200px] leading-relaxed">您的账号已成功创建，请返回登录页面进行登录。</p>
-               <button
-                  onClick={() => setIsLogin(true)}
-                  className="mt-6 px-6 py-3 rounded-xl bg-white/5 border border-white/10 text-white text-xs font-bold uppercase tracking-widest hover:bg-white/10 transition-all"
-               >
-                 返回登录
-               </button>
-            </div>
-          ) : (
+
             <form onSubmit={handleSubmit} className="space-y-6 relative z-10">
               
               <div className="space-y-4">
@@ -126,7 +117,7 @@ export default function LoginPage() {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="user@internal.sys"
+                    placeholder="admin@internal.sys"
                     className="w-full h-14 px-4 bg-black/50 border border-white/10 rounded-xl focus:outline-none focus:ring-0 focus:border-red-500/50 transition-all text-white placeholder:text-slate-700 font-mono text-sm"
                   />
                 </div>
@@ -169,32 +160,18 @@ export default function LoginPage() {
                     </>
                   ) : (
                     <>
-                      {isLogin ? "登录" : "注册"}
+                      登录
                       <ArrowRight className="w-4 h-4 opacity-70 group-hover:opacity-100 transition-opacity" />
                     </>
                   )}
                 </div>
               </button>
             </form>
-          )}
 
-          {/* 模式切换底栏 */}
-          {!isSuccess && (
-            <div className="mt-8 pt-6 border-t border-white/[0.05] flex items-center justify-between text-xs text-slate-500">
-              <span className="font-mono uppercase tracking-widest">{isLogin ? "LOGIN / 01" : "REGISTER / 02"}</span>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsLogin(!isLogin);
-                  setErrorText("");
-                }}
-                className="font-bold text-slate-400 hover:text-white transition-colors uppercase tracking-widest group flex items-center gap-1"
-              >
-                {isLogin ? "没有账号？去注册" : "已有账号？返回登录"}
-                <span className="opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300">→</span>
-              </button>
-            </div>
-          )}
+          <div className="mt-8 pt-6 border-t border-white/[0.05] flex items-center justify-between text-xs text-slate-500">
+            <span className="font-mono uppercase tracking-widest text-[10px]">安全协议运行中</span>
+            <span className="font-mono uppercase tracking-widest text-[10px]">接入节点: {mounted ? window.location.hostname : '云端'}</span>
+          </div>
         </div>
       </div>
     </div>
