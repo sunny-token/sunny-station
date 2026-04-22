@@ -1,3 +1,7 @@
+# Sunny Station ☀️
+
+Sunny 的工作台 - 个人生产力与工具集。
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
