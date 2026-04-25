@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/wechat-to-coze",
+      "schedule": "15 5 * * *"
+    }
+  ]
+}

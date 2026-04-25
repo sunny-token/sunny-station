@@ -65,7 +65,6 @@ export async function POST(req: Request) {
         if (res.ok) {
           const html = await res.text();
           const $ = cheerio.load(html);
-          const repos: string[] = [];
 
           // 1.1 抓取前 20 个项目
           const allRepos: { path: string; full: string }[] = [];

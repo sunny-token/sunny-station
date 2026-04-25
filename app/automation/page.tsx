@@ -7,8 +7,6 @@ import {
   Play,
   Terminal,
   Loader2,
-  CheckCircle2,
-  AlertCircle,
   ChevronLeft,
   RefreshCw,
   Zap,
@@ -16,7 +14,6 @@ import {
   Code2,
 } from "lucide-react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 
 interface LogEntry {
   id: string;
@@ -129,7 +126,7 @@ export default function AutomationPage() {
                   "success",
                 );
               }
-            } catch (e) {
+            } catch {
               // If not JSON, just log as text if it's not empty
               const text = line.replace("data:", "").trim();
               if (text) addLog(setLogs, text, "info");

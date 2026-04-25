@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { trpc } from "../../server/client";
-import { ShieldAlert, ArrowRight, Fingerprint, ScanEye, TerminalSquare, AlertTriangle } from "lucide-react";
+import { ArrowRight, Fingerprint, ScanEye, TerminalSquare, AlertTriangle } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -55,7 +55,6 @@ export default function LoginPage() {
   };
 
   const isLoading = loginMutation.isPending || registerMutation.isPending;
-  const isSuccess = registerMutation.isSuccess && !isLogin;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#050505] text-slate-200 relative overflow-hidden font-sans selection:bg-red-500/30">
