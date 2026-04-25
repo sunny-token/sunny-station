@@ -12,9 +12,9 @@ const TRACK_CONFIGS: Record<
   { workflow_id: string; appid?: string; appsecret?: string }
 > = {
   GitHub: {
-    workflow_id: "7462370729221193765", // 替换为你 GitHub 专题的 Coze 工作流 ID
-    appid: process.env.APPID,
-    appsecret: process.env.APPSECRET,
+    workflow_id: "7623706231228907560", // 替换为你 GitHub 专题的 Coze 工作流 ID
+    appid: process.env.APPID_GITHUB,
+    appsecret: process.env.APPSECRET_GITHUB,
   },
 };
 
