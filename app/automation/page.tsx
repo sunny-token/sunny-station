@@ -32,6 +32,23 @@ export default function AutomationPage() {
     "idle" | "running" | "done" | "error"
   >("idle");
 
+  const [toast, setToast] = useState<{
+    show: boolean;
+    message: string;
+    type: "success" | "error";
+  }>({
+    show: false,
+    message: "",
+    type: "success",
+  });
+
+  const showToast = (message: string, type: "success" | "error" = "success") => {
+    setToast({ show: true, message, type });
+    setTimeout(() => {
+      setToast((prev) => ({ ...prev, show: false }));
+    }, 4000);
+  };
+
   const githubScrollRef = useRef<HTMLDivElement>(null);
   const careerScrollRef = useRef<HTMLDivElement>(null);
 
@@ -93,6 +110,7 @@ export default function AutomationPage() {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
+      let currentEvent = "";
 
       while (true) {
         const { done, value } = await reader.read();
@@ -103,48 +121,79 @@ export default function AutomationPage() {
         buffer = lines.pop() || "";
 
         for (const line of lines) {
-          if (line.startsWith("data:")) {
-            try {
-              const data = JSON.parse(line.replace("data:", "").trim());
+          const trimmedLine = line.trim();
+          if (trimmedLine.startsWith("event:")) {
+            currentEvent = trimmedLine.replace("event:", "").trim();
+          } else if (trimmedLine.startsWith("data:")) {
+            const dataStr = trimmedLine.replace("data:", "").trim();
+            if (!dataStr || dataStr === "[DONE]") continue;
 
-              // Handle Coze SSE format
-              if (data.event === "message") {
-                const content = data.message?.content;
+            try {
+              const data = JSON.parse(dataStr);
+
+              // Coze SSE format: event is separated from data
+              if (currentEvent === "Message") {
+                // Coze returns content directly in data.content
+                const content = data.content || data.answer;
                 if (content) {
                   addLog(setLogs, content, "info");
                 }
-              } else if (data.event === "error") {
+              } else if (currentEvent === "Error") {
                 addLog(
                   setLogs,
-                  data.error?.message || "Unknown error",
+                  data.error_message || data.msg || "Unknown error",
                   "error",
                 );
-              } else if (data.event === "done") {
+              } else if (currentEvent === "Done") {
                 addLog(
                   setLogs,
                   "Workflow execution completed successfully.",
                   "success",
                 );
+              } else if (!currentEvent && data.content) {
+                // Fallback if event is missing
+                addLog(setLogs, data.content, "info");
               }
             } catch {
               // If not JSON, just log as text if it's not empty
-              const text = line.replace("data:", "").trim();
-              if (text) addLog(setLogs, text, "info");
+              if (dataStr) addLog(setLogs, dataStr, "info");
             }
           }
         }
       }
 
       setStatus("done");
+      showToast(`${type === "github" ? "GitHub" : "职场"} 工作流执行完成！`, "success");
     } catch (error: any) {
       console.error(error);
       addLog(setLogs, `Critical Error: ${error.message}`, "error");
       setStatus("error");
+      showToast(`执行出错: ${error.message}`, "error");
     }
   };
 
   return (
     <div className="min-h-screen bg-[#050505] text-slate-300 font-sans selection:bg-indigo-500/30">
+      {/* Toast Notification */}
+      {toast.show && (
+        <div
+          className={`fixed top-8 left-1/2 -translate-x-1/2 z-[100] px-6 py-3.5 rounded-full flex items-center gap-3 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.5)] border animate-in fade-in slide-in-from-top-8 duration-300 ${
+            toast.type === "success"
+              ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400 backdrop-blur-xl"
+              : "bg-red-500/10 border-red-500/30 text-red-400 backdrop-blur-xl"
+          }`}
+        >
+          {toast.type === "success" ? (
+            <ShieldCheck className="w-5 h-5" />
+          ) : (
+            <Zap className="w-5 h-5" />
+          )}
+          <span className="font-bold text-sm tracking-wider">
+            {toast.message}
+          </span>
+        </div>
+      )}
+
       {/* Background Ambience */}
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-indigo-600/5 blur-[120px] rounded-full" />
