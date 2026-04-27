@@ -26,7 +26,7 @@ export async function POST(req: Request) {
     const {
       github_url,
       track = "GitHub",
-      enableCoze = false,
+      enableCoze = true,
     } = await req.json().catch(() => ({}));
     const currentConfig = TRACK_CONFIGS[track];
 

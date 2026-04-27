@@ -64,6 +64,16 @@ export default function AutomationPage() {
     setter((prev) => [...prev, newLog].slice(-100)); // Keep last 100 logs
   };
 
+  const showToast = (
+    message: string,
+    type: "success" | "error" = "success",
+  ) => {
+    setToast({ show: true, message, type });
+    setTimeout(() => {
+      setToast((prev) => ({ ...prev, show: false }));
+    }, 5000);
+  };
+
   const autoScroll = (ref: React.RefObject<HTMLDivElement | null>) => {
     if (ref.current) {
       ref.current.scrollTop = ref.current.scrollHeight;
@@ -109,14 +119,15 @@ export default function AutomationPage() {
             ? `获取到的数据: ${resData.data}`
             : "今日暂无新项目";
           addLog(setLogs, msg, "success");
-          alert(
+          showToast(
             type === "github"
               ? `GitHub 趋势同步执行完成！\n${msg}`
               : `职场热点生成执行完成！\n${msg}`,
+            "success",
           );
         } else {
           addLog(setLogs, `执行失败: ${resData.error}`, "error");
-          alert(`执行失败: ${resData.error}`);
+          showToast(`执行失败: ${resData.error}`, "error");
         }
         return;
       }
@@ -177,16 +188,17 @@ export default function AutomationPage() {
       }
 
       setStatus("done");
-      alert(
+      showToast(
         type === "github"
           ? "GitHub 趋势同步执行完成！"
           : "职场热点生成执行完成！",
+        "success",
       );
     } catch (error: any) {
       console.error(error);
       addLog(setLogs, `Critical Error: ${error.message}`, "error");
       setStatus("error");
-      alert("执行过程中发生错误，请查看日志！");
+      showToast("执行过程中发生错误，请查看日志！", "error");
     }
   };
 
