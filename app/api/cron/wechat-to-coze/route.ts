@@ -9,7 +9,7 @@ const TRACK_CONFIGS: Record<
   { workflow_id: string; appid?: string; appsecret?: string }
 > = {
   职场: {
-    workflow_id: "7626203932684058676", // 职场专属工作流
+    workflow_id: "7632677651425640511", // 职场专属工作流
     appid: process.env.APPID, // 职场对应公众号 AppID
     appsecret: process.env.APPSECRET, // 职场对应公众号 AppSecret
   },
