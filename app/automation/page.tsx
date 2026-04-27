@@ -42,16 +42,6 @@ export default function AutomationPage() {
     type: "success",
   });
 
-  const showToast = (
-    message: string,
-    type: "success" | "error" = "success",
-  ) => {
-    setToast({ show: true, message, type });
-    setTimeout(() => {
-      setToast((prev) => ({ ...prev, show: false }));
-    }, 4000);
-  };
-
   const githubScrollRef = useRef<HTMLDivElement>(null);
   const careerScrollRef = useRef<HTMLDivElement>(null);
 
