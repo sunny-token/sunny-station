@@ -42,7 +42,10 @@ export default function AutomationPage() {
     type: "success",
   });
 
-  const showToast = (message: string, type: "success" | "error" = "success") => {
+  const showToast = (
+    message: string,
+    type: "success" | "error" = "success",
+  ) => {
     setToast({ show: true, message, type });
     setTimeout(() => {
       setToast((prev) => ({ ...prev, show: false }));
@@ -107,6 +110,27 @@ export default function AutomationPage() {
       if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
       if (!response.body) throw new Error("No response body received");
 
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        const resData = await response.json();
+        setStatus("done");
+        if (resData.success) {
+          const msg = resData.data
+            ? `获取到的数据: ${resData.data}`
+            : "今日暂无新项目";
+          addLog(setLogs, msg, "success");
+          alert(
+            type === "github"
+              ? `GitHub 趋势同步执行完成！\n${msg}`
+              : `职场热点生成执行完成！\n${msg}`,
+          );
+        } else {
+          addLog(setLogs, `执行失败: ${resData.error}`, "error");
+          alert(`执行失败: ${resData.error}`);
+        }
+        return;
+      }
+
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
@@ -163,12 +187,16 @@ export default function AutomationPage() {
       }
 
       setStatus("done");
-      showToast(`${type === "github" ? "GitHub" : "职场"} 工作流执行完成！`, "success");
+      alert(
+        type === "github"
+          ? "GitHub 趋势同步执行完成！"
+          : "职场热点生成执行完成！",
+      );
     } catch (error: any) {
       console.error(error);
       addLog(setLogs, `Critical Error: ${error.message}`, "error");
       setStatus("error");
-      showToast(`执行出错: ${error.message}`, "error");
+      alert("执行过程中发生错误，请查看日志！");
     }
   };
 
@@ -357,9 +385,7 @@ export default function AutomationPage() {
                   ) : (
                     <Play className="w-4 h-4 fill-current" />
                   )}
-                  {githubStatus === "running"
-                    ? "正在同步中..."
-                    : "开始抓取"}
+                  {githubStatus === "running" ? "正在同步中..." : "开始抓取"}
                 </div>
               </button>
             </div>
@@ -395,7 +421,13 @@ export default function AutomationPage() {
                         : "bg-white/5 border-white/10 text-slate-500"
                 }`}
               >
-                {careerStatus === "running" ? "运行中" : careerStatus === "done" ? "已完成" : careerStatus === "error" ? "错误" : "空闲"}
+                {careerStatus === "running"
+                  ? "运行中"
+                  : careerStatus === "done"
+                    ? "已完成"
+                    : careerStatus === "error"
+                      ? "错误"
+                      : "空闲"}
               </div>
             </div>
 

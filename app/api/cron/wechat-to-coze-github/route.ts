@@ -26,7 +26,7 @@ export async function POST(req: Request) {
     const {
       github_url,
       track = "GitHub",
-      enableCoze = true,
+      enableCoze = false,
     } = await req.json().catch(() => ({}));
     const currentConfig = TRACK_CONFIGS[track];
 
@@ -52,7 +52,7 @@ export async function POST(req: Request) {
     // 1. 获取 GitHub 数据源 (Star History 每周前 20)
     // ============================================
     if (github_url) {
-      sourceData = `用户指定项目链接: ${github_url}`;
+      sourceData = github_url;
     } else {
       try {
         const res = await fetch("https://star-history.com/", {
@@ -67,7 +67,7 @@ export async function POST(req: Request) {
           const $ = cheerio.load(html);
 
           // 1.1 抓取前 20 个项目
-          const allRepos: { path: string; full: string }[] = [];
+          const allRepos: { path: string; url: string }[] = [];
           $("a.cursor-pointer[href^='/']")
             .slice(0, 20)
             .each((index, el) => {
@@ -80,7 +80,7 @@ export async function POST(req: Request) {
               ) {
                 allRepos.push({
                   path: repoPath,
-                  full: `${index + 1}. 项目: ${repoPath} | 链接: https://github.com/${repoPath}`,
+                  url: `https://github.com/${repoPath}`,
                 });
               }
             });
@@ -98,13 +98,21 @@ export async function POST(req: Request) {
           );
 
           if (filteredRepos.length === 0) {
-            sourceData = "今日无新项目（前 20 名均已在近期推荐过）。";
+            sourceData = ""; // 如果没有新项目，可以置空或者直接返回
           } else {
-            sourceData = filteredRepos.map((r) => r.full).join("\n");
+            // 只取排名最靠前且没发过的一条
+            const firstRepo = filteredRepos[0];
+            sourceData = firstRepo.url;
 
-            // 准备在发送成功后记录到数据库 (这里取本次发送列表中的第一个作为标记，或者全部标记)
-            // 为了简单起见，我们暂存这些 path，在 Coze 调用成功后再写入
-            (req as any)._newPaths = filteredRepos.map((r) => r.path);
+            // 这里真正将其存入数据库去重表中，防止下次再发
+            await prisma.gitHubProject.upsert({
+              where: { repoPath: firstRepo.path },
+              update: {},
+              create: { repoPath: firstRepo.path },
+            });
+            console.log(
+              `[Database] 已将 ${firstRepo.path} 存入 Supabase 去重表`,
+            );
           }
 
           console.log(
