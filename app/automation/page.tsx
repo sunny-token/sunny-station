@@ -12,6 +12,7 @@ import {
   Zap,
   ShieldCheck,
   Code2,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -69,9 +70,6 @@ export default function AutomationPage() {
     type: "success" | "error" = "success",
   ) => {
     setToast({ show: true, message, type });
-    setTimeout(() => {
-      setToast((prev) => ({ ...prev, show: false }));
-    }, 5000);
   };
 
   const autoScroll = (ref: React.RefObject<HTMLDivElement | null>) => {
@@ -207,20 +205,27 @@ export default function AutomationPage() {
       {/* Toast Notification */}
       {toast.show && (
         <div
-          className={`fixed top-8 left-1/2 -translate-x-1/2 z-[100] px-6 py-3.5 rounded-full flex items-center gap-3 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.5)] border animate-in fade-in slide-in-from-top-8 duration-300 ${
+          className={`fixed top-8 left-1/2 -translate-x-1/2 z-[100] pl-6 pr-4 py-3.5 rounded-full flex items-center gap-3 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.5)] border animate-in fade-in slide-in-from-top-8 duration-300 ${
             toast.type === "success"
               ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400 backdrop-blur-xl"
               : "bg-red-500/10 border-red-500/30 text-red-400 backdrop-blur-xl"
           }`}
         >
           {toast.type === "success" ? (
-            <ShieldCheck className="w-5 h-5" />
+            <ShieldCheck className="w-5 h-5 shrink-0" />
           ) : (
-            <Zap className="w-5 h-5" />
+            <Zap className="w-5 h-5 shrink-0" />
           )}
-          <span className="font-bold text-sm tracking-wider">
+          <span className="font-bold text-sm tracking-wider whitespace-pre-line">
             {toast.message}
           </span>
+          <button
+            onClick={() => setToast((prev) => ({ ...prev, show: false }))}
+            className="ml-2 p-1.5 rounded-full hover:bg-white/10 transition-colors opacity-70 hover:opacity-100"
+            aria-label="关闭通知"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
       )}
 

@@ -137,7 +137,7 @@ export async function POST(req: Request) {
       });
     }
 
-    console.log("[Sending to Coze Github Workflow - Raw Data]");
+    console.log("[Sending to Coze Github Workflow - Raw Data]", sourceData);
 
     const cozeRes = await fetch("https://api.coze.cn/v1/workflow/stream_run", {
       method: "POST",
