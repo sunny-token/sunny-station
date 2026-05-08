@@ -85,9 +85,12 @@ export async function POST(req: Request) {
               }
             });
 
-          // 1.2 数据库去重过滤
+          // 1.2 数据库去重过滤 (仅过滤已成功发布的项目)
           const sentRepos = await prisma.gitHubProject.findMany({
-            where: { repoPath: { in: allRepos.map((r) => r.path) } },
+            where: { 
+              repoPath: { in: allRepos.map((r) => r.path) },
+              isPublished: true,
+            },
             select: { repoPath: true },
           });
           const sentPathSet = new Set(sentRepos.map((r) => r.repoPath));
@@ -159,6 +162,23 @@ export async function POST(req: Request) {
     if (!cozeRes.ok) {
       const errorData = await cozeRes.json();
       throw new Error(`Coze API Error: ${JSON.stringify(errorData)}`);
+    }
+
+    // ============================================
+    // 3. 发布成功，更新数据库状态
+    // ============================================
+    if (sourceData && sourceData.startsWith("https://github.com/") && !github_url) {
+      try {
+        const repoPath = sourceData.replace("https://github.com/", "");
+        await prisma.gitHubProject.update({
+          where: { repoPath: repoPath },
+          data: { isPublished: true },
+        });
+        console.log(`[Database] 已将 ${repoPath} 状态更新为已发布 (isPublished: true)`);
+      } catch (dbError) {
+        console.error("[Database Update Error]:", dbError);
+        // 不抛出错误，以免影响正常的流返回
+      }
     }
 
     return new Response(cozeRes.body, {
