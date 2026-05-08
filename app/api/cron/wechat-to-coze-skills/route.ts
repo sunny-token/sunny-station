@@ -105,8 +105,8 @@ export async function POST(req: Request) {
           let rank = 1;
           // 锁定表格区域，通常 Skill 列表在 table 中
           $("table a, main a").each((_, el) => {
-            let href = $(el).attr("href") || "";
-            let name = $(el).text().trim();
+            const href = $(el).attr("href") || "";
+            const name = $(el).text().trim();
 
             if (href.startsWith("http") && !href.includes("skills.sh")) return;
             const path = href
