@@ -24,6 +24,15 @@ const SOURCE_URLS = [
 
 import * as cheerio from "cheerio";
 
+interface SkillItem {
+  slug: string;
+  name: string;
+  source: string;
+  rank: number;
+  url: string;
+  author?: string;
+}
+
 export async function POST(req: Request) {
   try {
     const COZE_API_TOKEN = process.env.COZE_API_TOKEN;
@@ -32,7 +41,7 @@ export async function POST(req: Request) {
     const {
       manual_url,
       track = "Skill",
-      enableCoze = false,
+      enableCoze = true,
     } = await req.json().catch(() => ({}));
 
     const currentConfig = TRACK_CONFIGS[track];
@@ -53,7 +62,7 @@ export async function POST(req: Request) {
     }
 
     let sourceData = "";
-    let selectedSkill = { slug: "", name: "", source: "" };
+    let selectedSkill: SkillItem | null = null;
 
     // ============================================
     // 2. 获取数据源并去重
@@ -84,14 +93,7 @@ export async function POST(req: Request) {
         }),
       );
 
-      const allSkills: {
-        slug: string;
-        name: string;
-        source: string;
-        rank: number;
-        url: string;
-        author?: string;
-      }[] = [];
+      const allSkills: SkillItem[] = [];
 
       pages.filter(Boolean).forEach((page: any) => {
         const $ = cheerio.load(page.html);
@@ -235,12 +237,12 @@ export async function POST(req: Request) {
 
       // 预存入数据库
       await prisma.skillProject.upsert({
-        where: { skillSlug: selectedSkill.slug },
-        update: { name: selectedSkill.name, source: selectedSkill.source },
+        where: { skillSlug: selectedSkill!.slug },
+        update: { name: selectedSkill!.name, source: selectedSkill!.source },
         create: {
-          skillSlug: selectedSkill.slug,
-          name: selectedSkill.name,
-          source: selectedSkill.source,
+          skillSlug: selectedSkill!.slug,
+          name: selectedSkill!.name,
+          source: selectedSkill!.source,
         },
       });
     }
@@ -313,9 +315,9 @@ export async function POST(req: Request) {
     const finalData = {
       url: sourceData,
       github_url: github_url,
-      source: (selectedSkill as any).source,
-      rank: (selectedSkill as any).rank,
-      name: (selectedSkill as any).name,
+      source: selectedSkill?.source || "manual",
+      rank: selectedSkill?.rank || 0,
+      name: selectedSkill?.name || "manual",
     };
 
     if (enableCoze === false) {
@@ -351,7 +353,7 @@ export async function POST(req: Request) {
     // ============================================
     // 4. 更新发布状态
     // ============================================
-    if (selectedSkill.slug) {
+    if (selectedSkill && selectedSkill.slug) {
       try {
         await prisma.skillProject.update({
           where: { skillSlug: selectedSkill.slug },
