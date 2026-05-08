@@ -99,3 +99,15 @@ model GitHubProject {
 
   @@index([repoPath])
 }
+
+// 记录已发送的 Skill 项目，防止重复推荐
+model SkillProject {
+  id          Int      @id @default(autoincrement())
+  skillSlug   String   @unique // 例如 "clawsweeper-skill" 或 "skills-sh-slug"
+  name        String?
+  source      String?  // "skills.sh" 或 "skillsmp"
+  isPublished Boolean  @default(false)
+  sentAt      DateTime @default(now())
+
+  @@index([skillSlug])
+}
