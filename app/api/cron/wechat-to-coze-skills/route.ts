@@ -321,7 +321,7 @@ export async function POST(req: Request) {
 
           // B. 检查 GitHubProject 是否已发布过 (兼容原来的逻辑)
           const repoPath = github_url.replace(/https?:\/\/github\.com\//, "").split(/[?#]/)[0];
-          const existingGit = await prisma.githubProject.findFirst({
+          const existingGit = await prisma.gitHubProject.findFirst({
             where: {
               repoPath: repoPath,
               isPublished: true,
