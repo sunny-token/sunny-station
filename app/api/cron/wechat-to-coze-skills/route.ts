@@ -31,6 +31,7 @@ interface SkillItem {
   rank: number;
   url: string;
   author?: string;
+  githubUrl?: string;
 }
 
 export async function POST(req: Request) {
@@ -243,6 +244,7 @@ export async function POST(req: Request) {
           skillSlug: selectedSkill!.slug,
           name: selectedSkill!.name,
           source: selectedSkill!.source,
+          githubUrl: selectedSkill!.githubUrl,
         },
       });
     }
@@ -302,11 +304,56 @@ export async function POST(req: Request) {
             return false; // 找到第一个就跳出
           }
         });
-        if (github_url)
+
+        if (github_url) {
           console.log(`[Detail Scrape] 成功提取 GitHub 链接: ${github_url}`);
+
+          // ============================================
+          // 3.1 跨平台去重检查 (GitHub URL)
+          // ============================================
+          // A. 检查 SkillProject 是否已发布过相同的 GitHub URL
+          const existingSkill = await prisma.skillProject.findFirst({
+            where: {
+              githubUrl: githubUrlNormalizer(github_url),
+              isPublished: true,
+            },
+          });
+
+          // B. 检查 GitHubProject 是否已发布过 (兼容原来的逻辑)
+          const repoPath = github_url.replace(/https?:\/\/github\.com\//, "").split(/[?#]/)[0];
+          const existingGit = await prisma.githubProject.findFirst({
+            where: {
+              repoPath: repoPath,
+              isPublished: true,
+            },
+          });
+
+          if (existingSkill || existingGit) {
+            console.log(`[Skip] 该项目已发布过 (GitHub: ${github_url})`);
+            return NextResponse.json({
+              success: true,
+              message: "该 GitHub 项目已发布过，跳过重复处理",
+            });
+          }
+
+          // 如果是第一次见，更新当前记录的 githubUrl
+          if (selectedSkill) {
+            await prisma.skillProject.update({
+              where: { skillSlug: selectedSkill.slug },
+              data: { githubUrl: githubUrlNormalizer(github_url) },
+            });
+          }
+        }
       } catch (e) {
         console.warn("[Detail Scrape Failed]:", e);
       }
+    }
+
+    /**
+     * 规范化 GitHub URL，去掉末尾斜杠和 .git
+     */
+    function githubUrlNormalizer(url: string) {
+      return url.replace(/\/$/, "").replace(/\.git$/, "");
     }
 
     // ============================================

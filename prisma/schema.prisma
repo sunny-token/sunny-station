@@ -106,8 +106,10 @@ model SkillProject {
   skillSlug   String   @unique // 例如 "clawsweeper-skill" 或 "skills-sh-slug"
   name        String?
   source      String?  // "skills.sh" 或 "skillsmp"
+  githubUrl   String?
   isPublished Boolean  @default(false)
   sentAt      DateTime @default(now())
 
   @@index([skillSlug])
+  @@index([githubUrl])
 }
