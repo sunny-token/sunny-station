@@ -339,7 +339,7 @@ export async function POST(req: Request) {
       for (const skill of filteredSkills) {
         selectedSkill = skill as any;
         sourceData = (selectedSkill as any).url || "";
-        let temp_github_url = await extractGithubUrl(sourceData);
+        const temp_github_url = await extractGithubUrl(sourceData);
 
         if (temp_github_url) {
           const isDuplicate = await checkGithubDuplicate(temp_github_url);
