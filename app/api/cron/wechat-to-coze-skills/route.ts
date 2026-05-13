@@ -64,12 +64,111 @@ export async function POST(req: Request) {
 
     let sourceData = "";
     let selectedSkill: SkillItem | null = null;
+    let github_url = "";
+
+    /**
+     * 规范化 GitHub URL，去掉末尾斜杠和 .git
+     */
+    function githubUrlNormalizer(url: string) {
+      return url.replace(/\/$/, "").replace(/\.git$/, "");
+    }
+
+    async function extractGithubUrl(url: string): Promise<string> {
+      try {
+        console.log(`[Detail Scrape] 正在进入详情页提取 GitHub 链接: ${url}`);
+        const detailRes = await fetch(url, {
+          headers: { "User-Agent": "Mozilla/5.0" },
+          signal: AbortSignal.timeout(10000),
+        } as any);
+        const detailHtml = await detailRes.text();
+        const $detail = cheerio.load(detailHtml);
+
+        let extracted_github_url = "";
+        $detail("a[href*='github.com']").each((_, el) => {
+          let href = $detail(el).attr("href") || "";
+
+          // 逻辑 A: 如果是嵌套在 URL 参数里的 (如 manus.im/?githubUrl=...)
+          if (href.includes("githubUrl=")) {
+            try {
+              const urlParts = href.split("?");
+              const urlParams = new URLSearchParams(urlParts[1]);
+              const nestedUrl = urlParams.get("githubUrl");
+              if (nestedUrl && nestedUrl.includes("github.com")) {
+                href = nestedUrl;
+              }
+            } catch (e) {
+              console.warn("Failed to parse nested GitHub URL:", e);
+            }
+          }
+
+          // 逻辑 B: 过滤掉明显的无关链接
+          if (
+            href &&
+            href.includes("github.com") &&
+            !href.includes("/issues") &&
+            !href.includes("/pulls") &&
+            !href.includes("/stargazers") &&
+            !href.includes("manus.im")
+          ) {
+            // 提取仓库首页逻辑: https://github.com/作者/仓库名
+            const githubMatch = href.match(
+              /https?:\/\/github\.com\/([^/]+\/[^/]+)/,
+            );
+            if (githubMatch) {
+              extracted_github_url = `https://github.com/${githubMatch[1]}`;
+            } else {
+              extracted_github_url = href.split("?")[0];
+            }
+            return false; // 找到第一个就跳出
+          }
+        });
+
+        if (extracted_github_url) {
+          console.log(`[Detail Scrape] 成功提取 GitHub 链接: ${extracted_github_url}`);
+        }
+        return extracted_github_url;
+      } catch (e) {
+        console.warn("[Detail Scrape Failed]:", e);
+        return "";
+      }
+    }
+
+    async function checkGithubDuplicate(githubUrl: string): Promise<boolean> {
+      const existingSkill = await prisma.skillProject.findFirst({
+        where: {
+          githubUrl: githubUrlNormalizer(githubUrl),
+          isPublished: true,
+        },
+      });
+
+      const repoPath = githubUrl.replace(/https?:\/\/github\.com\//, "").split(/[?#]/)[0];
+      const existingGit = await prisma.gitHubProject.findFirst({
+        where: {
+          repoPath: repoPath,
+          isPublished: true,
+        },
+      });
+
+      return !!(existingSkill || existingGit);
+    }
 
     // ============================================
     // 2. 获取数据源并去重
     // ============================================
     if (manual_url) {
       sourceData = manual_url;
+      github_url = await extractGithubUrl(sourceData);
+
+      if (github_url) {
+        const isDuplicate = await checkGithubDuplicate(github_url);
+        if (isDuplicate) {
+          console.log(`[Skip] 该项目已发布过 (GitHub: ${github_url})`);
+          return NextResponse.json({
+            success: true,
+            message: "该 GitHub 项目已发布过，跳过重复处理",
+          });
+        }
+      }
     } else {
       console.log(`[${track}] 启动自动化抓取与去重...`);
 
@@ -232,128 +331,70 @@ export async function POST(req: Request) {
         });
       }
 
-      // 挑选一个最靠前的
-      selectedSkill = filteredSkills[0] as any;
-      sourceData = (selectedSkill as any).url || "";
+      // ============================================
+      // 3. 筛选并找到第一个未发布过的项目
+      // ============================================
+      let foundValidSkill = false;
 
-      // 预存入数据库
-      await prisma.skillProject.upsert({
-        where: { skillSlug: selectedSkill!.slug },
-        update: { name: selectedSkill!.name, source: selectedSkill!.source },
-        create: {
-          skillSlug: selectedSkill!.slug,
-          name: selectedSkill!.name,
-          source: selectedSkill!.source,
-          githubUrl: selectedSkill!.githubUrl,
-        },
-      });
-    }
+      for (const skill of filteredSkills) {
+        selectedSkill = skill as any;
+        sourceData = (selectedSkill as any).url || "";
+        let temp_github_url = await extractGithubUrl(sourceData);
 
-    // ============================================
-    // 3. 额外步骤：进入详情页抓取 GitHub URL
-    // ============================================
-    let github_url = "";
-    if (sourceData) {
-      try {
-        console.log(
-          `[Detail Scrape] 正在进入详情页提取 GitHub 链接: ${sourceData}`,
-        );
-        const detailRes = await fetch(sourceData, {
-          headers: { "User-Agent": "Mozilla/5.0" },
-          signal: AbortSignal.timeout(10000),
-        } as any);
-        const detailHtml = await detailRes.text();
-        const $detail = cheerio.load(detailHtml);
-
-        // 寻找包含 github.com 的链接，并进行清洗
-        $detail("a[href*='github.com']").each((_, el) => {
-          let href = $detail(el).attr("href") || "";
-
-          // 逻辑 A: 如果是嵌套在 URL 参数里的 (如 manus.im/?githubUrl=...)
-          if (href.includes("githubUrl=")) {
-            try {
-              const urlParts = href.split("?");
-              const urlParams = new URLSearchParams(urlParts[1]);
-              const nestedUrl = urlParams.get("githubUrl");
-              if (nestedUrl && nestedUrl.includes("github.com")) {
-                href = nestedUrl;
-              }
-            } catch (e) {
-              console.warn("Failed to parse nested GitHub URL:", e);
-            }
-          }
-
-          // 逻辑 B: 过滤掉明显的无关链接
-          if (
-            href &&
-            href.includes("github.com") &&
-            !href.includes("/issues") &&
-            !href.includes("/pulls") &&
-            !href.includes("/stargazers") &&
-            !href.includes("manus.im")
-          ) {
-            // 提取仓库首页逻辑: https://github.com/作者/仓库名
-            const githubMatch = href.match(
-              /https?:\/\/github\.com\/([^/]+\/[^/]+)/,
-            );
-            if (githubMatch) {
-              github_url = `https://github.com/${githubMatch[1]}`;
-            } else {
-              github_url = href.split("?")[0];
-            }
-            return false; // 找到第一个就跳出
-          }
-        });
-
-        if (github_url) {
-          console.log(`[Detail Scrape] 成功提取 GitHub 链接: ${github_url}`);
-
-          // ============================================
-          // 3.1 跨平台去重检查 (GitHub URL)
-          // ============================================
-          // A. 检查 SkillProject 是否已发布过相同的 GitHub URL
-          const existingSkill = await prisma.skillProject.findFirst({
-            where: {
-              githubUrl: githubUrlNormalizer(github_url),
-              isPublished: true,
-            },
-          });
-
-          // B. 检查 GitHubProject 是否已发布过 (兼容原来的逻辑)
-          const repoPath = github_url.replace(/https?:\/\/github\.com\//, "").split(/[?#]/)[0];
-          const existingGit = await prisma.gitHubProject.findFirst({
-            where: {
-              repoPath: repoPath,
-              isPublished: true,
-            },
-          });
-
-          if (existingSkill || existingGit) {
-            console.log(`[Skip] 该项目已发布过 (GitHub: ${github_url})`);
-            return NextResponse.json({
-              success: true,
-              message: "该 GitHub 项目已发布过，跳过重复处理",
+        if (temp_github_url) {
+          const isDuplicate = await checkGithubDuplicate(temp_github_url);
+          if (isDuplicate) {
+            console.log(`[Skip] 该项目已发布过 (GitHub: ${temp_github_url})，尝试下一个`);
+            
+            // 标记为已发布，避免下次再查
+            await prisma.skillProject.upsert({
+              where: { skillSlug: selectedSkill!.slug },
+              update: { 
+                name: selectedSkill!.name, 
+                source: selectedSkill!.source, 
+                githubUrl: githubUrlNormalizer(temp_github_url),
+                isPublished: true 
+              },
+              create: {
+                skillSlug: selectedSkill!.slug,
+                name: selectedSkill!.name,
+                source: selectedSkill!.source,
+                githubUrl: githubUrlNormalizer(temp_github_url),
+                isPublished: true
+              },
             });
+            continue; // 继续寻找下一个
           }
-
-          // 如果是第一次见，更新当前记录的 githubUrl
-          if (selectedSkill) {
-            await prisma.skillProject.update({
-              where: { skillSlug: selectedSkill.slug },
-              data: { githubUrl: githubUrlNormalizer(github_url) },
-            });
-          }
+          
+          github_url = temp_github_url;
         }
-      } catch (e) {
-        console.warn("[Detail Scrape Failed]:", e);
-      }
-    }
 
-    /**
-     * 规范化 GitHub URL，去掉末尾斜杠和 .git
-     */
-    function githubUrlNormalizer(url: string) {
-      return url.replace(/\/$/, "").replace(/\.git$/, "");
+        // 找到一个没重复的（或者没有 github_url 的），保存并跳出
+        await prisma.skillProject.upsert({
+          where: { skillSlug: selectedSkill!.slug },
+          update: { 
+            name: selectedSkill!.name, 
+            source: selectedSkill!.source,
+            githubUrl: github_url ? githubUrlNormalizer(github_url) : undefined
+          },
+          create: {
+            skillSlug: selectedSkill!.slug,
+            name: selectedSkill!.name,
+            source: selectedSkill!.source,
+            githubUrl: github_url ? githubUrlNormalizer(github_url) : undefined
+          },
+        });
+        
+        foundValidSkill = true;
+        break; // 停止寻找
+      }
+
+      if (!foundValidSkill) {
+        return NextResponse.json({
+          success: true,
+          message: "所有新获取的项目均已被发布，跳过",
+        });
+      }
     }
 
     // ============================================
