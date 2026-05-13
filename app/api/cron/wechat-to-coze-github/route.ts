@@ -18,6 +18,89 @@ const TRACK_CONFIGS: Record<
   },
 };
 
+interface RepoItem {
+  path: string;
+  url: string;
+}
+
+/**
+ * 抓取 Star History 每周前 20 项目
+ */
+async function fetchStarHistoryRepos(): Promise<RepoItem[]> {
+  try {
+    const res = await fetch("https://star-history.com/", {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      },
+      next: { revalidate: 3600 },
+    });
+    if (!res.ok) return [];
+
+    const html = await res.text();
+    const $ = cheerio.load(html);
+    const repos: RepoItem[] = [];
+
+    $("a.cursor-pointer[href^='/']")
+      .slice(0, 20)
+      .each((_, el) => {
+        const href = $(el).attr("href") || "";
+        const repoPath = href.replace(/^\//, "");
+        if (
+          repoPath &&
+          !repoPath.includes("blog") &&
+          !repoPath.includes("compare")
+        ) {
+          repos.push({
+            path: repoPath,
+            url: `https://github.com/${repoPath}`,
+          });
+        }
+      });
+    return repos;
+  } catch (e) {
+    console.warn("[Star History Fetch Failed]:", e);
+    return [];
+  }
+}
+
+/**
+ * 抓取 GitHub Trending 项目
+ * @param since 'daily' | 'weekly' | 'monthly'
+ */
+async function fetchGitHubTrendingRepos(
+  since: "daily" | "weekly" | "monthly" = "daily",
+): Promise<RepoItem[]> {
+  try {
+    const res = await fetch(`https://github.com/trending?since=${since}`, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      },
+    });
+    if (!res.ok) return [];
+
+    const html = await res.text();
+    const $ = cheerio.load(html);
+    const repos: RepoItem[] = [];
+
+    $("article.Box-row h2.h3 a").each((_, el) => {
+      const href = $(el).attr("href") || "";
+      const repoPath = href.replace(/^\//, "");
+      if (repoPath) {
+        repos.push({
+          path: repoPath,
+          url: `https://github.com/${repoPath}`,
+        });
+      }
+    });
+    return repos;
+  } catch (e) {
+    console.warn(`[GitHub Trending ${since} Fetch Failed]:`, e);
+    return [];
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const COZE_API_TOKEN = process.env.COZE_API_TOKEN;
@@ -49,83 +132,66 @@ export async function POST(req: Request) {
     let sourceData = "";
 
     // ============================================
-    // 1. 获取 GitHub 数据源 (Star History 每周前 20)
+    // 1. 获取 GitHub 数据源 (支持多级降级)
     // ============================================
     if (github_url) {
       sourceData = github_url;
     } else {
-      try {
-        const res = await fetch("https://star-history.com/", {
-          headers: {
-            "User-Agent":
-              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      // 1.1 尝试抓取 Star History
+      const starHistoryRepos = await fetchStarHistoryRepos();
+      
+      // 辅助去重函数
+      const filterNewRepos = async (repos: RepoItem[]) => {
+        if (repos.length === 0) return [];
+        const sentRepos = await prisma.gitHubProject.findMany({
+          where: {
+            repoPath: { in: repos.map((r) => r.path) },
+            isPublished: true,
           },
-          next: { revalidate: 3600 },
+          select: { repoPath: true },
         });
-        if (res.ok) {
-          const html = await res.text();
-          const $ = cheerio.load(html);
+        const sentPathSet = new Set(sentRepos.map((r) => r.repoPath));
+        return repos.filter((r) => !sentPathSet.has(r.path));
+      };
 
-          // 1.1 抓取前 20 个项目
-          const allRepos: { path: string; url: string }[] = [];
-          $("a.cursor-pointer[href^='/']")
-            .slice(0, 20)
-            .each((index, el) => {
-              const href = $(el).attr("href") || "";
-              const repoPath = href.replace(/^\//, "");
-              if (
-                repoPath &&
-                !repoPath.includes("blog") &&
-                !repoPath.includes("compare")
-              ) {
-                allRepos.push({
-                  path: repoPath,
-                  url: `https://github.com/${repoPath}`,
-                });
-              }
-            });
+      let filteredRepos = await filterNewRepos(starHistoryRepos);
 
-          // 1.2 数据库去重过滤 (仅过滤已成功发布的项目)
-          const sentRepos = await prisma.gitHubProject.findMany({
-            where: { 
-              repoPath: { in: allRepos.map((r) => r.path) },
-              isPublished: true,
-            },
-            select: { repoPath: true },
-          });
-          const sentPathSet = new Set(sentRepos.map((r) => r.repoPath));
-
-          // 仅保留没发过的项目
-          const filteredRepos = allRepos.filter(
-            (r) => !sentPathSet.has(r.path),
-          );
-
-          if (filteredRepos.length === 0) {
-            sourceData = ""; // 如果没有新项目，可以置空或者直接返回
-          } else {
-            // 只取排名最靠前且没发过的一条
-            const firstRepo = filteredRepos[0];
-            sourceData = firstRepo.url;
-
-            // 这里真正将其存入数据库去重表中，防止下次再发
-            await prisma.gitHubProject.upsert({
-              where: { repoPath: firstRepo.path },
-              update: {},
-              create: { repoPath: firstRepo.path },
-            });
-            console.log(
-              `[Database] 已将 ${firstRepo.path} 存入 Supabase 去重表`,
-            );
+      // 1.2 如果 Star History 无新项目，依次尝试 GitHub Trending (日/周/月)
+      if (filteredRepos.length === 0) {
+        console.log("[Fallback] Star History 无新项目，进入 GitHub Trending 多级降级...");
+        
+        const ranges: ("daily" | "weekly" | "monthly")[] = ["daily", "weekly", "monthly"];
+        for (const range of ranges) {
+          console.log(`[Trending Fallback] 正在尝试: ${range}`);
+          const trendingRepos = await fetchGitHubTrendingRepos(range);
+          filteredRepos = await filterNewRepos(trendingRepos);
+          
+          if (filteredRepos.length > 0) {
+            console.log(`[GitHub Trending ${range}] 成功发现 ${filteredRepos.length} 个新项目`);
+            break;
           }
-
-          console.log(
-            `[Star History Filtered]: ${filteredRepos.length}/${allRepos.length} items are new.`,
-          );
         }
-      } catch (e) {
-        console.warn("[Star History Fetch Failed]:", e);
-        sourceData = "数据抓取失败。";
       }
+
+      // 1.3 最终检查
+      if (filteredRepos.length === 0) {
+        console.log("[GitHub] 穷尽所有来源（Star History & Trending D/W/M）均无新项目，跳过。");
+        return NextResponse.json({
+          success: true,
+          message: "所有推荐来源均无新项目，本次跳过。",
+        });
+      }
+
+      // 1.4 锁定本次要发的项目
+      const firstRepo = filteredRepos[0];
+      sourceData = firstRepo.url;
+
+      await prisma.gitHubProject.upsert({
+        where: { repoPath: firstRepo.path },
+        update: {},
+        create: { repoPath: firstRepo.path },
+      });
+      console.log(`[Database] 已将 ${firstRepo.path} 锁定入去重表`);
     }
 
     // ============================================

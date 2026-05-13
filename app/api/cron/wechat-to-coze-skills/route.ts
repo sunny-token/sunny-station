@@ -325,6 +325,7 @@ export async function POST(req: Request) {
       );
 
       if (filteredSkills.length === 0) {
+        console.log("[Skill] 今日无新 Skill 需发布，本次跳过。");
         return NextResponse.json({
           success: true,
           message: "今日无新 Skill 需发布",
@@ -390,6 +391,7 @@ export async function POST(req: Request) {
       }
 
       if (!foundValidSkill) {
+        console.log("[Skill] 所有新获取的项目均已被发布，跳过本次执行。");
         return NextResponse.json({
           success: true,
           message: "所有新获取的项目均已被发布，跳过",
