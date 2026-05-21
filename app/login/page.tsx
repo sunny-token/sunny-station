@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { trpc } from "../../server/client";
-import { ArrowRight, Fingerprint, ScanEye, TerminalSquare, AlertTriangle } from "lucide-react";
+import { ArrowRight, Fingerprint, ScanEye, TerminalSquare, AlertTriangle, CheckCircle2 } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -11,6 +11,8 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorText, setErrorText] = useState("");
+  const [successText, setSuccessText] = useState("");
+  const [regCode, setRegCode] = useState("");
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -19,11 +21,13 @@ export default function LoginPage() {
 
   const loginMutation = trpc.auth.login.useMutation({
     onSuccess: () => {
+      setSuccessText("");
       router.push("/");
       router.refresh(); // 刷新 Server Components 状态
     },
     onError: (err) => {
       setErrorText(err.message);
+      setSuccessText("");
     },
   });
 
@@ -31,16 +35,18 @@ export default function LoginPage() {
     onSuccess: () => {
       setIsLogin(true);
       setErrorText("");
-      // 成功后自动切换回登录态，可选提示
+      setSuccessText("注册成功！请使用刚才注册的账户和密码进行登录。");
     },
     onError: (err) => {
       setErrorText(err.message);
+      setSuccessText("");
     },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorText("");
+    setSuccessText("");
 
     if (!email || !password) {
       setErrorText("请输入邮箱和密码");
@@ -50,7 +56,11 @@ export default function LoginPage() {
     if (isLogin) {
       loginMutation.mutate({ email, password });
     } else {
-      registerMutation.mutate({ email, password });
+      if (!regCode) {
+        setErrorText("请输入注册邀请码");
+        return;
+      }
+      registerMutation.mutate({ email, password, regCode });
     }
   };
 
@@ -92,10 +102,10 @@ export default function LoginPage() {
               身份安全验证
             </div>
             <h1 className="text-3xl font-black tracking-tight text-white uppercase">
-              系统登录
+              {isLogin ? "系统登录" : "系统注册"}
             </h1>
             <p className="text-slate-500 text-xs font-mono tracking-widest uppercase mt-1">
-              Administrator Login
+              {isLogin ? "Administrator Login" : "User Registration"}
             </p>
           </div>
         </div>
@@ -134,6 +144,22 @@ export default function LoginPage() {
                     className="w-full h-14 px-4 bg-black/50 border border-white/10 rounded-xl focus:outline-none focus:ring-0 focus:border-red-500/50 transition-all text-white placeholder:text-slate-700 font-serif text-2xl tracking-widest"
                   />
                 </div>
+
+                {!isLogin && (
+                  <div className="space-y-1.5 focus-within:text-white text-slate-500 transition-colors animate-in fade-in duration-300">
+                     <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.1em]">
+                      <TerminalSquare className="w-3.5 h-3.5" />
+                      注册邀请码
+                    </label>
+                    <input
+                      type="password"
+                      value={regCode}
+                      onChange={(e) => setRegCode(e.target.value)}
+                      placeholder="请输入专有系统注册口令"
+                      className="w-full h-14 px-4 bg-black/50 border border-white/10 rounded-xl focus:outline-none focus:ring-0 focus:border-red-500/50 transition-all text-white placeholder:text-slate-700 font-mono text-sm"
+                    />
+                  </div>
+                )}
               </div>
 
               {errorText && (
@@ -142,6 +168,16 @@ export default function LoginPage() {
                   <div className="text-xs text-red-400 font-medium leading-relaxed">
                     <span className="font-bold uppercase tracking-wider text-[10px] block mb-1">错误提示</span>
                     {errorText}
+                  </div>
+                </div>
+              )}
+
+              {successText && (
+                <div className="flex items-start gap-3 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl animate-in fade-in slide-in-from-top-2">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
+                  <div className="text-xs text-emerald-400 font-medium leading-relaxed">
+                    <span className="font-bold uppercase tracking-wider text-[10px] block mb-1">系统提示</span>
+                    {successText}
                   </div>
                 </div>
               )}
@@ -159,13 +195,28 @@ export default function LoginPage() {
                     </>
                   ) : (
                     <>
-                      登录
+                      {isLogin ? "登录" : "注册"}
                       <ArrowRight className="w-4 h-4 opacity-70 group-hover:opacity-100 transition-opacity" />
                     </>
                   )}
                 </div>
               </button>
             </form>
+
+            <div className="mt-6 text-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsLogin(!isLogin);
+                  setErrorText("");
+                  setSuccessText("");
+                  setRegCode("");
+                }}
+                className="text-xs text-red-400 hover:text-red-300 font-medium transition-colors focus:outline-none"
+              >
+                {isLogin ? "还没有账号？立即注册" : "已有账号？返回登录"}
+              </button>
+            </div>
 
           <div className="mt-8 pt-6 border-t border-white/[0.05] flex items-center justify-between text-xs text-slate-500">
             <span className="font-mono uppercase tracking-widest text-[10px]">安全协议运行中</span>

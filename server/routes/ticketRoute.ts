@@ -1,4 +1,4 @@
-import { publicProcedure, router } from "../trpc";
+import { protectedProcedure, router } from "../trpc";
 import prismaService from "../../lib/prismaService";
 import { z } from "zod";
 import { checkWin, type TicketNumbers } from "../../lib/lotteryRules";
@@ -9,7 +9,7 @@ import * as XLSX from "xlsx";
  */
 export const ticketRouter = router({
   // 获取预设号码列表
-  getList: publicProcedure
+  getList: protectedProcedure
     .input(
       z.object({
         lotteryType: z.enum(["ssq", "dlt"]).optional(),
@@ -18,7 +18,7 @@ export const ticketRouter = router({
         pageSize: z.number().default(10),
       }),
     )
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
       const { lotteryType, isActive, page, pageSize } = input;
       const skip = (page - 1) * pageSize;
       const prisma = prismaService.getPrismaClient();
@@ -26,6 +26,11 @@ export const ticketRouter = router({
       const where: any = {};
       if (lotteryType) where.lotteryType = lotteryType;
       if (isActive !== undefined) where.isActive = isActive;
+      
+      // 权限隔离：普通用户只能看自己的，管理员可以看所有的
+      if (ctx.user.role !== "ADMIN") {
+        where.userId = ctx.user.userId;
+      }
 
       const [total, results] = await Promise.all([
         prisma.ticket.count({ where }),
@@ -57,7 +62,7 @@ export const ticketRouter = router({
     }),
 
   // 添加预设号码
-  create: publicProcedure
+  create: protectedProcedure
     .input(
       z.object({
         lotteryType: z.enum(["ssq", "dlt"]),
@@ -69,7 +74,10 @@ export const ticketRouter = router({
         isActive: z.boolean().default(true),
       }),
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
+      if (ctx.user.role === "GUEST") {
+        throw new Error("访客账号仅具备只读权限，无权添加预设号码");
+      }
       const prisma = prismaService.getPrismaClient();
 
       // 验证号码数量
@@ -95,6 +103,7 @@ export const ticketRouter = router({
           name: input.name,
           numbers: input.numbers,
           isActive: input.isActive,
+          userId: ctx.user.userId,
         },
       });
 
@@ -111,7 +120,7 @@ export const ticketRouter = router({
     }),
 
   // 更新预设号码
-  update: publicProcedure
+  update: protectedProcedure
     .input(
       z.object({
         id: z.number(),
@@ -125,13 +134,21 @@ export const ticketRouter = router({
         isActive: z.boolean().optional(),
       }),
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
+      if (ctx.user.role === "GUEST") {
+        throw new Error("访客账号仅具备只读权限，无权修改预设号码");
+      }
       const { id, ...updateData } = input;
       const prisma = prismaService.getPrismaClient();
 
       const existing = await prisma.ticket.findUnique({ where: { id } });
       if (!existing) {
         throw new Error("预设号码不存在");
+      }
+      
+      // 权限校验
+      if (existing.userId !== ctx.user.userId && ctx.user.role !== "ADMIN") {
+        throw new Error("权限不足，无法修改他人的预设号码");
       }
 
       // 如果更新号码，验证数量
@@ -171,23 +188,36 @@ export const ticketRouter = router({
     }),
 
   // 删除预设号码
-  delete: publicProcedure
+  delete: protectedProcedure
     .input(z.object({ id: z.number() }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
+      if (ctx.user.role === "GUEST") {
+        throw new Error("访客账号仅具备只读权限，无权删除预设号码");
+      }
       const prisma = prismaService.getPrismaClient();
+      
+      const existing = await prisma.ticket.findUnique({ where: { id: input.id } });
+      if (!existing) {
+        throw new Error("预设号码不存在");
+      }
+      
+      if (existing.userId !== ctx.user.userId && ctx.user.role !== "ADMIN") {
+        throw new Error("权限不足，无法删除他人的预设号码");
+      }
+      
       await prisma.ticket.delete({ where: { id: input.id } });
       return { success: true };
     }),
 
   // 检查中奖（用于测试）
-  checkWin: publicProcedure
+  checkWin: protectedProcedure
     .input(
       z.object({
         ticketId: z.number(),
         issueNumber: z.string(),
       }),
     )
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
       const prisma = prismaService.getPrismaClient();
 
       const ticket = await prisma.ticket.findUnique({
@@ -195,6 +225,10 @@ export const ticketRouter = router({
       });
       if (!ticket) {
         throw new Error("预设号码不存在");
+      }
+      
+      if (ticket.userId !== ctx.user.userId && ctx.user.role !== "ADMIN") {
+        throw new Error("权限不足，无法查看他人的预设号码");
       }
 
       const ticketNumbers =
@@ -240,14 +274,17 @@ export const ticketRouter = router({
     }),
 
   // 批量导入预设号码（从 Excel）- 自动识别所有类型
-  batchImport: publicProcedure
+  batchImport: protectedProcedure
     .input(
       z.object({
         fileData: z.string(), // base64 编码的 Excel 文件数据
         isActive: z.boolean().default(true),
       }),
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
+      if (ctx.user.role === "GUEST") {
+        throw new Error("访客账号仅具备只读权限，无权导入预设号码");
+      }
       const prisma = prismaService.getPrismaClient();
       const { fileData, isActive } = input;
 
@@ -263,6 +300,7 @@ export const ticketRouter = router({
           name: string;
           numbers: { red: string[]; blue: string[] };
           isActive: boolean;
+          userId: string;
         }> = [];
 
         const allErrors: string[] = [];
@@ -510,6 +548,7 @@ export const ticketRouter = router({
                 name,
                 numbers: { red, blue },
                 isActive,
+                userId: ctx.user.userId,
               });
             } catch (error) {
               sheetErrors.push(

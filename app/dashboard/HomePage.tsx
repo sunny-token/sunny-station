@@ -109,21 +109,23 @@ export default function HomePage() {
         </Link>
 
         {/* Card 3: Automation */}
-        <Link href="/automation" className="group rounded-[2rem] p-8 bg-white/[0.02] border border-white/[0.05] hover:bg-white/[0.04] hover:border-white/[0.12] hover:shadow-2xl hover:shadow-emerald-500/10 transition-all duration-500 outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 relative overflow-hidden flex flex-col justify-between min-h-[220px]">
-          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-          <div className="flex items-center justify-between relative z-10 mb-8">
-            <div className="p-4 bg-emerald-500/10 rounded-2xl text-emerald-400 group-hover:scale-110 group-hover:text-emerald-300 transition-all duration-500 ease-out">
-              <Activity className="w-7 h-7" />
+        {isAdmin && (
+          <Link href="/automation" className="group rounded-[2rem] p-8 bg-white/[0.02] border border-white/[0.05] hover:bg-white/[0.04] hover:border-white/[0.12] hover:shadow-2xl hover:shadow-emerald-500/10 transition-all duration-500 outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 relative overflow-hidden flex flex-col justify-between min-h-[220px]">
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            <div className="flex items-center justify-between relative z-10 mb-8">
+              <div className="p-4 bg-emerald-500/10 rounded-2xl text-emerald-400 group-hover:scale-110 group-hover:text-emerald-300 transition-all duration-500 ease-out">
+                <Activity className="w-7 h-7" />
+              </div>
+              <div className="peer p-2 rounded-full border border-white/0 group-hover:border-white/10 transition-all duration-300">
+                <ChevronRight className="w-5 h-5 text-gray-600 group-hover:text-white transition-colors duration-300 group-hover:translate-x-0.5" />
+              </div>
             </div>
-            <div className="peer p-2 rounded-full border border-white/0 group-hover:border-white/10 transition-all duration-300">
-              <ChevronRight className="w-5 h-5 text-gray-600 group-hover:text-white transition-colors duration-300 group-hover:translate-x-0.5" />
+            <div className="relative z-10">
+              <h3 className="text-2xl font-medium text-gray-200 mb-2 tracking-wide group-hover:text-white transition-colors">自动化处理中心</h3>
+              <p className="text-sm text-gray-500 leading-relaxed font-light">GitHub 热门趋势抓取与职场内容生成，对接智能工作流。</p>
             </div>
-          </div>
-          <div className="relative z-10">
-            <h3 className="text-2xl font-medium text-gray-200 mb-2 tracking-wide group-hover:text-white transition-colors">自动化处理中心</h3>
-            <p className="text-sm text-gray-500 leading-relaxed font-light">GitHub 热门趋势抓取与职场内容生成，对接智能工作流。</p>
-          </div>
-        </Link>
+          </Link>
+        )}
 
         {/* Card 4: Settings */}
         <Link href="/settings" className="group rounded-[2rem] p-8 bg-white/[0.02] border border-white/[0.05] hover:bg-white/[0.04] hover:border-white/[0.12] hover:shadow-2xl hover:shadow-slate-500/10 transition-all duration-500 outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 relative overflow-hidden flex flex-col justify-between min-h-[220px]">

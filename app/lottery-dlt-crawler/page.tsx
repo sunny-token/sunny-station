@@ -58,6 +58,10 @@ export default function DLTCrawlerPage() {
   );
   const mutation = trpc.dlt.fetchAndSave.useMutation();
 
+  // 获取当前登录用户，判断角色
+  const { data: user } = trpc.auth.getMe.useQuery();
+  const isGuest = user?.role === "GUEST";
+
   // 获取大乐透激活的守号号码
   const { data: ticketData } = trpc.ticket.getList.useQuery({
     lotteryType: "dlt",
@@ -283,10 +287,14 @@ export default function DLTCrawlerPage() {
               <div className="flex items-end gap-3 flex-1">
                 <button
                   onClick={handleStart}
-                  disabled={loading}
-                  className="flex-1 h-12 px-6 rounded-xl bg-white text-black font-bold hover:bg-slate-200 disabled:opacity-50 transition-all shadow-xl active:scale-[0.98]"
+                  disabled={loading || isGuest}
+                  className={`flex-1 h-12 px-6 rounded-xl font-bold transition-all shadow-xl active:scale-[0.98] ${
+                    isGuest
+                      ? "bg-white/5 border border-white/5 text-slate-500 cursor-not-allowed opacity-50"
+                      : "bg-white text-black hover:bg-slate-200 disabled:opacity-50"
+                  }`}
                 >
-                  {loading ? "正在抓取数据..." : "启动抓取任务"}
+                  {isGuest ? "🔒 访客只读模式" : loading ? "正在抓取数据..." : "启动抓取任务"}
                 </button>
               </div>
             </div>

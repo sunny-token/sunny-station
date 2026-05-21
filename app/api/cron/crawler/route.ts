@@ -511,17 +511,7 @@ async function checkAndNotifyWinners(
 
   console.log(`[CRON] [MATCH] 找到 ${tickets.length} 个预设号码，开始匹配...`);
 
-  // 获取所有激活的收件人
-  const recipients = await prisma.emailRecipient.findMany({
-    where: { isActive: true },
-  });
-
-  if (recipients.length === 0) {
-    console.log("[CRON] [MATCH] ⚠️  没有激活的邮件收件人，跳过邮件发送");
-    return;
-  }
-
-  console.log(`[CRON] [MATCH] 找到 ${recipients.length} 个激活的邮件收件人`);
+  // 不再使用统一收件人，后续将按用户角色分别查找邮箱发送
 
   const winnerTickets: Array<{
     ticket: any;
@@ -556,55 +546,69 @@ async function checkAndNotifyWinners(
 
   console.log(`[CRON] [MATCH] 🎉 发现 ${winnerTickets.length} 个中奖号码！`);
 
-  // 发送邮件通知（合并所有中奖号码到一封邮件）
-  if (recipients.length > 0) {
-    const recipientEmails = recipients.map((r) => r.email);
-    console.log(
-      `[CRON] [MATCH] 📧 准备发送邮件到 ${recipientEmails.length} 个收件人...`,
-    );
+  // 发送邮件通知（按用户权限隔离）
+  console.log(`[CRON] [MATCH] 📧 准备发送个性化邮件...`);
 
-    // 合并所有中奖信息到一封邮件
-    const { sendMultipleWinnersNotifications, parsePrizeDetails } =
-      await import("@/lib/emailService");
+  // 按 userId 分组中奖号码
+  const userWinnerTickets = new Map<string, typeof winnerTickets>();
+  const adminWinnerTickets = [...winnerTickets]; // Admin 看所有的
 
-    // 获取中奖金额信息：优先使用 prizeAmounts 字段，如果没有则从 detail 解析
-    let prizeDetails: Record<string, string> = {};
-
-    if (latestResult.prizeAmounts) {
-      // 从 prizeAmounts 字段获取（数组格式）
-      try {
-        const prizeAmountsArray = Array.isArray(latestResult.prizeAmounts)
-          ? latestResult.prizeAmounts
-          : JSON.parse(latestResult.prizeAmounts as string);
-
-        if (Array.isArray(prizeAmountsArray)) {
-          prizeAmountsArray.forEach(
-            (item: { level: string; amount: string }) => {
-              if (item.level && item.amount) {
-                prizeDetails[item.level] = item.amount;
-              }
-            },
-          );
-        }
-        console.log(
-          `[CRON] [MATCH] 从 prizeAmounts 字段获取奖项信息: ${Object.keys(prizeDetails).length} 个奖项`,
-        );
-      } catch (error) {
-        console.error(`[CRON] [MATCH] 解析 prizeAmounts 失败:`, error);
+  for (const wt of winnerTickets) {
+    if (wt.ticket.userId) {
+      if (!userWinnerTickets.has(wt.ticket.userId)) {
+        userWinnerTickets.set(wt.ticket.userId, []);
       }
+      userWinnerTickets.get(wt.ticket.userId)!.push(wt);
     }
+  }
 
-    // 如果 prizeAmounts 为空，尝试从 detail 字段解析
-    if (Object.keys(prizeDetails).length === 0) {
-      console.log(
-        `[CRON] [MATCH] prizeAmounts 为空，尝试从 detail 字段解析...`,
-      );
-      prizeDetails = parsePrizeDetails(latestResult.detail || "");
-      console.log(
-        `[CRON] [MATCH] 从 detail 字段解析出 ${Object.keys(prizeDetails).length} 个奖项`,
-      );
+  // 检查邮件配置
+  const emailConfig =
+    process.env.SMTP_HOST &&
+    process.env.SMTP_PORT &&
+    process.env.SMTP_USER &&
+    process.env.SMTP_PASSWORD;
+
+  if (!emailConfig) {
+    console.error("[CRON] [MATCH] ❌ 邮件配置不完整，无法发送邮件！");
+    console.error("[CRON] [MATCH] 请检查环境变量：SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD");
+    return;
+  }
+
+  // 导入发邮件模块
+  const { sendMultipleWinnersNotification, parsePrizeDetails } =
+    await import("@/lib/emailService");
+
+  // 获取中奖金额信息：优先使用 prizeAmounts 字段，如果没有则从 detail 解析
+  let prizeDetails: Record<string, string> = {};
+
+  if (latestResult.prizeAmounts) {
+    try {
+      const prizeAmountsArray = Array.isArray(latestResult.prizeAmounts)
+        ? latestResult.prizeAmounts
+        : JSON.parse(latestResult.prizeAmounts as string);
+
+      if (Array.isArray(prizeAmountsArray)) {
+        prizeAmountsArray.forEach(
+          (item: { level: string; amount: string }) => {
+            if (item.level && item.amount) {
+              prizeDetails[item.level] = item.amount;
+            }
+          },
+        );
+      }
+    } catch (error) {
+      console.error(`[CRON] [MATCH] 解析 prizeAmounts 失败:`, error);
     }
+  }
 
+  if (Object.keys(prizeDetails).length === 0) {
+    prizeDetails = parsePrizeDetails(latestResult.detail || "");
+  }
+
+  // 发送邮件辅助函数
+  const sendToEmails = async (emails: string[], tickets: typeof winnerTickets) => {
+    if (emails.length === 0 || tickets.length === 0) return;
     const multipleNotification = {
       lotteryType,
       issueNumber: latestResult.issueNumber,
@@ -613,71 +617,67 @@ async function checkAndNotifyWinners(
       jackpot: latestResult.jackpot || undefined,
       prizeDetails:
         Object.keys(prizeDetails).length > 0 ? prizeDetails : undefined,
-      winners: winnerTickets.map(({ ticket, matchResult }) => ({
+      winners: tickets.map(({ ticket, matchResult }) => ({
         ticketName: ticket.name,
         matchResult,
       })),
     };
 
-    console.log(
-      `[CRON] [MATCH] 📧 准备发送合并邮件 - ${winnerTickets.length} 个中奖号码，${recipientEmails.length} 个收件人`,
+    await Promise.allSettled(
+      emails.map((email) =>
+        sendMultipleWinnersNotification(email, multipleNotification),
+      ),
     );
-    console.log(
-      `[CRON] [MATCH] 📧 中奖金额信息: ${Object.keys(prizeDetails).length > 0 ? JSON.stringify(prizeDetails) : "无"}`,
-    );
+  };
 
-    // 检查邮件配置
-    const emailConfig =
-      process.env.SMTP_HOST &&
-      process.env.SMTP_PORT &&
-      process.env.SMTP_USER &&
-      process.env.SMTP_PASSWORD;
+  let successCount = 0;
 
-    if (!emailConfig) {
-      console.error("[CRON] [MATCH] ❌ 邮件配置不完整，无法发送邮件！");
-      console.error("[CRON] [MATCH] 请检查以下环境变量：");
-      console.error("[CRON] [MATCH]   - SMTP_HOST");
-      console.error("[CRON] [MATCH]   - SMTP_PORT");
-      console.error("[CRON] [MATCH]   - SMTP_USER");
-      console.error("[CRON] [MATCH]   - SMTP_PASSWORD");
-      return;
+  // 1. 给有中奖号码的普通用户发邮件（发给其绑定并激活的 EmailRecipient）
+  for (const [userId, tickets] of userWinnerTickets.entries()) {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (user && user.isActive && user.role === 'USER') {
+      const recipients = await prisma.emailRecipient.findMany({
+        where: { userId: user.id, isActive: true },
+      });
+      const emails = recipients.map(r => r.email);
+
+      if (emails.length > 0) {
+        console.log(`[CRON] [MATCH] 📧 给用户 ${user.email} 绑定的通知邮箱 [${emails.join(", ")}] 发送其 ${tickets.length} 个中奖号码`);
+        await sendToEmails(emails, tickets);
+        successCount += emails.length;
+      } else {
+        console.log(`[CRON] [MATCH] ⚠️ 用户 ${user.email} 有中奖号码，但名下未配置或激活任何邮件通知地址，跳过发送。`);
+      }
     }
+  }
 
-    // 只发送一次合并邮件
-    console.log(
-      `[CRON] [MATCH] 📧 开始发送邮件到 ${recipientEmails.join(", ")}`,
-    );
+  // 2. 给所有的管理员发送全局汇总邮件（发送至各自绑定并激活的 EmailRecipient）
+  const admins = await prisma.user.findMany({
+    where: { role: 'ADMIN', isActive: true },
+  });
+  for (const admin of admins) {
+    const recipients = await prisma.emailRecipient.findMany({
+      where: { userId: admin.id, isActive: true },
+    });
+    const emails = recipients.map(r => r.email);
+
+    if (emails.length > 0) {
+      console.log(`[CRON] [MATCH] 📧 给管理员 ${admin.email} 绑定的通知邮箱 [${emails.join(", ")}] 发送全局 ${adminWinnerTickets.length} 个中奖号码汇总`);
+      await sendToEmails(emails, adminWinnerTickets);
+      successCount += emails.length;
+    } else {
+      console.log(`[CRON] [MATCH] ⚠️ 管理员 ${admin.email} 名下未配置或激活任何邮件通知地址。`);
+    }
+  }
+
+  if (successCount > 0) {
     // 记录已发送的期号（防止重复发送）
     sentEmailCache.add(emailCacheKey);
-    const emailResult = await sendMultipleWinnersNotifications(
-      recipientEmails,
-      multipleNotification,
-    );
-
-    // 记录邮件发送结果
-    if (emailResult.success > 0) {
-      console.log(
-        `[CRON] [MATCH] 📧 ✅ 已记录期号 ${latestResult.issueNumber} 的邮件发送状态（成功发送到 ${emailResult.success} 个收件人）`,
-      );
-    } else {
-      console.error(
-        `[CRON] [MATCH] 📧 ❌ 邮件发送失败！所有 ${recipientEmails.length} 个收件人都发送失败`,
-      );
-    }
-
-    if (emailResult.failed > 0) {
-      console.error(
-        `[CRON] [MATCH] 📧 ⚠️  部分邮件发送失败：成功 ${emailResult.success} 个，失败 ${emailResult.failed} 个`,
-      );
-    }
-
-    console.log(
-      `[CRON] [MATCH] 📧 合并邮件发送完成 - 共 ${winnerTickets.length} 个中奖号码: 成功 ${emailResult.success} 个，失败 ${emailResult.failed} 个`,
-    );
-
-    // 清理邮件缓存（发送完成后清理）
-    cleanupEmailCache();
+    console.log(`[CRON] [MATCH] 📧 邮件发送流程结束，成功通知 ${successCount} 个用户/管理员`);
   } else {
-    console.log("[CRON] [MATCH] ⚠️  无收件人，跳过邮件发送");
+    console.log("[CRON] [MATCH] ⚠️  没有可发送的有效收件人邮箱");
   }
+
+  // 清理邮件缓存（发送完成后清理）
+  cleanupEmailCache();
 }

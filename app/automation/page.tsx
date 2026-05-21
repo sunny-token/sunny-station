@@ -15,6 +15,7 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
+import { trpc } from "@/server/client";
 
 interface LogEntry {
   id: string;
@@ -24,6 +25,9 @@ interface LogEntry {
 }
 
 export default function AutomationPage() {
+  const { data: user, isLoading: userLoading } = trpc.auth.getMe.useQuery();
+  const isAdmin = user?.role === "ADMIN";
+
   const [githubLogs, setGithubLogs] = useState<LogEntry[]>([]);
   const [careerLogs, setCareerLogs] = useState<LogEntry[]>([]);
   const [githubStatus, setGithubStatus] = useState<
@@ -80,6 +84,72 @@ export default function AutomationPage() {
 
   useEffect(() => autoScroll(githubScrollRef), [githubLogs]);
   useEffect(() => autoScroll(careerScrollRef), [careerLogs]);
+
+  // 1. 验证凭证中的骨架屏
+  if (userLoading) {
+    return (
+      <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center font-sans text-slate-300 relative overflow-hidden">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-indigo-600/5 blur-[120px] rounded-full pointer-events-none" />
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMiIgY3k9IjIiIHI9IjEiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4wMikiLz48L3N2Zz4=')] [mask-image:radial-gradient(ellipse_at_center,black_50%,transparent_90%)]" />
+        
+        <div className="relative z-10 text-center space-y-6">
+          <div className="relative inline-flex items-center justify-center">
+            <div className="absolute inset-0 w-16 h-16 bg-indigo-500/35 blur-xl rounded-full animate-pulse" />
+            <Loader2 className="w-10 h-10 text-indigo-400 animate-spin relative" />
+          </div>
+          <div className="space-y-2">
+            <p className="text-xs font-bold uppercase tracking-[0.3em] text-slate-500">
+              SUNNY STATION SECURE GATEWAY
+            </p>
+            <h2 className="text-sm font-mono text-indigo-400 tracking-wider">
+              正在验证安全访问凭证...
+            </h2>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 2. 非管理员角色鉴权拦截
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center font-sans text-slate-300 relative overflow-hidden px-6">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-red-950/10 blur-[150px] rounded-full pointer-events-none" />
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMiIgY3k9IjIiIHI9IjEiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4wMikiLz48L3N2Zz4=')] [mask-image:radial-gradient(ellipse_at_center,black_50%,transparent_90%)]" />
+
+        <div className="relative z-10 max-w-md w-full text-center space-y-8 bg-[#0a0a0c]/80 border border-red-500/20 backdrop-blur-3xl rounded-[2.5rem] p-10 shadow-[0_0_50px_rgba(239,68,68,0.05)]">
+          <div className="relative inline-flex items-center justify-center">
+            <div className="absolute inset-0 w-20 h-20 bg-red-500/20 blur-2xl rounded-full" />
+            <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-400">
+              <ShieldCheck className="w-8 h-8 text-red-500 shadow-[0_0_15px_rgba(239,68,68,0.5)]" />
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <div className="inline-block px-3 py-1 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 text-[10px] tracking-[0.3em] font-black uppercase">
+              403 Access Denied
+            </div>
+            <h1 className="text-2xl font-black text-white uppercase tracking-tight">
+              权限验证未通过
+            </h1>
+            <p className="text-xs text-slate-500 leading-relaxed max-w-sm mx-auto">
+              您当前登录的账户不具备系统管理员权限。自动化协作中心与 Coze 同步引擎涉及系统级事件调度，仅对 <span className="text-indigo-400 font-mono">ADMIN</span> 角色开放。
+            </p>
+          </div>
+
+          <div className="pt-4">
+            <Link
+              href="/"
+              className="group relative flex w-full h-12 items-center justify-center rounded-xl bg-white text-black font-black text-xs uppercase tracking-[0.2em] overflow-hidden transition-all active:scale-[0.98]"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-indigo-600 opacity-0 group-hover:opacity-10 transition-opacity" />
+              返回主控制台
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const runWorkflow = async (
     type: "github" | "career",

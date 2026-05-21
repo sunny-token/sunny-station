@@ -15,12 +15,26 @@ export const authRouter = router({
       email: z.string().email("无效的邮箱格式"),
       password: z.string().min(6, "密码不能少于 6 位"),
       name: z.string().optional(),
+      regCode: z.string().min(1, "请输入注册邀请码"),
     }))
     .mutation(async ({ input, ctx }) => {
       // 1. 检查注册开关
       const isRegistrationAllowed = process.env.ALLOW_REGISTRATION !== "false";
       if (!isRegistrationAllowed) {
         throw new TRPCError({ code: "FORBIDDEN", message: "系统当前已关闭注册功能" });
+      }
+
+      // 1.2 校验注册邀请码
+      const systemRegCode = process.env.REGISTRATION_CODE || "SunnyStation2026";
+      const guestRegCode = process.env.GUEST_REGISTRATION_CODE || "SunnyGuest2026";
+
+      let targetRole: "USER" | "GUEST" = "USER";
+      if (input.regCode === systemRegCode) {
+        targetRole = "USER";
+      } else if (input.regCode === guestRegCode) {
+        targetRole = "GUEST";
+      } else {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "注册邀请码不正确，无法完成注册" });
       }
 
       // 2. 简易频率限制 (基于 IP)
@@ -58,9 +72,9 @@ export const authRouter = router({
 
       const hashedPassword = await hashPassword(password);
       
-      // 默认第一个注册的用户为 ADMIN，后续的都是 USER
+      // 默认第一个注册的用户为 ADMIN，后续的则是对应校验后的 targetRole
       const userCount = await prisma.user.count();
-      const role = userCount === 0 ? "ADMIN" : "USER";
+      const role = userCount === 0 ? "ADMIN" : targetRole;
 
       const user = await prisma.user.create({
         data: {

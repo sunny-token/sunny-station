@@ -67,6 +67,7 @@ export default function SettingsPage() {
   // 认证状态 hooks
   const { data: user } = trpc.auth.getMe.useQuery();
   const isAdmin = user?.role === "ADMIN";
+  const isGuest = user?.role === "GUEST";
 
   // 预设号码相关 hooks
   const {
@@ -637,7 +638,7 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              {isAdmin && (
+              {user && (
                 <div className="flex flex-wrap items-center gap-3">
                   <a
                     href="/批量导入模板.xlsx"
@@ -656,14 +657,15 @@ export default function SettingsPage() {
                       type="file"
                       accept=".xlsx,.xls,.csv"
                       onChange={handleFileSelect}
+                      disabled={isGuest}
                       className="hidden"
                     />
                     <label
                       htmlFor="import-file-input"
-                      className="px-4 py-2 text-xs font-bold uppercase tracking-widest bg-white/5 hover:bg-white/10 text-slate-300 rounded-lg transition-all cursor-pointer flex items-center gap-2 border border-white/5"
+                      className={`px-4 py-2 text-xs font-bold uppercase tracking-widest bg-white/5 text-slate-300 rounded-lg transition-all flex items-center gap-2 border border-white/5 ${isGuest ? "cursor-not-allowed opacity-50 text-slate-500" : "hover:bg-white/10 cursor-pointer"}`}
                     >
                       <FileSpreadsheet className="w-4 h-4" />
-                      选择文件
+                      {isGuest ? "🔒 选择文件(只读)" : "选择文件"}
                     </label>
                     {importFile && (
                       <div className="flex items-center gap-2 ml-2 animate-in slide-in-from-left-2">
@@ -672,10 +674,10 @@ export default function SettingsPage() {
                         </span>
                         <button
                           onClick={handleBatchImport}
-                          disabled={isImporting}
+                          disabled={isImporting || isGuest}
                           className="px-4 py-2 text-[10px] font-black uppercase tracking-[0.2em] bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-all disabled:opacity-50 shadow-[0_0_15px_rgba(79,70,229,0.3)]"
                         >
-                          {isImporting ? "正在同步" : "执行导入"}
+                          {isImporting ? "正在同步" : isGuest ? "🔒 访客只读" : "执行导入"}
                         </button>
                       </div>
                     )}
@@ -683,11 +685,12 @@ export default function SettingsPage() {
 
                   <button
                     onClick={handleAddTicket}
-                    className="px-6 py-3 rounded-2xl bg-white text-black hover:bg-slate-200 transition-all shadow-xl flex items-center gap-2"
+                    disabled={isGuest}
+                    className={`px-6 py-3 rounded-2xl transition-all shadow-xl flex items-center gap-2 ${isGuest ? "bg-white/5 border border-white/10 text-slate-500 cursor-not-allowed" : "bg-white text-black hover:bg-slate-200"}`}
                   >
                     <Plus className="w-4 h-4" />
                     <span className="text-sm font-black uppercase tracking-wider">
-                      新增监控策略
+                      {isGuest ? "🔒 访客模式(只读)" : "新增监控策略"}
                     </span>
                   </button>
                 </div>
@@ -982,27 +985,29 @@ export default function SettingsPage() {
                                   {formatDate(ticket.createdAt)}
                                 </TableCell>
                                 <TableCell className="py-6 px-8 text-right">
-                                  {isAdmin && (
+                                  {(isAdmin || ticket.userId === user?.userId) && (
                                     <div className="flex justify-end gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
                                       <button
-                                        onClick={() => handleEditTicket(ticket)}
-                                        className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-indigo-600 hover:border-indigo-600 transition-all active:scale-[0.9]"
+                                        onClick={() => !isGuest && handleEditTicket(ticket)}
+                                        disabled={isGuest}
+                                        className={`p-2.5 rounded-xl border transition-all active:scale-[0.9] ${isGuest ? "bg-white/5 border-white/5 text-slate-600 cursor-not-allowed opacity-30" : "bg-white/5 border-white/10 text-slate-400 hover:text-white hover:bg-indigo-600 hover:border-indigo-600"}`}
+                                        title={isGuest ? "访客账号无权编辑" : "编辑策略"}
                                       >
                                         <Edit3 className="w-4 h-4" />
                                       </button>
                                       <button
-                                        onClick={() =>
-                                          handleToggleTicketActive(ticket)
-                                        }
-                                        className={`p-2.5 rounded-xl bg-white/5 border border-white/10 transition-all active:scale-[0.9] ${ticket.isActive ? "text-amber-400 hover:bg-amber-600 hover:text-white hover:border-amber-600" : "text-emerald-400 hover:bg-emerald-600 hover:text-white hover:border-emerald-600"}`}
+                                        onClick={() => !isGuest && handleToggleTicketActive(ticket)}
+                                        disabled={isGuest}
+                                        className={`p-2.5 rounded-xl border transition-all active:scale-[0.9] ${isGuest ? "bg-white/5 border-white/5 text-slate-600 cursor-not-allowed opacity-30" : ticket.isActive ? "bg-white/5 border-white/10 text-amber-400 hover:bg-amber-600 hover:text-white hover:border-amber-600" : "bg-white/5 border-white/10 text-emerald-400 hover:bg-emerald-600 hover:text-white hover:border-emerald-600"}`}
+                                        title={isGuest ? "访客账号无权启用/停用" : ticket.isActive ? "停用策略" : "启用策略"}
                                       >
                                         <Zap className="w-4 h-4" />
                                       </button>
                                       <button
-                                        onClick={() =>
-                                          handleDeleteTicket(ticket.id)
-                                        }
-                                        className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-500 hover:text-white hover:bg-red-600 hover:border-red-600 transition-all active:scale-[0.9]"
+                                        onClick={() => !isGuest && handleDeleteTicket(ticket.id)}
+                                        disabled={isGuest}
+                                        className={`p-2.5 rounded-xl border transition-all active:scale-[0.9] ${isGuest ? "bg-white/5 border-white/5 text-slate-600 cursor-not-allowed opacity-30" : "bg-white/5 border-white/10 text-slate-500 hover:text-white hover:bg-red-600 hover:border-red-600"}`}
+                                        title={isGuest ? "访客账号无权删除" : "删除策略"}
                                       >
                                         <Trash2 className="w-4 h-4" />
                                       </button>
@@ -1103,27 +1108,29 @@ export default function SettingsPage() {
                                   {formatDate(ticket.createdAt)}
                                 </TableCell>
                                 <TableCell className="py-6 px-8 text-right">
-                                  {isAdmin && (
+                                  {(isAdmin || ticket.userId === user?.userId) && (
                                     <div className="flex justify-end gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
                                       <button
-                                        onClick={() => handleEditTicket(ticket)}
-                                        className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-indigo-600 hover:border-indigo-600 transition-all active:scale-[0.9]"
+                                        onClick={() => !isGuest && handleEditTicket(ticket)}
+                                        disabled={isGuest}
+                                        className={`p-2.5 rounded-xl border transition-all active:scale-[0.9] ${isGuest ? "bg-white/5 border-white/5 text-slate-600 cursor-not-allowed opacity-30" : "bg-white/5 border-white/10 text-slate-400 hover:text-white hover:bg-indigo-600 hover:border-indigo-600"}`}
+                                        title={isGuest ? "访客账号无权编辑" : "编辑策略"}
                                       >
                                         <Edit3 className="w-4 h-4" />
                                       </button>
                                       <button
-                                        onClick={() =>
-                                          handleToggleTicketActive(ticket)
-                                        }
-                                        className={`p-2.5 rounded-xl bg-white/5 border border-white/10 transition-all active:scale-[0.9] ${ticket.isActive ? "text-amber-400 hover:bg-amber-600 hover:text-white hover:border-amber-600" : "text-emerald-400 hover:bg-emerald-600 hover:text-white hover:border-emerald-600"}`}
+                                        onClick={() => !isGuest && handleToggleTicketActive(ticket)}
+                                        disabled={isGuest}
+                                        className={`p-2.5 rounded-xl border transition-all active:scale-[0.9] ${isGuest ? "bg-white/5 border-white/5 text-slate-600 cursor-not-allowed opacity-30" : ticket.isActive ? "bg-white/5 border-white/10 text-amber-400 hover:bg-amber-600 hover:text-white hover:border-amber-600" : "bg-white/5 border-white/10 text-emerald-400 hover:bg-emerald-600 hover:text-white hover:border-emerald-600"}`}
+                                        title={isGuest ? "访客账号无权启用/停用" : ticket.isActive ? "停用策略" : "启用策略"}
                                       >
                                         <Zap className="w-4 h-4" />
                                       </button>
                                       <button
-                                        onClick={() =>
-                                          handleDeleteTicket(ticket.id)
-                                        }
-                                        className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-500 hover:text-white hover:bg-red-600 hover:border-red-600 transition-all active:scale-[0.9]"
+                                        onClick={() => !isGuest && handleDeleteTicket(ticket.id)}
+                                        disabled={isGuest}
+                                        className={`p-2.5 rounded-xl border transition-all active:scale-[0.9] ${isGuest ? "bg-white/5 border-white/5 text-slate-600 cursor-not-allowed opacity-30" : "bg-white/5 border-white/10 text-slate-500 hover:text-white hover:bg-red-600 hover:border-red-600"}`}
+                                        title={isGuest ? "访客账号无权删除" : "删除策略"}
                                       >
                                         <Trash2 className="w-4 h-4" />
                                       </button>
@@ -1240,15 +1247,22 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              <button
-                onClick={handleAddEmail}
-                className="px-6 py-3 rounded-2xl bg-white text-black hover:bg-slate-200 transition-all shadow-xl flex items-center gap-2 ml-auto"
-              >
-                <Plus className="w-4 h-4" />
-                <span className="text-sm font-black uppercase tracking-wider">
-                  新增通知地址
-                </span>
-              </button>
+              {!isGuest ? (
+                <button
+                  onClick={handleAddEmail}
+                  className="px-6 py-3 rounded-2xl bg-white text-black hover:bg-slate-200 transition-all shadow-xl flex items-center gap-2 ml-auto"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span className="text-sm font-black uppercase tracking-wider">
+                    新增通知地址
+                  </span>
+                </button>
+              ) : (
+                <div className="px-6 py-3 rounded-2xl bg-white/5 border border-white/10 text-slate-500 text-sm font-bold flex items-center gap-2 ml-auto cursor-not-allowed opacity-50 animate-pulse">
+                  <Plus className="w-4 h-4" />
+                  <span>[🔒 访客模式(只读)]</span>
+                </div>
+              )}
             </div>
 
             {showEmailForm && (
@@ -1282,7 +1296,7 @@ export default function SettingsPage() {
                         type="email"
                         value={emailAddress}
                         onChange={(e) => setEmailAddress(e.target.value)}
-                        placeholder="管理员邮箱@example.com"
+                        placeholder="您的通知邮箱@example.com"
                         className="w-full h-14 px-6 rounded-2xl bg-black/40 border border-white/10 text-white outline-none focus:border-emerald-500 hover:bg-black/60 transition-all placeholder:text-slate-800 font-bold tracking-tight"
                       />
                     </div>
@@ -1414,28 +1428,32 @@ export default function SettingsPage() {
                             {formatDate(email.createdAt)}
                           </TableCell>
                           <TableCell className="py-6 px-8 text-right">
-                            {isAdmin && (
-                              <div className="flex justify-end gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button
-                                  onClick={() => handleEditEmail(email)}
-                                  className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-emerald-600 hover:border-emerald-600 transition-all active:scale-[0.9]"
-                                >
-                                  <Edit3 className="w-4 h-4" />
-                                </button>
-                                <button
-                                  onClick={() => handleToggleEmailActive(email)}
-                                  className={`p-2.5 rounded-xl bg-white/5 border border-white/10 transition-all active:scale-[0.9] ${email.isActive ? "text-amber-400 hover:bg-amber-600 hover:text-white hover:border-amber-600" : "text-emerald-400 hover:bg-emerald-600 hover:text-white hover:border-emerald-600"}`}
-                                >
-                                  <Zap className="w-4 h-4" />
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteEmail(email.id)}
-                                  className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-500 hover:text-white hover:bg-red-600 hover:border-red-600 transition-all active:scale-[0.9]"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              </div>
-                            )}
+                            <div className={`flex justify-end gap-2 transition-all ${isGuest ? "opacity-30 pointer-events-none" : "opacity-100 md:opacity-0 group-hover:opacity-100"}`}>
+                              <button
+                                onClick={() => !isGuest && handleEditEmail(email)}
+                                disabled={isGuest}
+                                className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-emerald-600 hover:border-emerald-600 transition-all active:scale-[0.9] disabled:opacity-50 disabled:cursor-not-allowed"
+                                title={isGuest ? "🔒 访客只读" : "编辑"}
+                              >
+                                <Edit3 className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => !isGuest && handleToggleEmailActive(email)}
+                                disabled={isGuest}
+                                className={`p-2.5 rounded-xl bg-white/5 border border-white/10 transition-all active:scale-[0.9] disabled:opacity-50 disabled:cursor-not-allowed ${email.isActive ? "text-amber-400 hover:bg-amber-600 hover:text-white hover:border-amber-600" : "text-emerald-400 hover:bg-emerald-600 hover:text-white hover:border-emerald-600"}`}
+                                title={isGuest ? "🔒 访客只读" : "切换状态"}
+                              >
+                                <Zap className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => !isGuest && handleDeleteEmail(email.id)}
+                                disabled={isGuest}
+                                className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-500 hover:text-white hover:bg-red-600 hover:border-red-600 transition-all active:scale-[0.9] disabled:opacity-50 disabled:cursor-not-allowed"
+                                title={isGuest ? "🔒 访客只读" : "删除"}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}

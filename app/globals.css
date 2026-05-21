@@ -119,6 +119,25 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* 统一全局点击行为的鼠标手势 */
+  a,
+  button,
+  select,
+  input[type="submit"],
+  input[type="button"],
+  input[type="checkbox"],
+  input[type="radio"],
+  [role="button"] {
+    cursor: pointer;
+  }
+
+  /* 统一被禁用元素的鼠标手势 */
+  button:disabled,
+  input:disabled,
+  [disabled] {
+    cursor: not-allowed;
+  }
 }
 
 @layer utilities {
