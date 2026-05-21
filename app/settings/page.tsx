@@ -985,7 +985,7 @@ export default function SettingsPage() {
                                   {formatDate(ticket.createdAt)}
                                 </TableCell>
                                 <TableCell className="py-6 px-8 text-right">
-                                  {(isAdmin || ticket.userId === user?.userId) && (
+                                  {(isAdmin || ticket.userId === user?.id) && (
                                     <div className="flex justify-end gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
                                       <button
                                         onClick={() => !isGuest && handleEditTicket(ticket)}
@@ -1108,7 +1108,7 @@ export default function SettingsPage() {
                                   {formatDate(ticket.createdAt)}
                                 </TableCell>
                                 <TableCell className="py-6 px-8 text-right">
-                                  {(isAdmin || ticket.userId === user?.userId) && (
+                                  {(isAdmin || ticket.userId === user?.id) && (
                                     <div className="flex justify-end gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
                                       <button
                                         onClick={() => !isGuest && handleEditTicket(ticket)}
