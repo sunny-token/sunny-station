@@ -30,7 +30,7 @@ const getPrizeSingleAmount = (
     if (amounts) {
       parsedAmounts = typeof amounts === "string" ? JSON.parse(amounts) : amounts;
     }
-  } catch (e) {}
+  } catch {}
 
   const matchedAmount = parsedAmounts.find(
     (item: any) => item.level === name || item.level?.includes(name)
