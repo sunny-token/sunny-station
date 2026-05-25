@@ -19,6 +19,7 @@ import {
 import { formatDate } from "../../lib/utils";
 import { useRouter } from "next/navigation";
 import { trpc } from "../../server/client";
+import { Loader2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -59,7 +60,7 @@ export default function LotteryCrawlerPage() {
   const mutation = trpc.ssq.fetchAndSave.useMutation();
 
   // 获取当前登录用户，判断角色
-  const { data: user } = trpc.auth.getMe.useQuery();
+  const { data: user, isLoading: userLoading } = trpc.auth.getMe.useQuery();
   const isGuest = user?.role === "GUEST";
 
   // 获取双色球激活的守号号码
@@ -293,14 +294,27 @@ export default function LotteryCrawlerPage() {
               <div className="flex items-end gap-3 flex-1">
                 <button
                   onClick={handleStart}
-                  disabled={loading || isGuest}
+                  disabled={loading || userLoading || isGuest}
                   className={`flex-1 h-12 px-6 rounded-xl font-bold transition-all shadow-xl active:scale-[0.98] ${
-                    isGuest
-                      ? "bg-white/5 border border-white/5 text-slate-500 cursor-not-allowed opacity-50"
-                      : "bg-white text-black hover:bg-slate-200 disabled:opacity-50"
+                    userLoading
+                      ? "bg-white/5 border border-white/5 text-slate-500 cursor-wait opacity-60"
+                      : isGuest
+                        ? "bg-white/5 border border-white/5 text-slate-500 cursor-not-allowed opacity-50"
+                        : "bg-white text-black hover:bg-slate-200 disabled:opacity-50"
                   }`}
                 >
-                  {isGuest ? "🔒 访客只读模式" : loading ? "正在抓取数据..." : "启动抓取任务"}
+                  {userLoading ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
+                      正在获取权限...
+                    </span>
+                  ) : isGuest ? (
+                    "🔒 访客只读模式"
+                  ) : loading ? (
+                    "正在抓取数据..."
+                  ) : (
+                    "启动抓取任务"
+                  )}
                 </button>
               </div>
             </div>

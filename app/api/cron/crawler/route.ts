@@ -639,7 +639,7 @@ async function checkAndNotifyWinners(
       const recipients = await prisma.emailRecipient.findMany({
         where: { userId: user.id, isActive: true },
       });
-      const emails = recipients.map(r => r.email);
+      const emails = recipients.map((r: any) => r.email);
 
       if (emails.length > 0) {
         console.log(`[CRON] [MATCH] 📧 给用户 ${user.email} 绑定的通知邮箱 [${emails.join(", ")}] 发送其 ${tickets.length} 个中奖号码`);
@@ -659,7 +659,7 @@ async function checkAndNotifyWinners(
     const recipients = await prisma.emailRecipient.findMany({
       where: { userId: admin.id, isActive: true },
     });
-    const emails = recipients.map(r => r.email);
+    const emails = recipients.map((r: any) => r.email);
 
     if (emails.length > 0) {
       console.log(`[CRON] [MATCH] 📧 给管理员 ${admin.email} 绑定的通知邮箱 [${emails.join(", ")}] 发送全局 ${adminWinnerTickets.length} 个中奖号码汇总`);

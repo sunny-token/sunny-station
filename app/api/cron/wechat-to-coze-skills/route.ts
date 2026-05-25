@@ -311,7 +311,7 @@ export async function POST(req: Request) {
         },
         select: { skillSlug: true },
       });
-      const sentSet = new Set(sentSkills.map((s) => s.skillSlug));
+      const sentSet = new Set<string>(sentSkills.map((s: any) => s.skillSlug));
       console.log(
         `[Database] Found ${sentSet.size} already published skills in DB.`,
       );

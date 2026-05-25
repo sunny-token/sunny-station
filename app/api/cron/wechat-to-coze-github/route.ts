@@ -150,7 +150,7 @@ export async function POST(req: Request) {
           },
           select: { repoPath: true },
         });
-        const sentPathSet = new Set(sentRepos.map((r) => r.repoPath));
+        const sentPathSet = new Set<string>(sentRepos.map((r: any) => r.repoPath));
         return repos.filter((r) => !sentPathSet.has(r.path));
       };
 

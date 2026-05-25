@@ -19,10 +19,8 @@ export const appRouter = router({
     const ssqCaller = createSSQCaller(ctx);
     const dltCaller = createDLTCaller(ctx);
 
-    const [ssqResult, dltResult] = await Promise.all([
-      ssqCaller.refreshAll(),
-      dltCaller.refreshAll(),
-    ]);
+    const ssqResult = await ssqCaller.refreshAll();
+    const dltResult = await dltCaller.refreshAll();
     return {
       success: true,
       ssq: ssqResult,

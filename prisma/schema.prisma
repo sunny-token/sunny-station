@@ -9,116 +9,105 @@ datasource db {
 
 model SSQResult {
   id              Int      @id @default(autoincrement())
-  issueNumber     String
+  issueNumber     String   @unique
   openDate        DateTime
   openNumbers     Json
   ballOrder       String
   totalBet        String
   jackpot         String
   detail          String
-  prizeAmounts    Json? // 各等奖的奖金数组 [{ level: "一等奖", amount: "5000000" }, ...]
-  prizeDetailHtml String?  @db.Text // 从 getdetail 接口获取的原始 HTML
+  prizeAmounts    Json?
+  prizeDetailHtml String?
   createdAt       DateTime @default(now())
 
-  @@unique([issueNumber])
   @@index([openDate])
 }
 
 model DLTResult {
   id              Int      @id @default(autoincrement())
-  issueNumber     String
+  issueNumber     String   @unique
   openDate        DateTime
   openNumbers     Json
   ballOrder       String
   totalBet        String
   jackpot         String
   detail          String
-  prizeAmounts    Json? // 各等奖的奖金数组 [{ level: "一等奖", amount: "5000000" }, ...]
-  prizeDetailHtml String?  @db.Text // 从 getdetail 接口获取的原始 HTML
+  prizeAmounts    Json?
+  prizeDetailHtml String?
   createdAt       DateTime @default(now())
 
-  @@unique([issueNumber])
   @@index([openDate])
 }
 
-// 预设号码表（支持双色球和大乐透）
 model Ticket {
   id          Int      @id @default(autoincrement())
-  userId      String?  // 关联用户（可选，兼容老数据）
-  user        User?    @relation(fields: [userId], references: [id])
-  lotteryType String // "ssq" 或 "dlt"
-  name        String // 预设号码名称/备注
-  numbers     Json // { red: string[], blue: string[] }
+  userId      String?
+  lotteryType String
+  name        String
+  numbers     Json
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  user        User?    @relation(fields: [userId], references: [id])
 
   @@index([lotteryType, isActive])
   @@index([userId])
 }
 
-// 邮件收件人表
 model EmailRecipient {
   id        Int      @id @default(autoincrement())
-  userId    String   // 关联用户 ID
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
   email     String
-  name      String? // 收件人名称（可选）
+  name      String?
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, email])
   @@index([isActive])
   @@index([userId])
 }
 
-// -------------------------------------------------------------
-// Authentication System (Auth)
-// -------------------------------------------------------------
-
-enum Role {
-  USER
-  ADMIN
-  GUEST
-}
-
-// 系统用户表
 model User {
   id              String           @id @default(cuid())
   email           String           @unique
-  password        String           // 存储 bcrypt 加密后的 hash 值
+  password        String
   name            String?
   role            Role             @default(USER)
   isActive        Boolean          @default(true)
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
-  tickets         Ticket[]         // 用户的预设号码
-  emailRecipients EmailRecipient[] // 用户的邮件通知收件人
-  
+  emailRecipients EmailRecipient[]
+  tickets         Ticket[]
+
   @@index([email])
 }
 
-// 记录已发送的 GitHub 项目，防止重复推荐
 model GitHubProject {
   id          Int      @id @default(autoincrement())
-  repoPath    String   @unique // 例如 "facebook/react"
+  repoPath    String   @unique
   isPublished Boolean  @default(false)
   sentAt      DateTime @default(now())
 
   @@index([repoPath])
 }
 
-// 记录已发送的 Skill 项目，防止重复推荐
 model SkillProject {
   id          Int      @id @default(autoincrement())
-  skillSlug   String   @unique // 例如 "clawsweeper-skill" 或 "skills-sh-slug"
+  skillSlug   String   @unique
   name        String?
-  source      String?  // "skills.sh" 或 "skillsmp"
+  source      String?
   githubUrl   String?
   isPublished Boolean  @default(false)
   sentAt      DateTime @default(now())
 
   @@index([skillSlug])
   @@index([githubUrl])
+}
+
+enum Role {
+  USER
+  ADMIN
+  GUEST
 }
