@@ -319,7 +319,7 @@ export default function LotteryCrawlerPage() {
           <div className="space-y-3">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-50 border border-rose-100/80 text-rose-600 text-xs font-bold tracking-wider">
               <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-450 opacity-75"></span>
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-500 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
               </span>
               官方数据同步中心
@@ -335,14 +335,14 @@ export default function LotteryCrawlerPage() {
           <div className="flex flex-wrap gap-3 w-full sm:w-auto">
             <button
               onClick={() => router.push("/")}
-              className="group flex items-center gap-2.5 px-4.5 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-650 hover:text-slate-900 hover:bg-slate-50 transition-all duration-300 font-semibold shadow-sm flex-1 sm:flex-none justify-center text-xs"
+              className="group flex items-center gap-2.5 px-4.5 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all duration-300 font-semibold shadow-sm flex-1 sm:flex-none justify-center text-xs"
             >
               <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
               <span>返回主页</span>
             </button>
             <button
               onClick={() => router.push("/lottery-dlt-crawler")}
-              className="group relative px-5 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-650 font-semibold hover:bg-slate-50 hover:text-amber-650 hover:border-amber-200 transition-all duration-300 shadow-sm flex-1 sm:flex-none justify-center text-xs"
+              className="group relative px-5 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-600 font-semibold hover:bg-slate-50 hover:text-amber-600 hover:border-amber-200 transition-all duration-300 shadow-sm flex-1 sm:flex-none justify-center text-xs"
             >
               <span className="relative flex items-center gap-1.5 justify-center">
                 切换为大乐透 <span className="group-hover:translate-x-0.5 transition-transform">→</span>
@@ -350,7 +350,7 @@ export default function LotteryCrawlerPage() {
             </button>
             <button
               onClick={() => router.push("/settings")}
-              className="px-5 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-655 hover:text-indigo-650 hover:border-indigo-200 hover:bg-slate-50 transition-all duration-300 flex items-center gap-2 shadow-sm font-semibold flex-1 sm:flex-none justify-center text-xs"
+              className="px-5 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-600 hover:text-indigo-600 hover:border-indigo-200 hover:bg-slate-50 transition-all duration-300 flex items-center gap-2 shadow-sm font-semibold flex-1 sm:flex-none justify-center text-xs"
             >
               <Settings2 className="w-4 h-4 text-slate-400 group-hover:rotate-45 transition-transform duration-500" />
               设置中心
@@ -405,7 +405,7 @@ export default function LotteryCrawlerPage() {
                         onChange={(e) => handleDigitChange(e.target.value, idx)}
                         onKeyDown={(e) => handleDigitKeyDown(e, idx)}
                         onPaste={idx === 0 ? handleDigitPaste : undefined}
-                        className="w-11 h-11 rounded-full text-center font-bold text-sm outline-none border transition-all shadow-sm focus:ring-4 focus:ring-rose-50 bg-rose-50 border-rose-100 text-rose-600 focus:bg-white focus:border-rose-450 placeholder:text-rose-300 flex-shrink-0"
+                        className="w-11 h-11 rounded-full text-center font-bold text-sm outline-none border transition-all shadow-sm focus:ring-4 focus:ring-rose-50 bg-rose-50 border-rose-100 text-rose-600 focus:bg-white focus:border-rose-500 placeholder:text-rose-300 flex-shrink-0"
                       />
                     ))}
 
@@ -424,7 +424,7 @@ export default function LotteryCrawlerPage() {
                           value={searchDigits[realIdx] || ""}
                           onChange={(e) => handleDigitChange(e.target.value, realIdx)}
                           onKeyDown={(e) => handleDigitKeyDown(e, realIdx)}
-                          className="w-11 h-11 rounded-full text-center font-bold text-sm outline-none border transition-all shadow-sm focus:ring-4 focus:ring-indigo-50 bg-indigo-50 border-indigo-100 text-indigo-600 focus:bg-white focus:border-indigo-450 placeholder:text-indigo-300 flex-shrink-0"
+                          className="w-11 h-11 rounded-full text-center font-bold text-sm outline-none border transition-all shadow-sm focus:ring-4 focus:ring-indigo-50 bg-indigo-50 border-indigo-100 text-indigo-600 focus:bg-white focus:border-indigo-500 placeholder:text-indigo-300 flex-shrink-0"
                         />
                       );
                     })}
@@ -475,7 +475,7 @@ export default function LotteryCrawlerPage() {
                 <select
                   value={selectedYear}
                   onChange={(e) => setSelectedYear(e.target.value)}
-                  className="h-11 px-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 outline-none cursor-pointer focus:border-rose-450/50 focus:bg-white transition-all shadow-sm font-bold text-xs flex-1"
+                  className="h-11 px-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 outline-none cursor-pointer focus:border-rose-500/50 focus:bg-white transition-all shadow-sm font-bold text-xs flex-1"
                 >
                   {Array.from(
                     { length: new Date().getFullYear() - 1999 },
@@ -492,7 +492,7 @@ export default function LotteryCrawlerPage() {
                   disabled={loading || userLoading || isGuest}
                   className={`h-11 px-4 rounded-xl font-bold text-xs transition-all active:scale-[0.98] shadow-sm flex items-center justify-center gap-1.5 ${
                     userLoading
-                      ? "bg-slate-100 border border-slate-200 text-slate-350 cursor-wait opacity-60"
+                      ? "bg-slate-100 border border-slate-200 text-slate-400 cursor-wait opacity-60"
                       : isGuest
                         ? "bg-slate-100 border border-slate-200 text-slate-400 cursor-not-allowed opacity-50 shadow-none"
                         : "bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50"
@@ -542,7 +542,7 @@ export default function LotteryCrawlerPage() {
                   <div className="p-6 rounded-[2rem] bg-gradient-to-br from-emerald-50/80 to-teal-50/80 border border-emerald-200 backdrop-blur-xl shadow-sm transition-all duration-500 flex-1 flex flex-col justify-center min-h-[160px]">
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="text-xs font-bold text-emerald-600 uppercase tracking-wider">操作成功</h3>
-                      <CheckCircle2 className="w-4.5 h-4.5 text-emerald-650" />
+                      <CheckCircle2 className="w-4.5 h-4.5 text-emerald-600" />
                     </div>
                     <p className="text-sm font-bold leading-relaxed text-emerald-800">“{result}”</p>
                     <div className="mt-3 flex items-center gap-1.5 text-[10px] text-emerald-500 font-bold uppercase tracking-wider">
@@ -598,7 +598,7 @@ export default function LotteryCrawlerPage() {
             })()}
 
             {isSearching && searchData && (
-              <div className="p-6 rounded-[2rem] bg-emerald-50 border border-emerald-250 backdrop-blur-xl shadow-sm animate-in zoom-in-95 duration-500">
+              <div className="p-6 rounded-[2rem] bg-emerald-50 border border-emerald-200 backdrop-blur-xl shadow-sm animate-in zoom-in-95 duration-500">
                 <h3 className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-1">比对完成</h3>
                 <div className="text-3xl font-black text-emerald-700">{searchData.data?.total || 0} 期</div>
                 <p className="text-[10px] text-emerald-500 uppercase mt-1">发现匹配的官方历史开奖</p>
@@ -621,7 +621,7 @@ export default function LotteryCrawlerPage() {
                 {ticketData.data.list.map((ticket: any) => (
                   <div
                     key={ticket.id}
-                    className="group p-6 rounded-2xl bg-white border border-slate-200 hover:border-rose-350 hover:shadow-md hover:shadow-rose-500/5 transition-all duration-300"
+                    className="group p-6 rounded-2xl bg-white border border-slate-200 hover:border-rose-300 hover:shadow-md hover:shadow-rose-500/5 transition-all duration-300"
                   >
                     <div className="flex items-center justify-between mb-4">
                       <span className="text-sm font-semibold text-slate-700">{ticket.name}</span>
@@ -689,7 +689,7 @@ export default function LotteryCrawlerPage() {
                                       isActive 
                                         ? "bg-rose-600 text-white shadow-[0_2px_8px_rgba(225,29,72,0.4)] scale-110 z-10 font-bold" 
                                         : isSearching 
-                                          ? "bg-slate-100 text-slate-300 opacity-40 border border-slate-100" 
+                                          ? "bg-slate-100 text-slate-400 border border-slate-200" 
                                           : "bg-rose-50/60 text-rose-600 border border-rose-100/50 hover:bg-rose-600 hover:text-white hover:shadow-[0_2px_8px_rgba(225,29,72,0.15)]"
                                     }`}
                                   >
@@ -733,7 +733,7 @@ export default function LotteryCrawlerPage() {
                                 });
                                 setIsDialogOpen(true);
                               }}
-                              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-250/60 text-slate-500 hover:text-rose-600 hover:bg-rose-50 hover:border-rose-200 transition-all font-bold text-xs shadow-sm"
+                              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200/60 text-slate-500 hover:text-rose-600 hover:bg-rose-50 hover:border-rose-200 transition-all font-bold text-xs shadow-sm"
                             >
                               <span>查看详情</span>
                               <ExternalLink className="w-3.5 h-3.5" />
