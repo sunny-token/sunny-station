@@ -19,6 +19,7 @@ import {
 import { formatDate } from "../../lib/utils";
 import { useRouter } from "next/navigation";
 import { trpc } from "../../server/client";
+import LotteryNumbersInput from "@/components/LotteryNumbersInput";
 import { Loader2, Settings2, ArrowLeft, Wifi, CircleDot, ExternalLink } from "lucide-react";
 import {
   Dialog,
@@ -41,81 +42,9 @@ export default function DLTCrawlerPage() {
   const [isSearching, setIsSearching] = useState(false);
   const [isExactMatch, setIsExactMatch] = useState(false);
 
-  // OTP 验证码式球格输入相关状态与引用
+  // 号码搜寻状态（长度为 7，前 5 个是红球，第 6、7 个是蓝球）
   const [searchDigits, setSearchDigits] = useState<string[]>(Array(7).fill(""));
-  const searchInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  const handleDigitChange = (val: string, idx: number) => {
-    const cleanVal = val.replace(/\D/g, "").slice(0, 2);
-    const newDigits = [...searchDigits];
-    newDigits[idx] = cleanVal;
-    setSearchDigits(newDigits);
-
-    // 实时同步至 searchInput
-    const joined = newDigits
-      .map((d) => d.trim())
-      .filter((d) => d !== "")
-      .join(" ");
-    setSearchInput(joined);
-
-    // 自动跳转焦距：当输入了两位数字，且不是最后一个格子
-    if (cleanVal.length === 2 && idx < 6) {
-      searchInputRefs.current[idx + 1]?.focus();
-    }
-  };
-
-  const handleDigitFocus = (idx: number) => {
-    if (searchDigits[idx]) {
-      const newDigits = [...searchDigits];
-      newDigits[idx] = "";
-      setSearchDigits(newDigits);
-      const joined = newDigits.map((d) => d.trim()).filter((d) => d !== "").join(" ");
-      setSearchInput(joined);
-    }
-  };
-
-  const handleDigitKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, idx: number) => {
-    if (e.key === "Backspace") {
-      if (!searchDigits[idx] && idx > 0) {
-        const newDigits = [...searchDigits];
-        newDigits[idx - 1] = ""; // 清空前一个
-        setSearchDigits(newDigits);
-
-        const joined = newDigits
-          .map((d) => d.trim())
-          .filter((d) => d !== "")
-          .join(" ");
-        setSearchInput(joined);
-        
-        searchInputRefs.current[idx - 1]?.focus();
-      }
-    }
-  };
-
-  const handleDigitPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
-    e.preventDefault();
-    const text = e.clipboardData.getData("text");
-    const matched = text.trim().split(/[\s,]+/).filter(Boolean);
-    if (matched.length > 0) {
-      const newDigits = [...searchDigits];
-      for (let i = 0; i < 7; i++) {
-        if (matched[i]) {
-          newDigits[i] = matched[i].replace(/\D/g, "").slice(0, 2);
-        }
-      }
-      setSearchDigits(newDigits);
-      
-      const joined = newDigits
-        .map((d) => d.trim())
-        .filter((d) => d !== "")
-        .join(" ");
-      setSearchInput(joined);
-
-      // 聚焦到最后一个已填充的输入框
-      const focusIdx = Math.min(matched.length - 1, 6);
-      searchInputRefs.current[focusIdx]?.focus();
-    }
-  };
 
   const [selectedPrizeInfo, setSelectedPrizeInfo] = useState<{
     issueNumber: string;
@@ -402,45 +331,17 @@ export default function DLTCrawlerPage() {
                 <div className="flex flex-col sm:flex-row sm:items-center gap-4 w-full">
                   <span className="text-xs font-bold text-slate-500 sm:w-16 flex-shrink-0">输入号码：</span>
                   
-                  <div className="flex items-center gap-2 flex-wrap overflow-x-auto py-1 flex-1">
-                    {/* 5个前区橘黄格 */}
-                    {Array.from({ length: 5 }).map((_, idx) => (
-                      <input
-                        key={idx}
-                        type="text"
-                        maxLength={2}
-                        placeholder="前"
-                        ref={(el) => { searchInputRefs.current[idx] = el; }}
-                        value={searchDigits[idx] || ""}
-                        onChange={(e) => handleDigitChange(e.target.value, idx)}
-                        onKeyDown={(e) => handleDigitKeyDown(e, idx)}
-                        onPaste={idx === 0 ? handleDigitPaste : undefined}
-                        onFocus={() => handleDigitFocus(idx)}
-                        className="w-11 h-11 rounded-full text-center font-bold text-sm outline-none border transition-all shadow-sm focus:ring-4 focus:ring-amber-50 bg-amber-50 border-amber-100 text-amber-600 focus:bg-white focus:border-amber-500 placeholder:text-amber-300 flex-shrink-0"
-                      />
-                    ))}
+                  <LotteryNumbersInput
+                    lotteryType="dlt"
+                    redNumbers={searchDigits.slice(0, 5)}
+                    blueNumbers={searchDigits.slice(5)}
+                    onChange={(red, blue) => {
+                      const combined = [...red, ...blue];
+                      setSearchDigits(combined);
+                      setSearchInput(combined.map(d => d.trim()).filter(d => d !== "").join(" "));
+                    }}
+                  />
 
-                    <div className="w-[1px] h-6 bg-slate-200 mx-2 flex-shrink-0" />
-
-                    {/* 2个后区翠绿格 */}
-                    {Array.from({ length: 2 }).map((_, idx) => {
-                      const realIdx = idx + 5;
-                      return (
-                        <input
-                          key={realIdx}
-                          type="text"
-                          maxLength={2}
-                          placeholder="后"
-                          ref={(el) => { searchInputRefs.current[realIdx] = el; }}
-                          value={searchDigits[realIdx] || ""}
-                          onChange={(e) => handleDigitChange(e.target.value, realIdx)}
-                          onKeyDown={(e) => handleDigitKeyDown(e, realIdx)}
-                          onFocus={() => handleDigitFocus(realIdx)}
-                          className="w-11 h-11 rounded-full text-center font-bold text-sm outline-none border transition-all shadow-sm focus:ring-4 focus:ring-emerald-50 bg-emerald-50 border-emerald-100 text-emerald-600 focus:bg-white focus:border-emerald-500 placeholder:text-emerald-300 flex-shrink-0"
-                        />
-                      );
-                    })}
-                  </div>
                 </div>
                 
                 <p className="text-xs text-slate-400 font-normal pl-0 sm:pl-16 tracking-tight leading-relaxed">

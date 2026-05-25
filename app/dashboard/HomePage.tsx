@@ -3,7 +3,8 @@ import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { trpc } from "@/server/client";
-import { Database, RefreshCw, Settings, CircleDot, Layers, ChevronRight, Activity, LogOut, Radar, Cpu } from "lucide-react";
+import { Database, RefreshCw, Settings, CircleDot, Layers, ChevronRight, Activity, LogOut, Radar, Cpu, Plus, Trash2 } from "lucide-react";
+import LotteryNumbersInput from "@/components/LotteryNumbersInput";
 
 // 组合数计算 C_n_k
 const choose = (n: number, k: number): number => {
@@ -282,8 +283,7 @@ export default function HomePage() {
   const [lotteryType, setLotteryType] = useState<"ssq" | "dlt">("ssq");
   const [inputMode, setInputMode] = useState<"grid" | "panel">("grid");
   const [panelSelected, setPanelSelected] = useState<{ red: string[]; blue: string[] }>({ red: [], blue: [] });
-  const [radarSearchDigits, setRadarSearchDigits] = useState<string[]>(Array(7).fill(""));
-  const radarSearchInputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const [radarSearchDigitsList, setRadarSearchDigitsList] = useState<string[][]>([Array(7).fill("")]);
   const [isScanning, setIsScanning] = useState(false);
   const [scanStep, setScanStep] = useState(0);
   const [scanProgress, setScanProgress] = useState(0);
@@ -299,6 +299,7 @@ export default function HomePage() {
     matchedBlue?: number;
     officialNumbers: { red: string[]; blue: string[] };
     userNumbers: { red: string[]; blue: string[] };
+    userNumbersList?: { red: string[]; blue: string[] }[];
     issueNumber: string;
     isMultiSelect?: boolean;
     multiSelectedCounts?: { red: number; blue: number };
@@ -315,48 +316,6 @@ export default function HomePage() {
   // 直接查询最新一期开奖数据
   const { data: latestSsq } = trpc.ssq.getList.useQuery({ page: 1, pageSize: 1 });
   const { data: latestDlt } = trpc.dlt.getList.useQuery({ page: 1, pageSize: 1 });
-
-  // 剪贴板粘贴号码智能拆分填充
-  const handleRadarDigitPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
-    e.preventDefault();
-    const pastedData = e.clipboardData.getData("text");
-    const numbers = pastedData.match(/\d{1,2}/g) || [];
-    if (numbers.length === 0) return;
-    
-    const newDigits = [...radarSearchDigits];
-    const maxLen = 7;
-    for (let i = 0; i < maxLen; i++) {
-      if (numbers[i]) {
-        let numStr = numbers[i];
-        if (numStr.length === 1) numStr = "0" + numStr;
-        newDigits[i] = numStr;
-      }
-    }
-    setRadarSearchDigits(newDigits);
-    
-    const nextIdx = Math.min(numbers.length, maxLen) - 1;
-    if (nextIdx >= 0 && radarSearchInputRefs.current[nextIdx]) {
-      radarSearchInputRefs.current[nextIdx]?.focus();
-    }
-  };
-
-  // OTP式输入自动移步
-  const handleRadarDigitChange = (val: string, idx: number) => {
-    const cleanVal = val.replace(/\D/g, "").slice(0, 2);
-    const newDigits = [...radarSearchDigits];
-    newDigits[idx] = cleanVal;
-    setRadarSearchDigits(newDigits);
-
-    if (cleanVal.length === 2 && idx < 6) {
-      radarSearchInputRefs.current[idx + 1]?.focus();
-    }
-  };
-
-  const handleRadarDigitKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, idx: number) => {
-    if (e.key === "Backspace" && !radarSearchDigits[idx] && idx > 0) {
-      radarSearchInputRefs.current[idx - 1]?.focus();
-    }
-  };
 
   // 双色球中奖规则算法（6红+1蓝）
   const checkSsqPrize = (userRed: string[], userBlue: string, officialRed: string[], officialBlue: string) => {
@@ -487,7 +446,7 @@ export default function HomePage() {
   // 统一的彩种切换
   const handleLotteryTypeChange = (type: "ssq" | "dlt") => {
     setLotteryType(type);
-    setRadarSearchDigits(Array(7).fill(""));
+    setRadarSearchDigitsList([Array(7).fill("")]);
     setPanelSelected({ red: [], blue: [] });
     setRadarError("");
     setRadarPrizeResult(null);
@@ -503,10 +462,12 @@ export default function HomePage() {
     // 校验录入数据完整性
     if (inputMode === "grid") {
       const requiredLen = 7;
-      for (let i = 0; i < requiredLen; i++) {
-        if (!radarSearchDigits[i]) {
-          setRadarError(`请输入完整的自选号码（第 ${i + 1} 个球未输入）`);
-          return;
+      for (let r = 0; r < radarSearchDigitsList.length; r++) {
+        for (let i = 0; i < requiredLen; i++) {
+          if (!radarSearchDigitsList[r][i]) {
+            setRadarError(`请输入完整的自选号码（第 ${r + 1} 组，第 ${i + 1} 个球未输入）`);
+            return;
+          }
         }
       }
     } else {
@@ -551,48 +512,81 @@ export default function HomePage() {
       const issueNumber = latestItem.issueNumber;
 
       if (inputMode === "grid") {
-        // 单式球格对奖逻辑
-        if (isSsq) {
-          const userRed = radarSearchDigits.slice(0, 6);
-          const userBlue = radarSearchDigits[6];
-          const officialRed = officialOpen.red;
-          const officialBlue = Array.isArray(officialOpen.blue) 
-            ? (officialOpen.blue[0] || "") 
-            : (officialOpen.blue || "");
+        // 多组单式球格对奖逻辑
+        const prizeCounts: { [key: number]: number } = {};
+        let totalAmount = 0;
+        let isAnyWin = false;
+        const userNumbersList: { red: string[]; blue: string[] }[] = [];
+        
+        const officialRed = officialOpen.red;
+        const officialBlueSsq = Array.isArray(officialOpen.blue) ? (officialOpen.blue[0] || "") : (officialOpen.blue || "");
+        const officialBlueDlt = officialOpen.blue;
 
-          const prizeRes = checkSsqPrize(userRed, userBlue, officialRed, officialBlue);
-          const amountStr = getPrizeAmount("ssq", prizeRes.prizeLevel, prizeRes.prizeName, latestItem);
-          setRadarPrizeResult({
-            prizeLevel: prizeRes.prizeLevel,
-            prizeName: prizeRes.prizeName,
-            prizeAmount: amountStr,
-            matchedRed: prizeRes.matchedRed,
-            matchedBlue: prizeRes.matchedBlue,
-            officialNumbers: { red: officialRed, blue: [officialBlue] },
-            userNumbers: { red: userRed, blue: [userBlue] },
-            issueNumber,
-            isMultiSelect: false
-          });
-        } else {
-          const userFront = radarSearchDigits.slice(0, 5);
-          const userBack = radarSearchDigits.slice(5, 7);
-          const officialFront = officialOpen.red;
-          const officialBack = officialOpen.blue;
+        radarSearchDigitsList.forEach(digits => {
+          let level = 0;
+          let singleAmt = 0;
 
-          const prizeRes = checkDltPrize(userFront, userBack, officialFront, officialBack);
-          const amountStr = getPrizeAmount("dlt", prizeRes.prizeLevel, prizeRes.prizeName, latestItem);
-          setRadarPrizeResult({
-            prizeLevel: prizeRes.prizeLevel,
-            prizeName: prizeRes.prizeName,
-            prizeAmount: amountStr,
-            matchedFront: prizeRes.matchedFront,
-            matchedBack: prizeRes.matchedBack,
-            officialNumbers: { red: officialFront, blue: officialBack },
-            userNumbers: { red: userFront, blue: userBack },
-            issueNumber,
-            isMultiSelect: false
-          });
+          if (isSsq) {
+            const userRed = digits.slice(0, 6);
+            const userBlue = digits[6];
+            userNumbersList.push({ red: userRed, blue: [userBlue] });
+            const prizeRes = checkSsqPrize(userRed, userBlue, officialRed, officialBlueSsq);
+            level = prizeRes.prizeLevel;
+            if (level > 0) {
+              singleAmt = getPrizeSingleAmount("ssq", level, prizeRes.prizeName, latestItem);
+            }
+          } else {
+            const userFront = digits.slice(0, 5);
+            const userBack = digits.slice(5, 7);
+            userNumbersList.push({ red: userFront, blue: userBack });
+            const prizeRes = checkDltPrize(userFront, userBack, officialRed, officialBlueDlt);
+            level = prizeRes.prizeLevel;
+            if (level > 0) {
+              singleAmt = getPrizeSingleAmount("dlt", level, prizeRes.prizeName, latestItem);
+            }
+          }
+
+          if (level > 0) {
+            isAnyWin = true;
+            prizeCounts[level] = (prizeCounts[level] || 0) + 1;
+            totalAmount += singleAmt;
+          }
+        });
+
+        const prizeNames: { [key: number]: string } = isSsq 
+          ? { 1: "一等奖", 2: "二等奖", 3: "三等奖", 4: "四等奖", 5: "五等奖", 6: "六等奖" }
+          : { 1: "一等奖", 2: "二等奖", 3: "三等奖", 4: "四等奖", 5: "五等奖", 6: "六等奖", 7: "七等奖", 8: "八等奖", 9: "九等奖" };
+
+        const multiPrizeList = [];
+        const maxLevel = isSsq ? 6 : 9;
+        for (let level = 1; level <= maxLevel; level++) {
+          if (prizeCounts[level] > 0) {
+            const name = prizeNames[level];
+            const count = prizeCounts[level];
+            const singleAmt = getPrizeSingleAmount(lotteryType, level, name, latestItem);
+            multiPrizeList.push({
+              level,
+              name,
+              count,
+              singleAmountStr: formatPrizeAmount(singleAmt),
+              totalAmountStr: formatPrizeAmount(singleAmt * count)
+            });
+          }
         }
+
+        // 使用复式的格式输出多行单式的结果，方便 UI 通用渲染
+        setRadarPrizeResult({
+          prizeLevel: isAnyWin ? 1 : 0,
+          prizeName: isAnyWin ? "中奖" : "未中奖",
+          officialNumbers: { red: officialRed, blue: isSsq ? [officialBlueSsq] : officialBlueDlt },
+          userNumbers: userNumbersList[0], // fallback 兼容
+          userNumbersList,
+          issueNumber,
+          isMultiSelect: true, // 设置为 true 复用多注开奖展现
+          multiSelectedCounts: { red: 0, blue: 0 },
+          multiPrizeList,
+          multiTotalAmountStr: formatPrizeAmount(totalAmount)
+        });
       } else {
         // 复式选号面板对奖逻辑
         if (isSsq) {
@@ -767,62 +761,63 @@ export default function HomePage() {
 
           {/* 中间部分：录入区 */}
           {inputMode === "grid" ? (
-            <div className="w-full bg-slate-50/60 p-6 rounded-3xl border border-slate-200/40 flex flex-col lg:flex-row items-center justify-between gap-6 relative z-10">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-4 w-full lg:w-auto flex-1">
-                <span className="text-xs font-bold text-slate-500 shrink-0 select-none">输入号码：</span>
-                
-                <div className="flex items-center gap-2 flex-wrap overflow-x-auto py-1 flex-1">
-                  {/* 6个红球或5个前区 */}
-                  {Array.from({ length: lotteryType === "ssq" ? 6 : 5 }).map((_, idx) => (
-                    <input
-                      key={idx}
-                      type="text"
-                      maxLength={2}
-                      placeholder={lotteryType === "ssq" ? "红" : "前"}
-                      ref={(el) => { radarSearchInputRefs.current[idx] = el; }}
-                      value={radarSearchDigits[idx] || ""}
-                      onChange={(e) => handleRadarDigitChange(e.target.value, idx)}
-                      onKeyDown={(e) => handleRadarDigitKeyDown(e, idx)}
-                      onPaste={idx === 0 ? handleRadarDigitPaste : undefined}
-                      className={`w-11 h-11 rounded-xl text-center font-bold text-sm outline-none border transition-all shadow-sm focus:ring-4 ${
-                        lotteryType === "ssq" 
-                          ? "bg-rose-50/60 border-rose-100/80 text-rose-600 focus:ring-rose-50 focus:border-rose-500 placeholder:text-rose-300"
-                          : "bg-emerald-50/60 border-emerald-100/80 text-emerald-600 focus:ring-emerald-50 focus:border-emerald-500 placeholder:text-emerald-300"
-                      }`}
-                    />
-                  ))}
-
-                  <div className="w-[1px] h-6 bg-slate-200 mx-2 flex-shrink-0" />
-
-                  {/* 1个蓝球或2个后区 */}
-                  {Array.from({ length: lotteryType === "ssq" ? 1 : 2 }).map((_, idx) => {
-                    const realIdx = idx + (lotteryType === "ssq" ? 6 : 5);
-                    return (
-                      <input
-                        key={realIdx}
-                        type="text"
-                        maxLength={2}
-                        placeholder={lotteryType === "ssq" ? "蓝" : "后"}
-                        ref={(el) => { radarSearchInputRefs.current[realIdx] = el; }}
-                        value={radarSearchDigits[realIdx] || ""}
-                        onChange={(e) => handleRadarDigitChange(e.target.value, realIdx)}
-                        onKeyDown={(e) => handleRadarDigitKeyDown(e, realIdx)}
-                        className="w-11 h-11 rounded-xl text-center font-bold text-sm outline-none border transition-all shadow-sm focus:ring-4 bg-indigo-50/60 border-indigo-100/80 text-indigo-600 focus:ring-indigo-50 focus:border-indigo-500 placeholder:text-indigo-300"
+            <div className="w-full bg-slate-50/60 p-6 rounded-3xl border border-slate-200/40 flex flex-col gap-6 relative z-10">
+              <div className="flex flex-col gap-4 w-full">
+                {radarSearchDigitsList.map((digits, rowIndex) => (
+                  <div key={rowIndex} className="flex flex-col sm:flex-row sm:items-center gap-4 w-full group/row">
+                    <span className="text-xs font-bold text-slate-500 shrink-0 select-none sm:w-[60px]">
+                      {radarSearchDigitsList.length > 1 ? `第 ${rowIndex + 1} 组` : '输入号码'}：
+                    </span>
+                    
+                    <div className="flex-1">
+                      <LotteryNumbersInput
+                        lotteryType={lotteryType}
+                        redNumbers={digits.slice(0, lotteryType === "ssq" ? 6 : 5)}
+                        blueNumbers={digits.slice(lotteryType === "ssq" ? 6 : 5)}
+                        onChange={(red, blue) => {
+                          const newList = [...radarSearchDigitsList];
+                          newList[rowIndex] = [...red, ...blue];
+                          setRadarSearchDigitsList(newList);
+                        }}
                       />
-                    );
-                  })}
-                </div>
+                    </div>
+
+                    {radarSearchDigitsList.length > 1 && (
+                      <button
+                        onClick={() => {
+                          const newList = [...radarSearchDigitsList];
+                          newList.splice(rowIndex, 1);
+                          setRadarSearchDigitsList(newList);
+                        }}
+                        className="w-10 h-10 rounded-full border border-rose-200 text-rose-400 hover:bg-rose-50 hover:text-rose-600 flex flex-shrink-0 items-center justify-center transition-colors sm:opacity-0 sm:group-hover/row:opacity-100"
+                        title="删除该组号码"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                ))}
               </div>
 
-              {/* 比对按钮 */}
-              <button
-                onClick={handleStartCompareLatest}
-                className="w-full lg:w-auto relative px-8 h-12 rounded-xl bg-slate-900 text-white font-bold text-xs tracking-wider shadow-sm hover:bg-slate-800 transition-all active:scale-[0.98] shrink-0 flex items-center justify-center gap-2 group/btn"
-              >
-                <Cpu className="w-4 h-4 text-indigo-300 group-hover/btn:rotate-90 transition-transform duration-500" />
-                <span>开始比对最新一期</span>
-                <ChevronRight className="w-4 h-4 text-slate-400 group-hover/btn:translate-x-0.5 transition-transform" />
-              </button>
+              <div className="flex flex-col lg:flex-row items-center justify-between gap-4 mt-2">
+                <button
+                  onClick={() => setRadarSearchDigitsList([...radarSearchDigitsList, Array(7).fill("")])}
+                  className="w-full lg:w-auto px-6 h-10 rounded-xl border border-slate-200 bg-white text-slate-600 font-bold text-xs hover:bg-slate-50 hover:border-indigo-300 hover:text-indigo-600 transition-all shadow-sm flex items-center justify-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>添加一组</span>
+                </button>
+
+                {/* 比冲按钮 */}
+                <button
+                  onClick={handleStartCompareLatest}
+                  className="w-full lg:w-auto relative px-8 h-12 rounded-xl bg-slate-900 text-white font-bold text-xs tracking-wider shadow-sm hover:bg-slate-800 transition-all active:scale-[0.98] shrink-0 flex items-center justify-center gap-2 group/btn"
+                >
+                  <Cpu className="w-4 h-4 text-indigo-300 group-hover/btn:rotate-90 transition-transform duration-500" />
+                  <span>开始比对最新一期</span>
+                  <ChevronRight className="w-4 h-4 text-slate-400 group-hover/btn:translate-x-0.5 transition-transform" />
+                </button>
+              </div>
             </div>
           ) : (
             // 面板多选控制台视图 (WOW级发光交互面板)
@@ -1127,13 +1122,13 @@ export default function HomePage() {
                     radarPrizeResult.multiPrizeList && radarPrizeResult.multiPrizeList.length > 0 ? (
                       <div className="space-y-3.5 w-full text-center">
                         <div className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-amber-50 border border-amber-200 text-amber-600 text-xs font-black shadow-[0_2px_12px_rgba(245,158,11,0.15)] animate-bounce">
-                          🎉 恭喜中奖 ➔ 复式喜迎大丰收！
+                          🎉 恭喜中奖 ➔ {radarPrizeResult.multiSelectedCounts?.red === 0 ? "单式多组喜迎大丰收！" : "复式喜迎大丰收！"}
                         </div>
 
                         {/* 复式总金额展示盒 */}
                         {radarPrizeResult.multiTotalAmountStr && (
                           <div className="py-3 px-4 bg-gradient-to-r from-amber-500/10 via-rose-500/10 to-amber-500/10 rounded-2xl border border-amber-200/50 flex flex-col items-center justify-center gap-1 shadow-sm">
-                            <span className="text-[10px] text-amber-600/80 font-bold uppercase tracking-wider">复式累计中奖总金额</span>
+                            <span className="text-[10px] text-amber-600/80 font-bold uppercase tracking-wider">{radarPrizeResult.multiSelectedCounts?.red === 0 ? "多组累计中奖总金额" : "复式累计中奖总金额"}</span>
                             <span className="text-3xl font-black text-rose-600 tracking-tight drop-shadow-sm font-mono animate-pulse">
                               {radarPrizeResult.multiTotalAmountStr}
                             </span>
@@ -1163,7 +1158,7 @@ export default function HomePage() {
                         </div>
 
                         <p className="text-xs text-slate-500 font-normal">
-                          恭喜您！您的复式选号成功击中了官方最新开奖第 <span className="font-bold text-slate-900 font-mono">{radarPrizeResult.issueNumber}</span> 期的开奖号码！
+                          恭喜您！您的{radarPrizeResult.multiSelectedCounts?.red === 0 ? "单式多组选号" : "复式选号"}成功击中了官方最新开奖第 <span className="font-bold text-slate-900 font-mono">{radarPrizeResult.issueNumber}</span> 期的开奖号码！
                         </p>
                       </div>
                     ) : (
@@ -1173,7 +1168,10 @@ export default function HomePage() {
                           😅 本期遗憾未中奖
                         </div>
                         <p className="text-xs text-slate-500 font-normal">
-                          您录入的复式选号组合（共 <span className="font-bold text-slate-500">{radarPrizeResult.userNumbers.red.length} 红 + {radarPrizeResult.userNumbers.blue.length} 蓝</span>）在最新第 <span className="font-bold text-slate-900 font-mono">{radarPrizeResult.issueNumber}</span> 期中未能击中任何奖项。好运总在下一次，加油！
+                          {radarPrizeResult.multiSelectedCounts?.red === 0 
+                            ? `您录入的 ${radarPrizeResult.userNumbersList?.length || 0} 组单式选号`
+                            : `您录入的复式选号组合（共 ${radarPrizeResult.userNumbers.red.length} 红 + ${radarPrizeResult.userNumbers.blue.length} 蓝）`
+                          }在最新第 <span className="font-bold text-slate-900 font-mono">{radarPrizeResult.issueNumber}</span> 期中未能击中任何奖项。好运总在下一次，加油！
                         </p>
                       </div>
                     )
@@ -1217,46 +1215,56 @@ export default function HomePage() {
                       您的球格命中情况（彩色代表击中，灰色代表未中）：
                     </div>
                     
-                    <div className="flex flex-wrap items-center justify-center gap-2 bg-white border border-slate-100 p-4.5 rounded-2xl shadow-sm">
-                      {/* 前区/红球 */}
-                      {radarPrizeResult.userNumbers.red.map((num, idx) => {
-                        const isMatched = radarPrizeResult.officialNumbers.red.includes(num);
-                        return (
-                          <div
-                            key={idx}
-                            className={`relative w-9 h-9 flex items-center justify-center rounded-xl text-xs font-bold transition-all duration-500 ${
-                              isMatched 
-                                ? lotteryType === "ssq"
-                                  ? "bg-rose-500 text-white shadow-md shadow-rose-200 ring-4 ring-rose-100 scale-105 z-10"
-                                  : "bg-emerald-500 text-white shadow-md shadow-emerald-200 ring-4 ring-emerald-100 scale-105 z-10"
-                                : "bg-slate-100 text-slate-400 opacity-40 border border-slate-200"
-                            }`}
-                          >
-                            {num}
-                            {isMatched && <div className="absolute -inset-0.5 bg-current opacity-10 rounded-xl animate-ping" />}
-                          </div>
-                        );
-                      })}
+                    <div className="flex flex-col gap-3 max-h-[300px] overflow-y-auto pr-1">
+                      {(radarPrizeResult.userNumbersList || [radarPrizeResult.userNumbers]).map((userNumSet, groupIdx) => (
+                        <div key={groupIdx} className="flex flex-wrap items-center justify-start sm:justify-center gap-2 bg-white border border-slate-100 p-3.5 rounded-2xl shadow-sm">
+                          {radarPrizeResult.userNumbersList && radarPrizeResult.userNumbersList.length > 1 && (
+                            <div className="text-[10px] font-bold text-slate-400 w-full sm:w-auto text-left sm:text-center shrink-0 mr-1 pb-1 sm:pb-0 border-b sm:border-b-0 border-slate-100">
+                              组 {groupIdx + 1}
+                            </div>
+                          )}
+                          
+                          {/* 前区/红球 */}
+                          {userNumSet.red.map((num, idx) => {
+                            const isMatched = radarPrizeResult.officialNumbers.red.includes(num);
+                            return (
+                              <div
+                                key={idx}
+                                className={`relative w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-xl text-xs font-bold transition-all duration-500 ${
+                                  isMatched 
+                                    ? lotteryType === "ssq"
+                                      ? "bg-rose-500 text-white shadow-md shadow-rose-200 ring-4 ring-rose-100 scale-105 z-10"
+                                      : "bg-emerald-500 text-white shadow-md shadow-emerald-200 ring-4 ring-emerald-100 scale-105 z-10"
+                                    : "bg-slate-100 text-slate-400 opacity-40 border border-slate-200"
+                                }`}
+                              >
+                                {num}
+                                {isMatched && <div className="absolute -inset-0.5 bg-current opacity-10 rounded-xl animate-ping" />}
+                              </div>
+                            );
+                          })}
 
-                      <div className="w-[1px] h-6 bg-slate-200 mx-1 shrink-0" />
+                          <div className="w-[1px] h-6 bg-slate-200 mx-1 shrink-0 hidden sm:block" />
 
-                      {/* 后区/蓝球 */}
-                      {radarPrizeResult.userNumbers.blue.map((num, idx) => {
-                        const isMatched = radarPrizeResult.officialNumbers.blue.includes(num);
-                        return (
-                          <div
-                            key={idx}
-                            className={`relative w-9 h-9 flex items-center justify-center rounded-xl text-xs font-bold transition-all duration-500 ${
-                              isMatched 
-                                ? "bg-indigo-600 text-white shadow-md shadow-indigo-200 ring-4 ring-indigo-100 scale-105 z-10"
-                                : "bg-slate-100 text-slate-400 opacity-40 border border-slate-200"
-                            }`}
-                          >
-                            {num}
-                            {isMatched && <div className="absolute -inset-0.5 bg-indigo-400 opacity-10 rounded-xl animate-ping" />}
-                          </div>
-                        );
-                      })}
+                          {/* 后区/蓝球 */}
+                          {userNumSet.blue.map((num, idx) => {
+                            const isMatched = radarPrizeResult.officialNumbers.blue.includes(num);
+                            return (
+                              <div
+                                key={idx}
+                                className={`relative w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-xl text-xs font-bold transition-all duration-500 ${
+                                  isMatched 
+                                    ? "bg-indigo-600 text-white shadow-md shadow-indigo-200 ring-4 ring-indigo-100 scale-105 z-10"
+                                    : "bg-slate-100 text-slate-400 opacity-40 border border-slate-200"
+                                }`}
+                              >
+                                {num}
+                                {isMatched && <div className="absolute -inset-0.5 bg-indigo-400 opacity-10 rounded-xl animate-ping" />}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ))}
                     </div>
                   </div>
 

@@ -36,6 +36,7 @@ import {
 import { formatDate } from "../../lib/utils";
 import { useRouter } from "next/navigation";
 import { trpc } from "../../server/client";
+import LotteryNumbersInput from "@/components/LotteryNumbersInput";
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -785,68 +786,27 @@ export default function SettingsPage() {
                     <div className="space-y-6">
                       <div className="space-y-3">
                         <div className="flex items-baseline justify-between px-1">
-                          <label className="text-[10px] font-black text-rose-600 uppercase tracking-wider">
-                            红球号码
+                          <label className="text-[10px] font-black text-indigo-600 uppercase tracking-wider">
+                            号码策略配置 (红球 | 蓝球)
                           </label>
                           <div className="text-[9px] font-mono text-slate-400">
-                            范围:{" "}
-                            {ticketLotteryType === "ssq" ? "01-33" : "01-35"}
+                            双色球: 红01-33 蓝01-16 | 大乐透: 前01-35 后01-12
                           </div>
                         </div>
-                        <div className="grid grid-cols-6 gap-2">
-                          {ticketRedNumbers.map((num, idx) => (
-                            <input
-                              key={idx}
-                              type="number"
-                              min="1"
-                              max={ticketLotteryType === "ssq" ? "33" : "35"}
-                              value={num}
-                              onChange={(e) => {
-                                const newNums = [...ticketRedNumbers];
-                                newNums[idx] = e.target.value;
-                                setTicketRedNumbers(newNums);
-                              }}
-                              placeholder="--"
-                              className="w-full h-12 text-center rounded-xl bg-rose-50/50 border border-rose-100 text-rose-600 font-black text-lg outline-none focus:bg-white focus:border-rose-400 focus:ring-4 focus:ring-rose-50 transition-all placeholder:opacity-40 shadow-sm"
-                            />
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="space-y-3">
-                        <div className="flex items-baseline justify-between px-1">
-                          <label className={`text-[10px] font-black uppercase tracking-wider ${ticketLotteryType === "ssq" ? "text-indigo-600" : "text-emerald-600"}`}>
-                            蓝球/后区号码
-                          </label>
-                          <div className="text-[9px] font-mono text-slate-400">
-                            范围:{" "}
-                            {ticketLotteryType === "ssq" ? "01-16" : "01-12"}
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          {ticketBlueNumbers.map((num, idx) => (
-                            <input
-                              key={idx}
-                              type="number"
-                              min="1"
-                              max={ticketLotteryType === "ssq" ? "16" : "12"}
-                              value={num}
-                              onChange={(e) => {
-                                const newNums = [...ticketBlueNumbers];
-                                newNums[idx] = e.target.value;
-                                setTicketBlueNumbers(newNums);
-                              }}
-                              placeholder="--"
-                              className={`w-12 h-12 text-center rounded-xl font-black text-lg outline-none focus:bg-white transition-all placeholder:opacity-40 shadow-sm ${
-                                ticketLotteryType === "ssq"
-                                  ? "bg-indigo-50/50 border border-indigo-100 text-indigo-600 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-50"
-                                  : "bg-emerald-50/50 border border-emerald-100 text-emerald-600 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-50"
-                              }`}
-                            />
-                          ))}
+                        <div className="p-4 bg-slate-50/60 rounded-2xl border border-slate-100 flex items-center shadow-inner">
+                          <LotteryNumbersInput
+                            lotteryType={ticketLotteryType}
+                            redNumbers={ticketRedNumbers}
+                            blueNumbers={ticketBlueNumbers}
+                            onChange={(red, blue) => {
+                              setTicketRedNumbers(red);
+                              setTicketBlueNumbers(blue);
+                            }}
+                          />
                         </div>
                       </div>
                     </div>
+
                   </div>
 
                   <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t border-slate-100">
