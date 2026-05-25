@@ -129,6 +129,7 @@ export default function DLTCrawlerPage() {
   // 获取当前登录用户，判断角色
   const { data: user, isLoading: userLoading } = trpc.auth.getMe.useQuery();
   const isGuest = user?.role === "GUEST";
+  const isAdmin = user?.role === "ADMIN";
 
   // 获取大乐透激活的守号号码
   const { data: ticketData } = trpc.ticket.getList.useQuery({
@@ -460,11 +461,11 @@ export default function DLTCrawlerPage() {
 
                 <button
                   onClick={handleStart}
-                  disabled={loading || userLoading || isGuest}
+                  disabled={loading || userLoading || !isAdmin}
                   className={`h-10 px-4.5 rounded-xl font-bold text-xs transition-all active:scale-[0.98] shadow-sm flex items-center justify-center gap-1.5 ${
                     userLoading
                       ? "bg-slate-100 border border-slate-200 text-slate-400 cursor-wait opacity-60"
-                      : isGuest
+                      : !isAdmin
                         ? "bg-slate-100 border border-slate-200 text-slate-400 cursor-not-allowed opacity-50 shadow-none"
                         : "bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50"
                   }`}
@@ -474,8 +475,8 @@ export default function DLTCrawlerPage() {
                       <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-400" />
                       <span>同步中...</span>
                     </>
-                  ) : isGuest ? (
-                    "🔒 访客只读"
+                  ) : !isAdmin ? (
+                    "🔒 仅管理员可用"
                   ) : (
                     <>
                       <Wifi className="w-3.5 h-3.5" />

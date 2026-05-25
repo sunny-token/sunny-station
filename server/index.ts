@@ -1,4 +1,4 @@
-import { router, publicProcedure, createCallerFactory } from "./trpc";
+import { router, adminProcedure, createCallerFactory } from "./trpc";
 import { dltRouter } from "./routes/dltRoute";
 import { ssqRouter } from "./routes/ssqRoute";
 import { ticketRouter } from "./routes/ticketRoute";
@@ -11,7 +11,7 @@ export const appRouter = router({
   ticket: ticketRouter,
   email: emailRouter,
   auth: authRouter,
-  refreshAll: publicProcedure.mutation(async ({ ctx }) => {
+  refreshAll: adminProcedure.mutation(async ({ ctx }) => {
     // 一键刷新所有数据：同时刷新 SSQ 和 DLT
     // 直接创建子路由的 caller 来调用方法
     const createSSQCaller = createCallerFactory(ssqRouter);

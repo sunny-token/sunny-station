@@ -1,4 +1,4 @@
-import { publicProcedure, router } from "../trpc";
+import { publicProcedure, adminProcedure, router } from "../trpc";
 import * as cheerio from "cheerio";
 import prismaService from "../../lib/prismaService";
 import { z } from "zod";
@@ -220,7 +220,7 @@ export const ssqRouter = router({
         throw error;
       }
     }),
-  fetchAndSave: publicProcedure
+  fetchAndSave: adminProcedure
     .input(z.object({ year: z.string() }))
     .mutation(async ({ input }) => {
       const { year } = input;
@@ -400,7 +400,7 @@ export const ssqRouter = router({
         },
       };
     }),
-  refreshAll: publicProcedure
+  refreshAll: adminProcedure
     .input(
       z.object({
         fetchDetails: z.boolean().default(false),
