@@ -97,7 +97,7 @@ export default function LoginPage() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-indigo-500"></span>
               </span>
-              智能彩票助手
+              {isLogin ? "欢迎回来" : "欢迎注册"}
             </div>
             <h1 className="text-3xl font-black tracking-tight text-slate-900">
               {isLogin ? "智能彩票助手" : "注册新账号"}
