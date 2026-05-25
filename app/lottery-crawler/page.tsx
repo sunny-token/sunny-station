@@ -438,53 +438,47 @@ export default function LotteryCrawlerPage() {
 
             {/* 底栏：重置与检索动作栏 + 数据同步合并项 */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-6 border-t border-slate-100 mt-6">
-              {/* 左侧：云端开奖历史同步 */}
-              <div className="flex flex-wrap items-center gap-2 max-w-lg">
-                <span className="text-xs font-bold text-slate-500 w-16 flex-shrink-0">历史同步：</span>
-                <select
-                  value={selectedYear}
-                  onChange={(e) => setSelectedYear(e.target.value)}
-                  className="h-10 px-3.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 outline-none cursor-pointer focus:border-rose-500 focus:bg-white transition-all shadow-sm font-bold text-xs"
-                >
-                  {Array.from(
-                    { length: new Date().getFullYear() - 1999 },
-                    (_, i) => new Date().getFullYear() - i,
-                  ).map((year) => (
-                    <option key={year} value={year} className="bg-white text-slate-700">
-                      {year} 年度
-                    </option>
-                  ))}
-                </select>
+              {/* 左侧：云端开奖历史同步（仅 Admin 可见） */}
+              {isAdmin && (
+                <div className="flex flex-wrap items-center gap-2 max-w-lg">
+                  <span className="text-xs font-bold text-slate-500 w-16 flex-shrink-0">历史同步：</span>
+                  <select
+                    value={selectedYear}
+                    onChange={(e) => setSelectedYear(e.target.value)}
+                    className="h-10 px-3.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 outline-none cursor-pointer focus:border-rose-500 focus:bg-white transition-all shadow-sm font-bold text-xs"
+                  >
+                    {Array.from(
+                      { length: new Date().getFullYear() - 1999 },
+                      (_, i) => new Date().getFullYear() - i,
+                    ).map((year) => (
+                      <option key={year} value={year} className="bg-white text-slate-700">
+                        {year} 年度
+                      </option>
+                    ))}
+                  </select>
 
-                <button
-                  onClick={handleStart}
-                  disabled={loading || userLoading || !isAdmin}
-                  className={`h-10 px-4.5 rounded-xl font-bold text-xs transition-all active:scale-[0.98] shadow-sm flex items-center justify-center gap-1.5 ${
-                    userLoading
-                      ? "bg-slate-100 border border-slate-200 text-slate-400 cursor-wait opacity-60"
-                      : !isAdmin
-                        ? "bg-slate-100 border border-slate-200 text-slate-400 cursor-not-allowed opacity-50 shadow-none"
-                        : "bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50"
-                  }`}
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-400" />
-                      <span>同步中...</span>
-                    </>
-                  ) : !isAdmin ? (
-                    "🔒 仅管理员可用"
-                  ) : (
-                    <>
-                      <Wifi className="w-3.5 h-3.5" />
-                      <span>同步云端开奖</span>
-                    </>
-                  )}
-                </button>
-              </div>
+                  <button
+                    onClick={handleStart}
+                    disabled={loading || userLoading}
+                    className="h-10 px-4.5 rounded-xl font-bold text-xs transition-all active:scale-[0.98] shadow-sm flex items-center justify-center gap-1.5 bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-400" />
+                        <span>同步中...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Wifi className="w-3.5 h-3.5" />
+                        <span>同步云端开奖</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
 
               {/* 右侧：比对控制 */}
-              <div className="flex items-center gap-3 justify-end">
+              <div className="flex items-center gap-3 justify-end ml-auto">
                 <button
                   onClick={handleClearSearch}
                   className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all active:scale-[0.95] ${isSearching ? 'bg-rose-50 text-rose-600 border border-rose-200 shadow-sm opacity-100' : 'opacity-0 pointer-events-none'}`}
