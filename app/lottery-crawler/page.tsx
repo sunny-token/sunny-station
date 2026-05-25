@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import {
   Pagination,
   PaginationContent,
@@ -19,7 +19,7 @@ import {
 import { formatDate } from "../../lib/utils";
 import { useRouter } from "next/navigation";
 import { trpc } from "../../server/client";
-import { Loader2 } from "lucide-react";
+import { Loader2, Settings2, ArrowLeft, CheckCircle2, AlertCircle, Cpu, Wifi, CircleDot, ExternalLink } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -40,6 +40,73 @@ export default function LotteryCrawlerPage() {
   const [searchInput, setSearchInput] = useState<string>("");
   const [isSearching, setIsSearching] = useState(false);
   const [isExactMatch, setIsExactMatch] = useState(false);
+
+  // OTP 验证码式球格输入相关状态与引用（6个红球 + 1个蓝球）
+  const [searchDigits, setSearchDigits] = useState<string[]>(Array(7).fill(""));
+  const searchInputRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  const handleDigitChange = (val: string, idx: number) => {
+    const cleanVal = val.replace(/\D/g, "").slice(0, 2);
+    const newDigits = [...searchDigits];
+    newDigits[idx] = cleanVal;
+    setSearchDigits(newDigits);
+
+    // 实时同步至 searchInput
+    const joined = newDigits
+      .map((d) => d.trim())
+      .filter((d) => d !== "")
+      .join(" ");
+    setSearchInput(joined);
+
+    // 自动跳转焦距：当输入了两位数字，且不是最后一个格子
+    if (cleanVal.length === 2 && idx < 6) {
+      searchInputRefs.current[idx + 1]?.focus();
+    }
+  };
+
+  const handleDigitKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, idx: number) => {
+    if (e.key === "Backspace") {
+      if (!searchDigits[idx] && idx > 0) {
+        const newDigits = [...searchDigits];
+        newDigits[idx - 1] = ""; // 清空前一个
+        setSearchDigits(newDigits);
+
+        const joined = newDigits
+          .map((d) => d.trim())
+          .filter((d) => d !== "")
+          .join(" ");
+        setSearchInput(joined);
+        
+        searchInputRefs.current[idx - 1]?.focus();
+      }
+    }
+  };
+
+  const handleDigitPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const text = e.clipboardData.getData("text");
+    const matched = text.trim().split(/[\s,]+/).filter(Boolean);
+    if (matched.length > 0) {
+      const newDigits = [...searchDigits];
+      for (let i = 0; i < 7; i++) {
+        if (matched[i]) {
+          newDigits[i] = matched[i].replace(/\D/g, "").slice(0, 2);
+        }
+      }
+      setSearchDigits(newDigits);
+      
+      const joined = newDigits
+        .map((d) => d.trim())
+        .filter((d) => d !== "")
+        .join(" ");
+      setSearchInput(joined);
+
+      // 聚焦到最后一个已填充的输入框
+      const focusIdx = Math.min(matched.length - 1, 6);
+      searchInputRefs.current[focusIdx]?.focus();
+    }
+  };
+
   const [selectedPrizeInfo, setSelectedPrizeInfo] = useState<{
     issueNumber: string;
     openDate: string;
@@ -127,7 +194,7 @@ export default function LotteryCrawlerPage() {
         setResult(`爬取并写入成功，新增 ${res.count} 条数据。`);
         refetch();
       } else {
-        setResult("失败");
+        setResult("同步失败：节点响应异常");
       }
     } catch (e) {
       setResult(`请求异常: ${e instanceof Error ? e.message : String(e)}`);
@@ -136,12 +203,10 @@ export default function LotteryCrawlerPage() {
     }
   };
 
-
-
   const handleSearch = async () => {
     const numbers = parseSearchNumbers(searchInput);
     if (numbers.length === 0) {
-      setResult("请输入至少1个号码进行搜索（用空格或逗号分隔）");
+      setResult("请输入至少1个号码进行搜索");
       return;
     }
     if (numbers.length > 7) {
@@ -165,6 +230,7 @@ export default function LotteryCrawlerPage() {
   const handleClearSearch = () => {
     setIsSearching(false);
     setSearchInput("");
+    setSearchDigits(Array(7).fill(""));
     setSearchCurrentPage(1);
     setResult(null);
   };
@@ -173,7 +239,7 @@ export default function LotteryCrawlerPage() {
   const displayData = isSearching ? searchData : data;
   const displayLoading = isSearching ? searchLoading : listLoading;
 
-  // 缓存搜索号码列表（区分红球和蓝球）
+  // 缓存搜索号码列表（区分前区红球和后区蓝球）
   // 双色球：前6个是红球，第7个是蓝球
   const searchRedNumbersSet = useMemo(() => {
     if (!isSearching || !searchInput.trim()) return new Set<string>();
@@ -203,183 +269,339 @@ export default function LotteryCrawlerPage() {
   // isRed: true表示红球，false表示蓝球
   const isNumberMatched = (num: string | number, isRed: boolean): boolean => {
     if (!isSearching) {
-      // 非搜索模式，都显示为匹配（红色/蓝色）
       return true;
     }
-    // 统一格式为两位数字字符串
     const numStr = typeof num === "string" ? num : num.toString();
     const numValue = parseInt(numStr, 10);
     if (isNaN(numValue)) return false;
     const normalizedNum = numValue.toString().padStart(2, "0");
 
     if (isRed) {
-      // 红球只匹配搜索的红球号码
       return searchRedNumbersSet.has(normalizedNum);
     } else {
-      // 蓝球只匹配搜索的蓝球号码
       return searchBlueNumber === normalizedNum;
     }
   };
 
+  // 获取用户信息时渲染安全网关加载界面，避免闪烁
+  if (userLoading) {
+    return (
+      <div className="min-h-screen bg-[#f8fafc] flex flex-col items-center justify-center relative overflow-hidden">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-rose-100/20 blur-[120px] rounded-full pointer-events-none animate-pulse" />
+        <div className="relative z-10 flex flex-col items-center space-y-4">
+          <Loader2 className="w-10 h-10 animate-spin text-rose-500" />
+          <p className="text-sm font-semibold tracking-wider text-slate-500 uppercase">
+            正在安全验证身份凭证...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-[#050505] text-slate-200 selection:bg-red-500/30">
-      {/* 氛围背景 */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-red-900/10 blur-[120px] rounded-full animate-pulse" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-900/10 blur-[120px] rounded-full animate-pulse" style={{ animationDelay: '2s' }} />
+    <div className="min-h-screen bg-[#f8fafc] text-slate-800 selection:bg-rose-500/10 relative overflow-x-hidden">
+      {/* 氛围背景微网格与柔和渐变 */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-rose-100/20 blur-[130px] rounded-full" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-indigo-100/20 blur-[130px] rounded-full" />
+        <div
+          className="absolute top-0 left-0 w-full h-full opacity-[0.35] pointer-events-none"
+          style={{
+            backgroundImage: "radial-gradient(#cbd5e1 1px, transparent 1px)",
+            backgroundSize: "24px 24px",
+          }}
+        />
       </div>
 
-      <div className="relative z-10 w-full max-w-6xl mx-auto p-4 md:p-12 animate-in fade-in slide-in-from-bottom-12 duration-1000">
+      <div className="relative z-10 w-full max-w-6xl mx-auto p-4 md:p-12 animate-in fade-in slide-in-from-bottom-8 duration-700">
         {/* Header Section */}
-        <header className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8 mb-16">
-          <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/10 border border-red-500/20 text-red-500 text-[10px] uppercase tracking-[0.2em] font-bold">
+        <header className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8 mb-12 border-b border-slate-200/60 pb-8">
+          <div className="space-y-3">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-50 border border-rose-100/80 text-rose-600 text-xs font-bold tracking-wider">
               <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-450 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
               </span>
-              核心数据处理节点
+              官方数据同步中心
             </div>
-            <h1 className="text-5xl md:text-6xl font-black tracking-tighter text-white">
-              双色球 <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-rose-500 to-orange-500">开奖引擎</span>
+            <h1 className="text-4xl md:text-5xl font-black tracking-tight text-slate-900 leading-none">
+              双色球 <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-600 via-pink-500 to-indigo-600">智能对奖端</span>
             </h1>
-            <p className="text-slate-500 text-lg font-light max-w-md">
-              双色球开奖数据深度追踪与模式干预分析系统
+            <p className="text-slate-500 text-sm md:text-base font-normal max-w-lg">
+              查询官方开奖历史数据，并支持自选及守号号码的智能比对与对奖分析。
             </p>
           </div>
           
-          <div className="flex flex-wrap gap-4">
+          <div className="flex flex-wrap gap-3 w-full sm:w-auto">
+            <button
+              onClick={() => router.push("/")}
+              className="group flex items-center gap-2.5 px-4.5 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-650 hover:text-slate-900 hover:bg-slate-50 transition-all duration-300 font-semibold shadow-sm flex-1 sm:flex-none justify-center text-xs"
+            >
+              <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
+              <span>返回主页</span>
+            </button>
             <button
               onClick={() => router.push("/lottery-dlt-crawler")}
-              className="group relative px-6 py-3 rounded-2xl bg-white/5 border border-white/10 text-white font-medium hover:bg-white/10 transition-all duration-300 overflow-hidden"
+              className="group relative px-5 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-650 font-semibold hover:bg-slate-50 hover:text-amber-650 hover:border-amber-200 transition-all duration-300 shadow-sm flex-1 sm:flex-none justify-center text-xs"
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-amber-500/0 via-amber-500/10 to-amber-500/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
-              <span className="relative flex items-center gap-2">
-                切换大乐透节点 <span className="group-hover:translate-x-1 transition-transform">→</span>
+              <span className="relative flex items-center gap-1.5 justify-center">
+                切换为大乐透 <span className="group-hover:translate-x-0.5 transition-transform">→</span>
               </span>
             </button>
             <button
               onClick={() => router.push("/settings")}
-              className="px-6 py-3 rounded-2xl bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:border-white/20 transition-all duration-300 flex items-center gap-2"
+              className="px-5 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-655 hover:text-indigo-650 hover:border-indigo-200 hover:bg-slate-50 transition-all duration-300 flex items-center gap-2 shadow-sm font-semibold flex-1 sm:flex-none justify-center text-xs"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+              <Settings2 className="w-4 h-4 text-slate-400 group-hover:rotate-45 transition-transform duration-500" />
               设置中心
             </button>
           </div>
         </header>
 
         {/* Control Panel Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-12">
-          {/* Main Controls */}
-          <section className="lg:col-span-3 p-8 rounded-[2.5rem] bg-white/[0.03] border border-white/[0.06] backdrop-blur-2xl shadow-2xl space-y-8">
-            <div className="flex flex-wrap items-center gap-6">
-              <div className="space-y-1.5 min-w-[120px]">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1">数据年度</label>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-12">
+          
+          {/* 左侧栏：智能号码对奖区 */}
+          <section className="lg:col-span-8 p-8 rounded-[2rem] bg-white border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow duration-300 flex flex-col justify-between">
+            <div className="space-y-6">
+              
+              {/* 顶栏：标题与开关 */}
+              <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                <div className="flex flex-col gap-1">
+                  <span className="text-base font-bold text-slate-900">自选号码智能比对</span>
+                  <span className="text-[11px] text-slate-400 font-medium">快速在历史开奖中检索您的号码是否中奖</span>
+                </div>
+                
+                {/* 匹配开关 */}
+                <label className="flex items-center gap-2.5 cursor-pointer group">
+                  <div className={`w-9 h-5.5 flex items-center rounded-full transition-colors duration-300 ${isExactMatch ? 'bg-rose-500 shadow-sm shadow-rose-100' : 'bg-slate-200'}`}>
+                    <div className={`w-3.5 h-3.5 bg-white rounded-full transition-transform duration-300 transform mx-1 shadow-sm ${isExactMatch ? 'translate-x-3.5' : 'translate-x-0'}`} />
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={isExactMatch}
+                    onChange={(e) => setIsExactMatch(e.target.checked)}
+                    className="hidden"
+                  />
+                  <span className="text-xs font-semibold text-slate-500 group-hover:text-slate-800 transition-colors select-none">严格顺序匹配</span>
+                </label>
+              </div>
+
+              {/* 中栏：球格输入核心区（横向滚动支持） */}
+              <div className="space-y-4 py-4 bg-slate-50/50 rounded-2xl p-5 border border-slate-100/80">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-4 w-full">
+                  <span className="text-xs font-bold text-slate-500 sm:w-16 flex-shrink-0">输入号码：</span>
+                  
+                  <div className="flex items-center gap-2 flex-wrap overflow-x-auto no-scrollbar py-1 flex-1">
+                    {/* 6个前区红球（Rose） */}
+                    {Array.from({ length: 6 }).map((_, idx) => (
+                      <input
+                        key={idx}
+                        type="text"
+                        maxLength={2}
+                        placeholder="红"
+                        ref={(el) => { searchInputRefs.current[idx] = el; }}
+                        value={searchDigits[idx] || ""}
+                        onChange={(e) => handleDigitChange(e.target.value, idx)}
+                        onKeyDown={(e) => handleDigitKeyDown(e, idx)}
+                        onPaste={idx === 0 ? handleDigitPaste : undefined}
+                        className="w-11 h-11 rounded-full text-center font-bold text-sm outline-none border transition-all shadow-sm focus:ring-4 focus:ring-rose-50 bg-rose-50 border-rose-100 text-rose-600 focus:bg-white focus:border-rose-450 placeholder:text-rose-300 flex-shrink-0"
+                      />
+                    ))}
+
+                    <div className="w-[1px] h-6 bg-slate-200 mx-2 flex-shrink-0" />
+
+                    {/* 1个后区蓝球（Indigo） */}
+                    {Array.from({ length: 1 }).map((_, idx) => {
+                      const realIdx = idx + 6;
+                      return (
+                        <input
+                          key={realIdx}
+                          type="text"
+                          maxLength={2}
+                          placeholder="蓝"
+                          ref={(el) => { searchInputRefs.current[realIdx] = el; }}
+                          value={searchDigits[realIdx] || ""}
+                          onChange={(e) => handleDigitChange(e.target.value, realIdx)}
+                          onKeyDown={(e) => handleDigitKeyDown(e, realIdx)}
+                          className="w-11 h-11 rounded-full text-center font-bold text-sm outline-none border transition-all shadow-sm focus:ring-4 focus:ring-indigo-50 bg-indigo-50 border-indigo-100 text-indigo-600 focus:bg-white focus:border-indigo-450 placeholder:text-indigo-300 flex-shrink-0"
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+                
+                <p className="text-xs text-slate-400 font-normal pl-0 sm:pl-16 tracking-tight leading-relaxed">
+                  💡 提示：支持从网页或文本直接复制整行由空格或逗号分隔的号码，直接粘贴至第一个红球格，系统会自动进行智能拆分填充。
+                </p>
+              </div>
+
+            </div>
+
+            {/* 底栏：重置与检索动作栏 */}
+            <div className="flex items-center justify-end gap-3 pt-6 border-t border-slate-100 mt-6">
+              <button
+                onClick={handleClearSearch}
+                className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all active:scale-[0.95] ${isSearching ? 'bg-rose-50 text-rose-600 border border-rose-200 shadow-sm opacity-100' : 'opacity-0 pointer-events-none'}`}
+              >
+                重置
+              </button>
+              <button
+                onClick={handleSearch}
+                disabled={searchLoading}
+                className="px-6 h-11 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold tracking-widest disabled:opacity-50 shadow-sm transition-all active:scale-[0.95] whitespace-nowrap"
+              >
+                {searchLoading ? "正在比对..." : "开始比对号码"}
+              </button>
+            </div>
+          </section>
+
+          {/* 右侧栏：数据同步与状态反馈面板 */}
+          <aside className="lg:col-span-4 flex flex-col gap-6">
+            
+            {/* 同步数据子面板 */}
+            <div className="p-6 rounded-[2rem] bg-white border border-slate-200/80 shadow-sm space-y-5">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600 shadow-sm">
+                  <Wifi className="w-4.5 h-4.5" />
+                </div>
+                <div className="space-y-0.5">
+                  <h4 className="text-sm font-bold text-slate-800">同步开奖历史</h4>
+                  <p className="text-[11px] text-slate-400 font-medium">拉取并更新特定年度的官方历史数据</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
                 <select
                   value={selectedYear}
                   onChange={(e) => setSelectedYear(e.target.value)}
-                  className="w-full h-12 px-4 rounded-xl bg-black/40 border border-white/10 text-white outline-none cursor-pointer focus:border-red-500/50 transition-all appearance-none"
+                  className="h-11 px-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 outline-none cursor-pointer focus:border-rose-450/50 focus:bg-white transition-all shadow-sm font-bold text-xs flex-1"
                 >
                   {Array.from(
                     { length: new Date().getFullYear() - 1999 },
                     (_, i) => new Date().getFullYear() - i,
                   ).map((year) => (
-                    <option key={year} value={year} className="bg-slate-900">
+                    <option key={year} value={year} className="bg-white text-slate-700">
                       {year} 年度
                     </option>
                   ))}
                 </select>
-              </div>
 
-              <div className="flex items-end gap-3 flex-1">
                 <button
                   onClick={handleStart}
                   disabled={loading || userLoading || isGuest}
-                  className={`flex-1 h-12 px-6 rounded-xl font-bold transition-all shadow-xl active:scale-[0.98] ${
+                  className={`h-11 px-4 rounded-xl font-bold text-xs transition-all active:scale-[0.98] shadow-sm flex items-center justify-center gap-1.5 ${
                     userLoading
-                      ? "bg-white/5 border border-white/5 text-slate-500 cursor-wait opacity-60"
+                      ? "bg-slate-100 border border-slate-200 text-slate-350 cursor-wait opacity-60"
                       : isGuest
-                        ? "bg-white/5 border border-white/5 text-slate-500 cursor-not-allowed opacity-50"
-                        : "bg-white text-black hover:bg-slate-200 disabled:opacity-50"
+                        ? "bg-slate-100 border border-slate-200 text-slate-400 cursor-not-allowed opacity-50 shadow-none"
+                        : "bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50"
                   }`}
                 >
-                  {userLoading ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
-                      正在获取权限...
-                    </span>
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-400" />
+                      <span>同步中...</span>
+                    </>
                   ) : isGuest ? (
-                    "🔒 访客只读模式"
-                  ) : loading ? (
-                    "正在抓取数据..."
+                    "🔒 访客只读"
                   ) : (
-                    "启动抓取任务"
+                    "拉取历史开奖"
                   )}
                 </button>
               </div>
             </div>
 
-            <div className="relative group">
-              <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-                <svg className="w-5 h-5 text-slate-500 group-focus-within:text-red-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-              </div>
-              <input
-                type="text"
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                placeholder="在此输入模式检索号码 (空格或逗号分隔)"
-                className="w-full h-14 pl-12 pr-32 rounded-2xl bg-black/40 border border-white/10 text-white placeholder-slate-600 outline-none focus:border-red-500/50 focus:bg-black/60 transition-all text-lg"
-              />
-              <div className="absolute inset-y-2 right-2 flex items-center gap-2">
-                 <button
-                  onClick={handleClearSearch}
-                  className={`h-full px-4 rounded-xl text-xs font-bold transition-all ${isSearching ? 'bg-red-500/20 text-red-500 opacity-100' : 'opacity-0 pointer-events-none'}`}
-                >
-                  重置
-                </button>
-                <button
-                  onClick={handleSearch}
-                  disabled={searchLoading}
-                  className="h-full px-6 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-black tracking-widest disabled:opacity-50"
-                >
-                  {searchLoading ? "搜索中" : "开始检索"}
-                </button>
-               
-              </div>
-            </div>
+            {/* 智能自适应反馈子面板 */}
+            {(() => {
+              const isPending = loading || searchLoading;
+              const hasResult = !!result;
+              const isSuccess = hasResult && (result.includes("成功") || result.includes("完成") || result.includes("导入") || result.includes("匹配"));
+              const isError = hasResult && (result.includes("失败") || result.includes("异常") || result.includes("阻断") || result.includes("未") || result.includes("错误"));
 
-            <div className="flex items-center gap-4 px-1">
-              <label className="flex items-center gap-3 cursor-pointer group">
-                <div className={`w-10 h-6 flex items-center rounded-full transition-colors ${isExactMatch ? 'bg-red-500' : 'bg-slate-800'}`}>
-                  <div className={`w-4 h-4 bg-white rounded-full transition-transform transform mx-1 ${isExactMatch ? 'translate-x-4' : 'translate-x-0'}`} />
+              if (isPending) {
+                return (
+                  <div className="p-6 rounded-[2rem] bg-gradient-to-br from-indigo-50/60 to-violet-50/60 border border-indigo-150 backdrop-blur-xl shadow-sm animate-pulse transition-all duration-500 flex-1 flex flex-col justify-center min-h-[160px]">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-xs font-bold text-indigo-600 uppercase tracking-wider">系统执行状态</h3>
+                      <Loader2 className="w-4 h-4 text-indigo-500 animate-spin" />
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-sm font-bold text-indigo-900 tracking-tight leading-relaxed">正在比对并查询对应期数，请稍候...</p>
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-ping" />
+                        <span className="text-[10px] font-mono text-indigo-400 uppercase tracking-wider font-bold">Processing</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+
+              if (isSuccess) {
+                return (
+                  <div className="p-6 rounded-[2rem] bg-gradient-to-br from-emerald-50/80 to-teal-50/80 border border-emerald-200 backdrop-blur-xl shadow-sm transition-all duration-500 flex-1 flex flex-col justify-center min-h-[160px]">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-xs font-bold text-emerald-600 uppercase tracking-wider">操作成功</h3>
+                      <CheckCircle2 className="w-4.5 h-4.5 text-emerald-650" />
+                    </div>
+                    <p className="text-sm font-bold leading-relaxed text-emerald-800">“{result}”</p>
+                    <div className="mt-3 flex items-center gap-1.5 text-[10px] text-emerald-500 font-bold uppercase tracking-wider">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                      操作已圆满完成
+                    </div>
+                  </div>
+                );
+              }
+
+              if (isError) {
+                return (
+                  <div className="p-6 rounded-[2rem] bg-gradient-to-br from-rose-50/80 to-red-50/80 border border-rose-200 backdrop-blur-xl shadow-sm transition-all duration-500 flex-1 flex flex-col justify-center min-h-[160px]">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-xs font-bold text-rose-600 uppercase tracking-wider">操作异常</h3>
+                      <AlertCircle className="w-4.5 h-4.5 text-rose-600" />
+                    </div>
+                    <p className="text-sm font-bold leading-relaxed text-rose-800">“{result}”</p>
+                    <div className="mt-3 flex items-center gap-1.5 text-[10px] text-rose-500 font-bold tracking-wider">
+                      <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                      请检查系统或稍后重试
+                    </div>
+                  </div>
+                );
+              }
+
+              if (hasResult) {
+                return (
+                  <div className="p-6 rounded-[2rem] bg-gradient-to-br from-slate-55 to-slate-100 border border-slate-200 backdrop-blur-xl shadow-sm transition-all duration-500 flex-1 flex flex-col justify-center min-h-[160px]">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">提示信息</h3>
+                      <Cpu className="w-4.5 h-4.5 text-slate-500" />
+                    </div>
+                    <p className="text-sm font-medium leading-relaxed text-slate-800">“{result}”</p>
+                  </div>
+                );
+              }
+
+              // Idle Wait State
+              return (
+                <div className="p-6 rounded-[2rem] bg-white/90 border border-slate-200 backdrop-blur-xl shadow-sm hover:border-slate-300 transition-all duration-300 group flex-1 flex flex-col justify-center min-h-[160px]">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-xs font-bold text-slate-400 group-hover:text-slate-500 transition-colors uppercase tracking-wider">系统提示</h3>
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">已就绪 / Ready</span>
+                    </div>
+                  </div>
+                  <p className="text-sm text-slate-500 font-normal leading-relaxed">系统已准备就绪。请输入您的开奖号码进行对奖，或同步历史开奖数据。</p>
+                  <p className="text-[9.5px] text-slate-400 font-medium uppercase mt-2 group-hover:text-slate-500 transition-colors">自动对奖系统运行良好</p>
                 </div>
-                <input
-                  type="checkbox"
-                  checked={isExactMatch}
-                  onChange={(e) => setIsExactMatch(e.target.checked)}
-                  className="hidden"
-                />
-                <span className="text-xs font-bold text-slate-500 group-hover:text-slate-300 transition-colors tracking-tight uppercase">完全匹配模式 (严格搜索)</span>
-              </label>
-            </div>
-          </section>
-
-          {/* Side Info Cards */}
-          <aside className="space-y-6">
-            <div className="p-6 rounded-[2rem] bg-gradient-to-br from-red-500/20 to-orange-500/20 border border-red-500/20 backdrop-blur-xl">
-              <h3 className="text-xs font-black text-red-400 uppercase tracking-widest mb-4">系统反馈</h3>
-              {result ? (
-                <p className="text-sm font-medium leading-relaxed italic text-red-200">“{result}”</p>
-              ) : (
-                <p className="text-sm text-slate-500 italic">等待系统指令下达...</p>
-              )}
-            </div>
+              );
+            })()}
 
             {isSearching && searchData && (
-              <div className="p-6 rounded-[2rem] bg-emerald-500/20 border border-emerald-500/20 backdrop-blur-xl animate-in zoom-in-95 duration-500">
-                <h3 className="text-xs font-black text-emerald-400 uppercase tracking-widest mb-1">检索完成</h3>
-                <div className="text-3xl font-black text-white">{searchData.data?.total || 0}</div>
-                <p className="text-[10px] text-emerald-400/70 uppercase tracking-tighter mt-1">发现匹配的数据模式</p>
+              <div className="p-6 rounded-[2rem] bg-emerald-50 border border-emerald-250 backdrop-blur-xl shadow-sm animate-in zoom-in-95 duration-500">
+                <h3 className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-1">比对完成</h3>
+                <div className="text-3xl font-black text-emerald-700">{searchData.data?.total || 0} 期</div>
+                <p className="text-[10px] text-emerald-500 uppercase mt-1">发现匹配的官方历史开奖</p>
               </div>
             )}
           </aside>
@@ -390,30 +612,33 @@ export default function LotteryCrawlerPage() {
           {/* Tickets Section */}
           {!isSearching && ticketData?.data?.list && ticketData.data.list.length > 0 && (
             <div className="space-y-6">
-              <div className="flex items-center gap-3 px-2">
-                <div className="h-px flex-1 bg-white/10" />
-                <h2 className="text-xs font-black text-slate-500 uppercase tracking-[0.3em]">活跃干预模型</h2>
-                <div className="h-px flex-1 bg-white/10" />
+              <div className="flex items-center gap-4 px-2">
+                <div className="h-px flex-1 bg-slate-200/60" />
+                <h2 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] whitespace-nowrap">我的自动守护号码</h2>
+                <div className="h-px flex-1 bg-slate-200/60" />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {ticketData.data.list.map((ticket: any) => (
                   <div
                     key={ticket.id}
-                    className="group p-5 rounded-3xl bg-white/[0.02] border border-white/[0.05] hover:border-red-500/30 hover:bg-white/[0.04] transition-all duration-300"
+                    className="group p-6 rounded-2xl bg-white border border-slate-200 hover:border-rose-350 hover:shadow-md hover:shadow-rose-500/5 transition-all duration-300"
                   >
                     <div className="flex items-center justify-between mb-4">
-                      <span className="text-xs font-black text-slate-400 uppercase tracking-wider">{ticket.name}</span>
-                      <div className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]" />
+                      <span className="text-sm font-semibold text-slate-700">{ticket.name}</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-bold text-rose-500">守护中</span>
+                        <div className="w-1.5 h-1.5 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(225,29,72,0.6)] animate-pulse" />
+                      </div>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-1.5">
                       {ticket.numbers?.red?.map((num: string, idx: number) => (
-                        <div key={idx} className="w-8 h-8 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center text-[10px] font-black text-red-500 group-hover:bg-red-500 group-hover:text-white transition-all">
+                        <div key={idx} className="w-8 h-8 rounded-lg bg-rose-50 border border-rose-100/80 flex items-center justify-center text-xs font-bold text-rose-600 group-hover:bg-rose-600 group-hover:text-white group-hover:border-rose-600 transition-all duration-300">
                           {num}
                         </div>
                       ))}
-                      <div className="w-px h-6 bg-white/10 mx-1" />
+                      <div className="w-[1px] h-5 bg-slate-200 mx-1" />
                       {ticket.numbers?.blue?.map((num: string, idx: number) => (
-                        <div key={idx} className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-[10px] font-black text-indigo-400 group-hover:bg-indigo-500 group-hover:text-white transition-all">
+                        <div key={idx} className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100/80 flex items-center justify-center text-xs font-bold text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white group-hover:border-indigo-600 transition-all duration-300">
                           {num}
                         </div>
                       ))}
@@ -425,78 +650,78 @@ export default function LotteryCrawlerPage() {
           )}
 
           {/* Table Section */}
-          <div className="space-y-6">
-            <h2 className="text-2xl font-black tracking-tight px-2 text-white">
-              {isSearching ? "模式分析报告" : "历史开奖记录"}
+          <div className="space-y-5">
+            <h2 className="text-xl font-bold tracking-tight px-1 text-slate-900">
+              {isSearching ? "对奖比对结果" : "官方开奖历史数据"}
             </h2>
             
             {displayLoading ? (
-              <div className="flex flex-col items-center justify-center py-32 space-y-4">
-                <div className="w-12 h-12 border-2 border-red-500/30 border-t-red-500 rounded-full animate-spin" />
-                <p className="text-xs font-black text-slate-500 uppercase tracking-widest">正在访问加密数据记录...</p>
+              <div className="flex flex-col items-center justify-center py-24 space-y-4 bg-white border border-slate-200/80 rounded-[2rem]">
+                <Loader2 className="w-9 h-9 animate-spin text-rose-500" />
+                <p className="text-xs font-medium text-slate-400">正在读取历史开奖数据，请稍候...</p>
               </div>
             ) : (
-              <div className="relative rounded-[2.5rem] bg-white/[0.01] border border-white/[0.06] overflow-hidden shadow-2xl">
+              <div className="relative rounded-[2.25rem] bg-white border border-slate-200 overflow-hidden shadow-sm">
                 <div className="overflow-x-auto">
                   <Table>
-                    <TableHeader className="bg-white/[0.02]">
-                      <TableRow className="border-white/[0.05] hover:bg-transparent">
-                        <TableHead className="py-6 px-8 text-xs font-black text-slate-500 uppercase tracking-widest">开奖期号</TableHead>
-                        <TableHead className="py-6 px-4 text-xs font-black text-slate-500 uppercase tracking-widest">开奖日期</TableHead>
-                        <TableHead className="py-6 px-4 text-xs font-black text-slate-500 uppercase tracking-widest">号码图谱</TableHead>
-                        <TableHead className="py-6 px-8 text-right text-xs font-black text-slate-500 uppercase tracking-widest">操作</TableHead>
+                    <TableHeader className="bg-slate-50/60 border-b border-slate-200">
+                      <TableRow className="hover:bg-transparent">
+                        <TableHead className="py-5 px-8 text-xs font-bold text-slate-500">开奖期号</TableHead>
+                        <TableHead className="py-5 px-4 text-xs font-bold text-slate-500">开奖日期</TableHead>
+                        <TableHead className="py-5 px-4 text-xs font-bold text-slate-500">号码球图谱（前区红球 | 后区蓝球）</TableHead>
+                        <TableHead className="py-5 px-8 text-right text-xs font-bold text-slate-500">操作</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {displayData?.data?.list.map((item: any) => (
-                        <TableRow key={item.issueNumber} className="border-white/[0.04] hover:bg-white/[0.02] transition-colors group">
-                          <TableCell className="py-6 px-8 font-mono text-white/90 font-bold">{item.issueNumber}</TableCell>
-                          <TableCell className="py-6 px-4 text-slate-500 text-sm">{formatDate(item.openDate)}</TableCell>
-                          <TableCell className="py-6 px-4">
-                            <div className="flex flex-wrap items-center gap-2">
+                        <TableRow key={item.issueNumber} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors group">
+                          <TableCell className="py-5 px-8 font-mono text-slate-900 font-bold text-xs">{item.issueNumber}</TableCell>
+                          <TableCell className="py-5 px-4 text-slate-400 text-xs font-semibold">{formatDate(item.openDate)}</TableCell>
+                          <TableCell className="py-5 px-4">
+                            <div className="flex flex-wrap items-center gap-1.5">
                               {item.openNumbers?.red?.map((num: string, idx: number) => {
                                 const matched = isNumberMatched(num, true);
                                 const isActive = isSearching && matched;
                                 return (
                                   <div
                                     key={num + idx}
-                                    className={`relative w-9 h-9 flex items-center justify-center rounded-xl text-sm font-black transition-all duration-500 ${
+                                    className={`relative w-8 h-8 flex items-center justify-center rounded-lg text-xs font-bold transition-all duration-300 ${
                                       isActive 
-                                        ? "bg-red-600 text-white shadow-[0_0_20px_rgba(220,38,38,0.5)] scale-110 z-10" 
+                                        ? "bg-rose-600 text-white shadow-[0_2px_8px_rgba(225,29,72,0.4)] scale-110 z-10 font-bold" 
                                         : isSearching 
-                                          ? "bg-slate-900/50 text-slate-700 opacity-40" 
-                                          : "bg-white/5 text-red-500/80 border border-white/5"
+                                          ? "bg-slate-100 text-slate-300 opacity-40 border border-slate-100" 
+                                          : "bg-rose-50/60 text-rose-600 border border-rose-100/50 hover:bg-rose-600 hover:text-white hover:shadow-[0_2px_8px_rgba(225,29,72,0.15)]"
                                     }`}
                                   >
                                     {num}
-                                    {isActive && <div className="absolute -inset-0.5 bg-red-400/20 blur-sm rounded-xl animate-pulse" />}
+                                    {isActive && <div className="absolute -inset-0.5 bg-rose-400/20 blur-sm rounded-lg animate-pulse" />}
                                   </div>
                                 );
                               })}
-                              <div className="w-px h-6 bg-white/10 mx-1" />
+                              <div className="w-[1px] h-5 bg-slate-200 mx-1.5" />
                               {item.openNumbers?.blue && (() => {
                                 const matched = isNumberMatched(item.openNumbers.blue, false);
                                 const isActive = isSearching && matched;
                                 return (
                                   <div
-                                    className={`relative w-9 h-9 flex items-center justify-center rounded-xl text-sm font-black transition-all duration-500 ${
+                                    className={`relative w-8 h-8 flex items-center justify-center rounded-lg text-xs font-bold transition-all duration-300 ${
                                       isActive 
-                                        ? "bg-indigo-600 text-white shadow-[0_0_20px_rgba(79,70,229,0.5)] scale-110 z-10" 
+                                        ? "bg-indigo-650 text-white shadow-[0_2px_8px_rgba(79,70,229,0.4)] scale-110 z-10 font-bold" 
                                         : isSearching 
-                                          ? "bg-slate-900/50 text-slate-700 opacity-40" 
-                                          : "bg-white/5 text-indigo-400 border border-white/5"
+                                          ? "bg-slate-100 text-slate-300 opacity-40 border border-slate-100" 
+                                          : "bg-indigo-50/60 text-indigo-600 border border-indigo-100/50 hover:bg-indigo-650 hover:text-white hover:shadow-[0_2px_8px_rgba(79,70,229,0.15)]"
                                     }`}
                                   >
                                     {item.openNumbers.blue}
-                                     {isActive && <div className="absolute -inset-0.5 bg-indigo-400/20 blur-sm rounded-xl animate-pulse" />}
+                                     {isActive && <div className="absolute -inset-0.5 bg-indigo-400/20 blur-sm rounded-lg animate-pulse" />}
                                   </div>
                                 );
                               })()}
                             </div>
                           </TableCell>
-                          <TableCell className="py-6 px-8 text-right">
+                          <TableCell className="py-5 px-8 text-right">
                             <button
-                               onClick={() => {
+                              onClick={() => {
                                 let prizeAmounts = item.prizeAmounts;
                                 if (typeof prizeAmounts === "string" && prizeAmounts.trim()) {
                                   try { prizeAmounts = JSON.parse(prizeAmounts); } catch { prizeAmounts = null; }
@@ -508,9 +733,10 @@ export default function LotteryCrawlerPage() {
                                 });
                                 setIsDialogOpen(true);
                               }}
-                              className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white hover:bg-red-600 hover:border-red-600 hover:shadow-[0_0_15px_rgba(220,38,38,0.3)] transition-all"
+                              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-250/60 text-slate-500 hover:text-rose-600 hover:bg-rose-50 hover:border-rose-200 transition-all font-bold text-xs shadow-sm"
                             >
-                              详情
+                              <span>查看详情</span>
+                              <ExternalLink className="w-3.5 h-3.5" />
                             </button>
                           </TableCell>
                         </TableRow>
@@ -521,58 +747,56 @@ export default function LotteryCrawlerPage() {
               </div>
             )}
 
-            {/* Pagination */}
-            {!displayLoading && (isSearching ? searchTotalPages : totalPages) > 1 && (
+            {/* Pagination Component */}
+            {totalPages > 1 && !isSearching && (
               <div className="flex justify-center pt-8">
                 <Pagination>
-                  <PaginationContent className="bg-white/5 p-1 rounded-2xl border border-white/5">
+                  <PaginationContent className="bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
                     <PaginationItem>
                       <PaginationPrevious
-                        className="rounded-xl hover:bg-white/10 text-white disabled:opacity-30"
+                        className="rounded-lg hover:bg-slate-50 text-slate-600 disabled:opacity-30"
                         onClick={() => {
-                          const current = isSearching ? searchCurrentPage : currentPage;
-                          if (current > 1) {
-                            if (isSearching) handleSearchPageChange(current - 1);
-                            else handlePageChange(current - 1);
-                          }
+                          if (currentPage > 1) handlePageChange(currentPage - 1);
+                        }}
+                        style={{
+                          cursor: currentPage > 1 ? "pointer" : "not-allowed",
                         }}
                       />
                     </PaginationItem>
-                    
-                    {Array.from({ length: isSearching ? searchTotalPages : totalPages }, (_, i) => i + 1)
-                      .filter(page => {
-                        const current = isSearching ? searchCurrentPage : currentPage;
-                        const total = isSearching ? searchTotalPages : totalPages;
-                        return page === 1 || page === total || (page >= current - 1 && page <= current + 1);
-                      })
+                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+                      .filter(
+                        (page) =>
+                          page === 1 ||
+                          page === totalPages ||
+                          (page >= currentPage - 1 && page <= currentPage + 1),
+                      )
                       .map((page, idx, arr) => (
                         <div key={page} className="flex items-center">
-                          {idx > 0 && arr[idx-1] !== page - 1 && <span className="text-slate-600 px-2">...</span>}
+                          {idx > 0 && arr[idx - 1] !== page - 1 && (
+                            <span className="text-slate-400 px-1 font-bold pb-1 text-xs">...</span>
+                          )}
                           <PaginationItem>
                             <PaginationLink
-                              className={`w-10 h-10 rounded-xl transition-all font-bold ${
-                                (isSearching ? searchCurrentPage : currentPage) === page 
-                                  ? "bg-white text-black hover:bg-white" 
-                                  : "text-slate-500 hover:bg-white/10 hover:text-white"
+                              className={`w-8 h-8 rounded-lg transition-all font-black text-xs ${
+                                currentPage === page
+                                  ? "bg-rose-500 text-white hover:bg-rose-600 shadow-sm"
+                                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"
                               }`}
-                              onClick={() => isSearching ? handleSearchPageChange(page) : handlePageChange(page)}
+                              onClick={() => handlePageChange(page)}
                             >
                               {page}
                             </PaginationLink>
                           </PaginationItem>
                         </div>
                       ))}
-
                     <PaginationItem>
                       <PaginationNext
-                        className="rounded-xl hover:bg-white/10 text-white disabled:opacity-30"
+                        className="rounded-lg hover:bg-slate-50 text-slate-600 disabled:opacity-30"
                         onClick={() => {
-                          const current = isSearching ? searchCurrentPage : currentPage;
-                          const total = isSearching ? searchTotalPages : totalPages;
-                          if (current < total) {
-                            if (isSearching) handleSearchPageChange(current + 1);
-                            else handlePageChange(current + 1);
-                          }
+                          if (currentPage < totalPages) handlePageChange(currentPage + 1);
+                        }}
+                        style={{
+                          cursor: currentPage < totalPages ? "pointer" : "not-allowed",
                         }}
                       />
                     </PaginationItem>
@@ -580,60 +804,101 @@ export default function LotteryCrawlerPage() {
                 </Pagination>
               </div>
             )}
+
+            {isSearching && searchTotalPages > 1 && (
+              <div className="flex justify-center pt-8">
+                <Pagination>
+                  <PaginationContent className="bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
+                    <PaginationItem>
+                      <PaginationPrevious
+                        className="rounded-lg hover:bg-slate-50 text-slate-600 disabled:opacity-30"
+                        onClick={() => {
+                          if (searchCurrentPage > 1) handleSearchPageChange(searchCurrentPage - 1);
+                        }}
+                        style={{
+                          cursor: searchCurrentPage > 1 ? "pointer" : "not-allowed",
+                        }}
+                      />
+                    </PaginationItem>
+                    {Array.from({ length: searchTotalPages }, (_, i) => i + 1)
+                      .filter(
+                        (page) =>
+                          page === 1 ||
+                          page === searchTotalPages ||
+                          (page >= searchCurrentPage - 1 && page <= searchCurrentPage + 1),
+                      )
+                      .map((page, idx, arr) => (
+                        <div key={page} className="flex items-center">
+                          {idx > 0 && arr[idx - 1] !== page - 1 && (
+                            <span className="text-slate-400 px-1 font-bold pb-1 text-xs">...</span>
+                          )}
+                          <PaginationItem>
+                            <PaginationLink
+                              className={`w-8 h-8 rounded-lg transition-all font-black text-xs ${
+                                searchCurrentPage === page
+                                  ? "bg-rose-500 text-white hover:bg-rose-600 shadow-sm"
+                                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"
+                              }`}
+                              onClick={() => handleSearchPageChange(page)}
+                            >
+                              {page}
+                            </PaginationLink>
+                          </PaginationItem>
+                        </div>
+                      ))}
+                    <PaginationItem>
+                      <PaginationNext
+                        className="rounded-lg hover:bg-slate-50 text-slate-600 disabled:opacity-30"
+                        onClick={() => {
+                          if (searchCurrentPage < searchTotalPages) handleSearchPageChange(searchCurrentPage + 1);
+                        }}
+                        style={{
+                          cursor: searchCurrentPage < searchTotalPages ? "pointer" : "not-allowed",
+                        }}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              </div>
+            )}
+
           </div>
         </div>
 
-        {/* Details Dialog */}
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent className="max-w-md bg-[#0a0a0c] border border-white/10 p-0 rounded-[2.5rem] overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)]">
-            <div className="p-8 pb-4">
-              <DialogHeader>
-                <DialogTitle className="text-2xl font-black text-white tracking-tight">奖项详细统计</DialogTitle>
-                <DialogDescription className="text-slate-500 font-mono text-xs uppercase tracking-widest mt-1">
-                  期号: {selectedPrizeInfo?.issueNumber} / {selectedPrizeInfo?.openDate}
-                </DialogDescription>
-              </DialogHeader>
-            </div>
-            
-            <div className="p-8 pt-4 space-y-4">
-              <div className="max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar space-y-4">
-                {selectedPrizeInfo?.prizeAmounts && selectedPrizeInfo.prizeAmounts.length > 0 ? (
-                  <div className="space-y-3">
-                    {selectedPrizeInfo.prizeAmounts.map((prize: any, idx: number) => (
-                      <div key={idx} className="flex justify-between items-center p-5 bg-white/[0.03] rounded-[1.5rem] border border-white/5 hover:border-red-500/20 transition-colors group">
-                        <div className="space-y-1">
-                          <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">奖项能级</div>
-                          <div className="text-sm font-bold text-white group-hover:text-red-400 transition-colors tracking-tight">{prize.level}</div>
-                        </div>
-                        <div className="text-right space-y-1">
-                          <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">单注金额</div>
-                          <div className="text-xl font-black text-white tracking-tighter">
-                            {prize.amount ? `${parseInt(prize.amount).toLocaleString()}` : "待定"}
-                            <span className="text-[10px] text-slate-500 ml-1 font-bold">元</span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="py-20 text-center rounded-[1.5rem] bg-white/[0.02] border border-white/5 border-dashed">
-                    <p className="text-slate-600 font-bold uppercase tracking-widest text-xs">暂无采集数据</p>
-                  </div>
-                )}
-              </div>
-              
-              <button
-                onClick={() => setIsDialogOpen(false)}
-                className="w-full h-14 rounded-2xl bg-white text-black font-black text-sm uppercase tracking-[0.2em] hover:bg-slate-200 transition-all mt-4"
-              >
-                关闭视图
-              </button>
-            </div>
-          </DialogContent>
-        </Dialog>
       </div>
+
+      {/* Prize Details Dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="max-w-md rounded-2xl bg-white/95 border border-slate-200/80 backdrop-blur-2xl shadow-2xl p-6">
+          <DialogHeader className="border-b border-slate-100 pb-4">
+            <DialogTitle className="text-lg font-black text-slate-900 flex items-center gap-2">
+              <CircleDot className="w-5 h-5 text-rose-500 animate-pulse" />
+              第 {selectedPrizeInfo?.issueNumber} 期开奖详情
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-400 font-semibold uppercase tracking-wider">
+              开奖日期: {selectedPrizeInfo ? formatDate(selectedPrizeInfo.openDate) : ""}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 pt-4">
+            <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">各奖级分配明细</h4>
+            <div className="max-h-[300px] overflow-y-auto pr-1 space-y-2">
+              {selectedPrizeInfo?.prizeAmounts && selectedPrizeInfo.prizeAmounts.length > 0 ? (
+                selectedPrizeInfo.prizeAmounts.map((prize, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 border border-slate-200/60 shadow-sm transition-all hover:bg-white hover:border-slate-300">
+                    <span className="text-xs font-black text-slate-700">{prize.level}</span>
+                    <span className="text-xs font-mono font-bold text-rose-600 bg-rose-50 border border-rose-100/50 px-2.5 py-1 rounded-md">{prize.amount}</span>
+                  </div>
+                ))
+              ) : (
+                <div className="py-12 text-center text-slate-400 text-xs font-semibold">
+                  暂无详细奖金分配数据
+                </div>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
-
-
 }
