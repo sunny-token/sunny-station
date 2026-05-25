@@ -36,7 +36,7 @@ export default function LotteryCrawlerPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [searchCurrentPage, setSearchCurrentPage] = useState(1);
   const [searchTotalPages, setSearchTotalPages] = useState(1);
-  const [selectedYear, setSelectedYear] = useState<string>("2025");
+  const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
   const [searchInput, setSearchInput] = useState<string>("");
   const [isSearching, setIsSearching] = useState(false);
   const [isExactMatch, setIsExactMatch] = useState(false);
