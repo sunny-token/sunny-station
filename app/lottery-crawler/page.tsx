@@ -128,7 +128,6 @@ export default function LotteryCrawlerPage() {
 
   // 获取当前登录用户，判断角色
   const { data: user, isLoading: userLoading } = trpc.auth.getMe.useQuery();
-  const isGuest = user?.role === "GUEST";
   const isAdmin = user?.role === "ADMIN";
 
   // 获取双色球激活的守号号码
