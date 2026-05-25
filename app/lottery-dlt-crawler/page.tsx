@@ -19,7 +19,7 @@ import {
 import { formatDate } from "../../lib/utils";
 import { useRouter } from "next/navigation";
 import { trpc } from "../../server/client";
-import { Loader2, Settings2, ArrowLeft, CheckCircle2, AlertCircle, Cpu, Wifi, CircleDot, ExternalLink } from "lucide-react";
+import { Loader2, Settings2, ArrowLeft, Wifi, CircleDot, ExternalLink } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -332,6 +332,62 @@ export default function DLTCrawlerPage() {
             <p className="text-slate-500 text-sm md:text-base font-normal max-w-lg">
               查询官方开奖历史数据，并支持自选及守号号码的智能比对与对奖分析。
             </p>
+            {/* 系统状态滚动反馈条 */}
+            <div className="pt-2">
+              {(() => {
+                const isPending = loading || searchLoading;
+                const hasResult = !!result;
+                const isSuccess = hasResult && (result.includes("成功") || result.includes("完成") || result.includes("导入") || result.includes("匹配"));
+                const isError = hasResult && (result.includes("失败") || result.includes("异常") || result.includes("阻断") || result.includes("未") || result.includes("错误"));
+
+                let statusBg = "bg-slate-50/80 border-slate-200/60 text-slate-600";
+                let badgeBg = "bg-slate-100 text-slate-500";
+                let pulseColor = "bg-slate-400";
+                let statusTitle = "系统就绪";
+                let statusText = "自动对奖系统准备就绪。请输入号码或同步数据。";
+                
+                if (isPending) {
+                  statusBg = "bg-amber-50/80 border-amber-100/80 text-amber-800 shadow-[0_2px_12px_rgba(245,158,11,0.03)] animate-pulse";
+                  badgeBg = "bg-amber-100 text-amber-600";
+                  pulseColor = "bg-amber-500";
+                  statusTitle = loading ? "正在同步" : "正在比对";
+                  statusText = loading 
+                    ? "正在从云端数据中心拉取并更新官方历史数据，请稍候..."
+                    : "正在智能比对自选号码与官方开奖历史数据谱图...";
+                } else if (isSuccess) {
+                  statusBg = "bg-emerald-50/80 border-emerald-100/80 text-emerald-800 shadow-[0_2px_12px_rgba(16,185,129,0.03)]";
+                  badgeBg = "bg-emerald-100 text-emerald-600";
+                  pulseColor = "bg-emerald-500";
+                  statusTitle = "同步成功";
+                  statusText = result || "操作已圆满完成";
+                } else if (isError) {
+                  statusBg = "bg-rose-50/80 border-rose-100/80 text-rose-800 shadow-[0_2px_12px_rgba(225,29,72,0.03)]";
+                  badgeBg = "bg-rose-100 text-rose-600";
+                  pulseColor = "bg-rose-500";
+                  statusTitle = "同步异常";
+                  statusText = result || "请检查系统或稍后重试";
+                } else if (isSearching && searchData) {
+                  statusBg = "bg-emerald-50/80 border-emerald-100/80 text-emerald-800 shadow-[0_2px_12px_rgba(16,185,129,0.03)]";
+                  badgeBg = "bg-emerald-100 text-emerald-600";
+                  pulseColor = "bg-emerald-500";
+                  statusTitle = "比对完成";
+                  statusText = `已成功比对 ${searchData.data?.total || 0} 期历史开奖数据，发现匹配号码。`;
+                }
+                
+                return (
+                  <div className={`inline-flex items-center gap-3 px-4 py-2 rounded-2xl border backdrop-blur-md text-xs font-bold transition-all duration-500 ease-out max-w-xl animate-in fade-in slide-in-from-left-4 ${statusBg}`}>
+                    <span className="relative flex h-2 w-2 flex-shrink-0">
+                      <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${pulseColor}`}></span>
+                      <span className={`relative inline-flex rounded-full h-2 w-2 ${pulseColor}`}></span>
+                    </span>
+                    <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider ${badgeBg}`}>
+                      {statusTitle}
+                    </span>
+                    <span className="font-medium tracking-tight truncate">{statusText}</span>
+                  </div>
+                );
+              })()}
+            </div>
           </div>
           
           <div className="flex flex-wrap gap-3 w-full sm:w-auto">
@@ -360,11 +416,9 @@ export default function DLTCrawlerPage() {
           </div>
         </header>
 
-        {/* Control Panel Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-12">
-          
-          {/* 左侧栏：智能号码对奖区 */}
-          <section className="lg:col-span-8 p-8 rounded-[2rem] bg-white border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow duration-300 flex flex-col justify-between">
+        {/* 智能号码对奖一体化卡片 */}
+        <div className="mb-12">
+          <section className="w-full p-8 rounded-[2.5rem] bg-white border border-slate-200/80 shadow-md hover:shadow-lg transition-shadow duration-300 flex flex-col justify-between">
             <div className="space-y-6">
               
               {/* 顶栏：标题与开关 */}
@@ -389,12 +443,12 @@ export default function DLTCrawlerPage() {
                 </label>
               </div>
 
-              {/* 中栏：球格输入核心区（横向滚动支持） */}
+              {/* 中栏：球格输入核心区 */}
               <div className="space-y-4 py-4 bg-slate-50/50 rounded-2xl p-5 border border-slate-100/80">
                 <div className="flex flex-col sm:flex-row sm:items-center gap-4 w-full">
                   <span className="text-xs font-bold text-slate-500 sm:w-16 flex-shrink-0">输入号码：</span>
                   
-                  <div className="flex items-center gap-2 flex-wrap overflow-x-auto no-scrollbar py-1 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap overflow-x-auto py-1 flex-1">
                     {/* 5个前区橘黄格 */}
                     {Array.from({ length: 5 }).map((_, idx) => (
                       <input
@@ -440,44 +494,15 @@ export default function DLTCrawlerPage() {
 
             </div>
 
-            {/* 底栏：重置与检索动作栏 */}
-            <div className="flex items-center justify-end gap-3 pt-6 border-t border-slate-100 mt-6">
-              <button
-                onClick={handleClearSearch}
-                className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all active:scale-[0.95] ${isSearching ? 'bg-amber-50 text-amber-600 border border-amber-200 shadow-sm opacity-100' : 'opacity-0 pointer-events-none'}`}
-              >
-                重置
-              </button>
-              <button
-                onClick={handleSearch}
-                disabled={searchLoading}
-                className="px-6 h-11 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold tracking-widest disabled:opacity-50 shadow-sm transition-all active:scale-[0.95] whitespace-nowrap"
-              >
-                {searchLoading ? "正在比对..." : "开始比对号码"}
-              </button>
-            </div>
-          </section>
-
-          {/* 右侧栏：数据同步与状态反馈面板 */}
-          <aside className="lg:col-span-4 flex flex-col gap-6">
-            
-            {/* 同步数据子面板 */}
-            <div className="p-6 rounded-[2rem] bg-white border border-slate-200/80 shadow-sm space-y-5">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600 shadow-sm">
-                  <Wifi className="w-4.5 h-4.5" />
-                </div>
-                <div className="space-y-0.5">
-                  <h4 className="text-sm font-bold text-slate-800">同步开奖历史</h4>
-                  <p className="text-[11px] text-slate-400 font-medium">拉取并更新特定年度的官方历史数据</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
+            {/* 底栏：重置与检索动作栏 + 数据同步合并项 */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-6 border-t border-slate-100 mt-6">
+              {/* 左侧：云端开奖历史同步 */}
+              <div className="flex flex-wrap items-center gap-2 max-w-lg">
+                <span className="text-xs font-bold text-slate-500 w-16 flex-shrink-0">历史同步：</span>
                 <select
                   value={selectedYear}
                   onChange={(e) => setSelectedYear(e.target.value)}
-                  className="h-11 px-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 outline-none cursor-pointer focus:border-amber-500/50 focus:bg-white transition-all shadow-sm font-bold text-xs flex-1"
+                  className="h-10 px-3.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 outline-none cursor-pointer focus:border-amber-500 focus:bg-white transition-all shadow-sm font-bold text-xs"
                 >
                   {Array.from(
                     { length: new Date().getFullYear() - 1999 },
@@ -492,7 +517,7 @@ export default function DLTCrawlerPage() {
                 <button
                   onClick={handleStart}
                   disabled={loading || userLoading || isGuest}
-                  className={`h-11 px-4 rounded-xl font-bold text-xs transition-all active:scale-[0.98] shadow-sm flex items-center justify-center gap-1.5 ${
+                  className={`h-10 px-4.5 rounded-xl font-bold text-xs transition-all active:scale-[0.98] shadow-sm flex items-center justify-center gap-1.5 ${
                     userLoading
                       ? "bg-slate-100 border border-slate-200 text-slate-400 cursor-wait opacity-60"
                       : isGuest
@@ -508,105 +533,32 @@ export default function DLTCrawlerPage() {
                   ) : isGuest ? (
                     "🔒 访客只读"
                   ) : (
-                    "拉取历史开奖"
+                    <>
+                      <Wifi className="w-3.5 h-3.5" />
+                      <span>同步云端开奖</span>
+                    </>
                   )}
                 </button>
               </div>
-            </div>
 
-            {/* 智能自适应反馈子面板 */}
-            {(() => {
-              const isPending = loading || searchLoading;
-              const hasResult = !!result;
-              const isSuccess = hasResult && (result.includes("成功") || result.includes("完成") || result.includes("导入") || result.includes("匹配"));
-              const isError = hasResult && (result.includes("失败") || result.includes("异常") || result.includes("阻断") || result.includes("未") || result.includes("错误"));
-
-              if (isPending) {
-                return (
-                  <div className="p-6 rounded-[2rem] bg-gradient-to-br from-indigo-50/60 to-violet-50/60 border border-indigo-150 backdrop-blur-xl shadow-sm animate-pulse transition-all duration-500 flex-1 flex flex-col justify-center min-h-[160px]">
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-xs font-bold text-indigo-600 uppercase tracking-wider">系统执行状态</h3>
-                      <Loader2 className="w-4 h-4 text-indigo-500 animate-spin" />
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-sm font-bold text-indigo-900 tracking-tight leading-relaxed">正在比对并查询对应期数，请稍候...</p>
-                      <div className="flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-ping" />
-                        <span className="text-[10px] font-mono text-indigo-400 uppercase tracking-wider font-bold">Processing</span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              }
-
-              if (isSuccess) {
-                return (
-                  <div className="p-6 rounded-[2rem] bg-gradient-to-br from-emerald-50/80 to-teal-50/80 border border-emerald-200 backdrop-blur-xl shadow-sm transition-all duration-500 flex-1 flex flex-col justify-center min-h-[160px]">
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-xs font-bold text-emerald-600 uppercase tracking-wider">操作成功</h3>
-                      <CheckCircle2 className="w-4.5 h-4.5 text-emerald-600" />
-                    </div>
-                    <p className="text-sm font-bold leading-relaxed text-emerald-800">“{result}”</p>
-                    <div className="mt-3 flex items-center gap-1.5 text-[10px] text-emerald-500 font-bold uppercase tracking-wider">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                      操作已圆满完成
-                    </div>
-                  </div>
-                );
-              }
-
-              if (isError) {
-                return (
-                  <div className="p-6 rounded-[2rem] bg-gradient-to-br from-rose-50/80 to-red-50/80 border border-rose-200 backdrop-blur-xl shadow-sm transition-all duration-500 flex-1 flex flex-col justify-center min-h-[160px]">
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-xs font-bold text-rose-600 uppercase tracking-wider">操作异常</h3>
-                      <AlertCircle className="w-4.5 h-4.5 text-rose-600" />
-                    </div>
-                    <p className="text-sm font-bold leading-relaxed text-rose-800">“{result}”</p>
-                    <div className="mt-3 flex items-center gap-1.5 text-[10px] text-rose-500 font-bold tracking-wider">
-                      <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-                      请检查系统或稍后重试
-                    </div>
-                  </div>
-                );
-              }
-
-              if (hasResult) {
-                return (
-                  <div className="p-6 rounded-[2rem] bg-gradient-to-br from-slate-55 to-slate-100 border border-slate-200 backdrop-blur-xl shadow-sm transition-all duration-500 flex-1 flex flex-col justify-center min-h-[160px]">
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">提示信息</h3>
-                      <Cpu className="w-4.5 h-4.5 text-slate-500" />
-                    </div>
-                    <p className="text-sm font-medium leading-relaxed text-slate-800">“{result}”</p>
-                  </div>
-                );
-              }
-
-              // Idle Wait State
-              return (
-                <div className="p-6 rounded-[2rem] bg-white/90 border border-slate-200 backdrop-blur-xl shadow-sm hover:border-slate-300 transition-all duration-300 group flex-1 flex flex-col justify-center min-h-[160px]">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-xs font-bold text-slate-400 group-hover:text-slate-500 transition-colors uppercase tracking-wider">系统提示</h3>
-                    <div className="flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">已就绪 / Ready</span>
-                    </div>
-                  </div>
-                  <p className="text-sm text-slate-500 font-normal leading-relaxed">系统已准备就绪。请输入您的开奖号码进行对奖，或同步历史开奖数据。</p>
-                  <p className="text-[9.5px] text-slate-400 font-medium uppercase mt-2 group-hover:text-slate-500 transition-colors">自动对奖系统运行良好</p>
-                </div>
-              );
-            })()}
-
-            {isSearching && searchData && (
-              <div className="p-6 rounded-[2rem] bg-emerald-50 border border-emerald-200 backdrop-blur-xl shadow-sm animate-in zoom-in-95 duration-500">
-                <h3 className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-1">比对完成</h3>
-                <div className="text-3xl font-black text-emerald-700">{searchData.data?.total || 0} 期</div>
-                <p className="text-[10px] text-emerald-500 uppercase mt-1">发现匹配的官方开奖</p>
+              {/* 右侧：比对控制 */}
+              <div className="flex items-center gap-3 justify-end">
+                <button
+                  onClick={handleClearSearch}
+                  className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all active:scale-[0.95] ${isSearching ? 'bg-amber-50 text-amber-600 border border-amber-200 shadow-sm opacity-100' : 'opacity-0 pointer-events-none'}`}
+                >
+                  重置
+                </button>
+                <button
+                  onClick={handleSearch}
+                  disabled={searchLoading}
+                  className="px-6 h-10 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold tracking-wider disabled:opacity-50 shadow-sm transition-all active:scale-[0.95] whitespace-nowrap"
+                >
+                  {searchLoading ? "正在比对..." : "开始比对号码"}
+                </button>
               </div>
-            )}
-          </aside>
+            </div>
+          </section>
         </div>
 
         {/* Content Area */}
