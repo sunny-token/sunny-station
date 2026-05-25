@@ -67,7 +67,7 @@ export default function LoginPage() {
   const isLoading = loginMutation.isPending || registerMutation.isPending;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] text-slate-800 relative overflow-hidden font-sans selection:bg-rose-500/10">
+    <div className="min-h-screen w-full flex items-center justify-center bg-[#f8fafc] text-slate-800 relative overflow-x-hidden font-sans selection:bg-rose-500/10 py-12 px-4">
       
       {/* 氛围背景微网格与柔和渐变 */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
@@ -97,13 +97,13 @@ export default function LoginPage() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-indigo-500"></span>
               </span>
-              智能彩票服务端
+              智能彩票助手
             </div>
             <h1 className="text-3xl font-black tracking-tight text-slate-900">
-              {isLogin ? "晴空对奖站" : "注册新账号"}
+              {isLogin ? "智能彩票助手" : "注册新账号"}
             </h1>
             <p className="text-slate-400 text-xs font-medium tracking-wide">
-              {isLogin ? "请登录您的账户以开始使用智能比对" : "只需简单几步即可开启您的智能对奖之旅"}
+              {isLogin ? "请登录您的账户以开启智能对奖比对" : "只需简单几步即可开启您的智能对奖之旅"}
             </p>
           </div>
         </div>
@@ -113,7 +113,7 @@ export default function LoginPage() {
           
           <form onSubmit={handleSubmit} className="space-y-6 relative z-10">
             
-            <div className="space-y-4.5">
+            <div className="space-y-4">
               
               {/* 账号输入 */}
               <div className="space-y-1.5">
@@ -225,7 +225,7 @@ export default function LoginPage() {
 
           {/* 底部状态 */}
           <div className="mt-8 pt-5 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-            <span>晴空对奖系统安全运行中</span>
+            <span>智能彩票助手安全运行中</span>
             <span>节点: {mounted ? window.location.hostname : '云端'}</span>
           </div>
         </div>
