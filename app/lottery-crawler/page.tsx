@@ -64,6 +64,16 @@ export default function LotteryCrawlerPage() {
     }
   };
 
+  const handleDigitFocus = (idx: number) => {
+    if (searchDigits[idx]) {
+      const newDigits = [...searchDigits];
+      newDigits[idx] = "";
+      setSearchDigits(newDigits);
+      const joined = newDigits.map((d) => d.trim()).filter((d) => d !== "").join(" ");
+      setSearchInput(joined);
+    }
+  };
+
   const handleDigitKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, idx: number) => {
     if (e.key === "Backspace") {
       if (!searchDigits[idx] && idx > 0) {
@@ -403,6 +413,7 @@ export default function LotteryCrawlerPage() {
                         onChange={(e) => handleDigitChange(e.target.value, idx)}
                         onKeyDown={(e) => handleDigitKeyDown(e, idx)}
                         onPaste={idx === 0 ? handleDigitPaste : undefined}
+                        onFocus={() => handleDigitFocus(idx)}
                         className="w-11 h-11 rounded-full text-center font-bold text-sm outline-none border transition-all shadow-sm focus:ring-4 focus:ring-rose-50 bg-rose-50 border-rose-100 text-rose-600 focus:bg-white focus:border-rose-500 placeholder:text-rose-300 flex-shrink-0"
                       />
                     ))}
@@ -422,6 +433,7 @@ export default function LotteryCrawlerPage() {
                           value={searchDigits[realIdx] || ""}
                           onChange={(e) => handleDigitChange(e.target.value, realIdx)}
                           onKeyDown={(e) => handleDigitKeyDown(e, realIdx)}
+                          onFocus={() => handleDigitFocus(realIdx)}
                           className="w-11 h-11 rounded-full text-center font-bold text-sm outline-none border transition-all shadow-sm focus:ring-4 focus:ring-indigo-50 bg-indigo-50 border-indigo-100 text-indigo-600 focus:bg-white focus:border-indigo-500 placeholder:text-indigo-300 flex-shrink-0"
                         />
                       );

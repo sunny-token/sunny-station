@@ -64,6 +64,16 @@ export default function DLTCrawlerPage() {
     }
   };
 
+  const handleDigitFocus = (idx: number) => {
+    if (searchDigits[idx]) {
+      const newDigits = [...searchDigits];
+      newDigits[idx] = "";
+      setSearchDigits(newDigits);
+      const joined = newDigits.map((d) => d.trim()).filter((d) => d !== "").join(" ");
+      setSearchInput(joined);
+    }
+  };
+
   const handleDigitKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, idx: number) => {
     if (e.key === "Backspace") {
       if (!searchDigits[idx] && idx > 0) {
@@ -405,6 +415,7 @@ export default function DLTCrawlerPage() {
                         onChange={(e) => handleDigitChange(e.target.value, idx)}
                         onKeyDown={(e) => handleDigitKeyDown(e, idx)}
                         onPaste={idx === 0 ? handleDigitPaste : undefined}
+                        onFocus={() => handleDigitFocus(idx)}
                         className="w-11 h-11 rounded-full text-center font-bold text-sm outline-none border transition-all shadow-sm focus:ring-4 focus:ring-amber-50 bg-amber-50 border-amber-100 text-amber-600 focus:bg-white focus:border-amber-500 placeholder:text-amber-300 flex-shrink-0"
                       />
                     ))}
@@ -424,6 +435,7 @@ export default function DLTCrawlerPage() {
                           value={searchDigits[realIdx] || ""}
                           onChange={(e) => handleDigitChange(e.target.value, realIdx)}
                           onKeyDown={(e) => handleDigitKeyDown(e, realIdx)}
+                          onFocus={() => handleDigitFocus(realIdx)}
                           className="w-11 h-11 rounded-full text-center font-bold text-sm outline-none border transition-all shadow-sm focus:ring-4 focus:ring-emerald-50 bg-emerald-50 border-emerald-100 text-emerald-600 focus:bg-white focus:border-emerald-500 placeholder:text-emerald-300 flex-shrink-0"
                         />
                       );
