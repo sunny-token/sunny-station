@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { trpc } from "@/server/client";
@@ -73,27 +73,6 @@ const getPrizeSingleAmount = (
 // 格式化金额显示
 const formatPrizeAmount = (amt: number): string => {
   return amt.toLocaleString("zh-CN") + " 元";
-};
-
-// 获取中奖金额说明文本 (兼容单式)
-const getPrizeAmount = (
-  type: "ssq" | "dlt",
-  level: number,
-  name: string,
-  latestItem: any
-): string => {
-  if (level === 0) return "";
-  const singleAmt = getPrizeSingleAmount(type, level, name, latestItem);
-  if (singleAmt > 0) {
-    if (level === 1 || level === 2) {
-      const amounts = latestItem?.prizeAmounts;
-      if (!amounts) {
-        return `浮动奖金 (约 ${formatPrizeAmount(singleAmt)})`;
-      }
-    }
-    return formatPrizeAmount(singleAmt);
-  }
-  return "";
 };
 
 // 双色球复式中奖解算核心
