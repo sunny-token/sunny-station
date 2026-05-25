@@ -330,62 +330,6 @@ export default function LotteryCrawlerPage() {
             <p className="text-slate-500 text-sm md:text-base font-normal max-w-lg">
               查询官方开奖历史数据，并支持自选及守号号码的智能比对与对奖分析。
             </p>
-            {/* 系统状态滚动反馈条 */}
-            <div className="pt-2">
-              {(() => {
-                const isPending = loading || searchLoading;
-                const hasResult = !!result;
-                const isSuccess = hasResult && (result.includes("成功") || result.includes("完成") || result.includes("导入") || result.includes("匹配"));
-                const isError = hasResult && (result.includes("失败") || result.includes("异常") || result.includes("阻断") || result.includes("未") || result.includes("错误"));
-
-                let statusBg = "bg-slate-50/80 border-slate-200/60 text-slate-600";
-                let badgeBg = "bg-slate-100 text-slate-500";
-                let pulseColor = "bg-slate-400";
-                let statusTitle = "系统就绪";
-                let statusText = "自动对奖系统准备就绪。请输入号码或同步数据。";
-                
-                if (isPending) {
-                  statusBg = "bg-indigo-50/80 border-indigo-100/80 text-indigo-800 shadow-[0_2px_12px_rgba(79,70,229,0.03)] animate-pulse";
-                  badgeBg = "bg-indigo-100 text-indigo-600";
-                  pulseColor = "bg-indigo-500";
-                  statusTitle = loading ? "正在同步" : "正在比对";
-                  statusText = loading 
-                    ? "正在从云端数据中心拉取并更新官方历史数据，请稍候..."
-                    : "正在智能比对自选号码与官方开奖历史数据谱图...";
-                } else if (isSuccess) {
-                  statusBg = "bg-emerald-50/80 border-emerald-100/80 text-emerald-800 shadow-[0_2px_12px_rgba(16,185,129,0.03)]";
-                  badgeBg = "bg-emerald-100 text-emerald-600";
-                  pulseColor = "bg-emerald-500";
-                  statusTitle = "同步成功";
-                  statusText = result || "操作已圆满完成";
-                } else if (isError) {
-                  statusBg = "bg-rose-50/80 border-rose-100/80 text-rose-800 shadow-[0_2px_12px_rgba(225,29,72,0.03)]";
-                  badgeBg = "bg-rose-100 text-rose-600";
-                  pulseColor = "bg-rose-500";
-                  statusTitle = "同步异常";
-                  statusText = result || "请检查系统或稍后重试";
-                } else if (isSearching && searchData) {
-                  statusBg = "bg-emerald-50/80 border-emerald-100/80 text-emerald-800 shadow-[0_2px_12px_rgba(16,185,129,0.03)]";
-                  badgeBg = "bg-emerald-100 text-emerald-600";
-                  pulseColor = "bg-emerald-500";
-                  statusTitle = "比对完成";
-                  statusText = `已成功比对 ${searchData.data?.total || 0} 期历史开奖数据，发现匹配号码。`;
-                }
-                
-                return (
-                  <div className={`inline-flex items-center gap-3 px-4 py-2 rounded-2xl border backdrop-blur-md text-xs font-bold transition-all duration-500 ease-out max-w-xl animate-in fade-in slide-in-from-left-4 ${statusBg}`}>
-                    <span className="relative flex h-2 w-2 flex-shrink-0">
-                      <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${pulseColor}`}></span>
-                      <span className={`relative inline-flex rounded-full h-2 w-2 ${pulseColor}`}></span>
-                    </span>
-                    <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider ${badgeBg}`}>
-                      {statusTitle}
-                    </span>
-                    <span className="font-medium tracking-tight truncate">{statusText}</span>
-                  </div>
-                );
-              })()}
-            </div>
           </div>
           
           <div className="flex flex-wrap gap-3 w-full sm:w-auto">
@@ -557,6 +501,63 @@ export default function LotteryCrawlerPage() {
               </div>
             </div>
           </section>
+        </div>
+
+        {/* 系统状态微通知栏（平移至卡片正下方） */}
+        <div className="mb-12 flex justify-start">
+          {(() => {
+            const isPending = loading || searchLoading;
+            const hasResult = !!result;
+            const isSuccess = hasResult && (result.includes("成功") || result.includes("完成") || result.includes("导入") || result.includes("匹配"));
+            const isError = hasResult && (result.includes("失败") || result.includes("异常") || result.includes("阻断") || result.includes("未") || result.includes("错误"));
+
+            let statusBg = "bg-slate-50/80 border-slate-200/60 text-slate-600";
+            let badgeBg = "bg-slate-100 text-slate-500";
+            let pulseColor = "bg-slate-400";
+            let statusTitle = "系统就绪";
+            let statusText = "自动对奖系统准备就绪。请输入号码或同步数据。";
+            
+            if (isPending) {
+              statusBg = "bg-indigo-50/80 border-indigo-100/80 text-indigo-800 shadow-[0_2px_12px_rgba(79,70,229,0.03)] animate-pulse";
+              badgeBg = "bg-indigo-100 text-indigo-600";
+              pulseColor = "bg-indigo-500";
+              statusTitle = loading ? "正在同步" : "正在比对";
+              statusText = loading 
+                ? "正在从云端数据中心拉取并更新官方历史数据，请稍候..."
+                : "正在智能比对自选号码与官方开奖历史数据谱图...";
+            } else if (isSuccess) {
+              statusBg = "bg-emerald-50/80 border-emerald-100/80 text-emerald-800 shadow-[0_2px_12px_rgba(16,185,129,0.03)]";
+              badgeBg = "bg-emerald-100 text-emerald-600";
+              pulseColor = "bg-emerald-500";
+              statusTitle = "同步成功";
+              statusText = result || "操作已圆满完成";
+            } else if (isError) {
+              statusBg = "bg-rose-50/80 border-rose-100/80 text-rose-800 shadow-[0_2px_12px_rgba(225,29,72,0.03)]";
+              badgeBg = "bg-rose-100 text-rose-600";
+              pulseColor = "bg-rose-500";
+              statusTitle = "同步异常";
+              statusText = result || "请检查系统或稍后重试";
+            } else if (isSearching && searchData) {
+              statusBg = "bg-emerald-50/80 border-emerald-100/80 text-emerald-800 shadow-[0_2px_12px_rgba(16,185,129,0.03)]";
+              badgeBg = "bg-emerald-100 text-emerald-600";
+              pulseColor = "bg-emerald-500";
+              statusTitle = "比对完成";
+              statusText = `已成功比对 ${searchData.data?.total || 0} 期历史开奖数据，发现匹配号码。`;
+            }
+            
+            return (
+              <div className={`w-full py-3.5 px-5 rounded-[1.5rem] border backdrop-blur-md text-xs font-bold transition-all duration-500 ease-out flex items-center gap-3.5 shadow-sm ${statusBg}`}>
+                <span className="relative flex h-2 w-2 flex-shrink-0">
+                  <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${pulseColor}`}></span>
+                  <span className={`relative inline-flex rounded-full h-2 w-2 ${pulseColor}`}></span>
+                </span>
+                <span className={`px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider ${badgeBg}`}>
+                  {statusTitle}
+                </span>
+                <span className="font-semibold tracking-tight truncate flex-1">{statusText}</span>
+              </div>
+            );
+          })()}
         </div>
 
         {/* Content Area */}
