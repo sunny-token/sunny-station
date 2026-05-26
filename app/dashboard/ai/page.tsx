@@ -11,7 +11,7 @@ export default function AiPredictPage() {
   const [scanStep, setScanStep] = useState(0);
   const [scanProgress, setScanProgress] = useState(0);
   const [error, setError] = useState("");
-  const [predictedNumbers, setPredictedNumbers] = useState<{red: string[], blue: string[]}[] | null>(null);
+  const [predictedNumbers, setPredictedNumbers] = useState<{ red: string[]; blue: string[]; reason?: string }[] | null>(null);
 
   const predictNumbersMutation = trpc.ai.predictNumbers.useMutation();
 
@@ -201,6 +201,14 @@ export default function AiPredictPage() {
                       onChange={() => {}}
                       disabled={true}
                     />
+                    {combo.reason && (
+                      <div className="mt-1 p-3 bg-indigo-50/50 rounded-2xl border border-indigo-100/50">
+                        <p className="text-xs text-slate-600 leading-relaxed">
+                          <span className="font-bold text-indigo-500 mr-1.5">🧠 核心逻辑:</span>
+                          {combo.reason}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
