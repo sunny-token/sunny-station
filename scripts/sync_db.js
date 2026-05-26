@@ -23,8 +23,8 @@ function parseEnvFile(filePath) {
   return config;
 }
 
-const prodEnvPath = path.join(__dirname, "../.env.production");
-const devEnvPath = path.join(__dirname, "../.env.development");
+const prodEnvPath = path.join(__dirname, "../.env.production.backup");
+const devEnvPath = path.join(__dirname, "../.env.development.backup");
 
 const prodConfig = parseEnvFile(prodEnvPath);
 const devConfig = parseEnvFile(devEnvPath);
@@ -76,7 +76,7 @@ try {
   // pg_dump 通过 stdout 输送给 psql 终端直连导入，全程免磁盘落地，速度极快
   // --clean: 自动删除目标端已存在的同名表
   // --if-exists: 防止由于级联表导致 DROP 报错
-  const syncCommand = `pg_dump --clean --if-exists -d "${prodUrl}" | psql -d "${devUrl}"`;
+  const syncCommand = `pg_dump --clean --if-exists --no-owner --no-privileges --schema=public --inserts --rows-per-insert=1000 -d "${prodUrl}" | psql -d "${devUrl}"`;
   
   execSync(syncCommand, { stdio: "inherit" });
   

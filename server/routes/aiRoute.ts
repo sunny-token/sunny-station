@@ -1,0 +1,88 @@
+import { z } from "zod";
+import { router, publicProcedure } from "../trpc";
+import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
+
+export const aiRouter = router({
+  predictNumbers: publicProcedure
+    .input(z.object({ type: z.enum(["ssq", "dlt"]) }))
+    .mutation(async ({ input }) => {
+      const apiKey = process.env.GPTGOD_API_KEY;
+      if (!apiKey) {
+        throw new Error("请在 .env 中配置 GPTGOD_API_KEY");
+      }
+
+      // 获取历史开奖数据（最近100期作为样本，避免超出上下文）
+      let historyData = "";
+      if (input.type === "ssq") {
+        const results = await prisma.sSQResult.findMany({
+          orderBy: { openDate: "desc" },
+          take: 100,
+        });
+        historyData = results.map(r => {
+          const red = (r.openNumbers as any).red.join(",");
+          const blue = Array.isArray((r.openNumbers as any).blue) ? (r.openNumbers as any).blue.join(",") : (r.openNumbers as any).blue;
+          return `期号:${r.issueNumber} 红球:${red} 蓝球:${blue}`;
+        }).join("\n");
+      } else {
+        const results = await prisma.dLTResult.findMany({
+          orderBy: { openDate: "desc" },
+          take: 100,
+        });
+        historyData = results.map(r => {
+          const red = (r.openNumbers as any).red.join(",");
+          const blue = (r.openNumbers as any).blue.join(",");
+          return `期号:${r.issueNumber} 前区:${red} 后区:${blue}`;
+        }).join("\n");
+      }
+
+      const lotteryName = input.type === "ssq" ? "双色球" : "大乐透";
+      const rule = input.type === "ssq" 
+        ? "红球6个(01-33)，蓝球1个(01-16)" 
+        : "前区5个(01-35)，后区2个(01-12)";
+
+      const prompt = `你是专业的彩票数据分析师。这里是最近100期的${lotteryName}开奖历史：\n${historyData}\n
+请根据这些数据进行走势分析，并给出5注下一期最有可能的推荐号码。
+规则要求：${rule}
+返回要求：必须且只能返回一个合法的 JSON 数组，不要有任何其他分析文本。数组包含5个对象，每个对象结构必须为 {"red": ["xx","xx",...], "blue": ["xx",...]}，其中红球和蓝球里的数字必须补齐两位数（例如"01"）。双色球的蓝球数组长度为1，大乐透蓝球数组长度为2。`;
+
+      try {
+        const response = await fetch("https://api.gptgod.online/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model: "gpt-5.5",
+            messages: [{ role: "user", content: prompt }],
+            temperature: 0.8,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`请求AI接口失败: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        let content = data.choices[0].message.content || "";
+
+        // 移除深度思考模型可能带有的 <think>...</think> 标签
+        content = content.replace(/<think>[\s\S]*?<\/think>/g, "");
+        
+        // 提取真正的 JSON 数组部分
+        const arrayMatch = content.match(/\[[\s\S]*\]/);
+        if (arrayMatch) {
+          content = arrayMatch[0];
+        }
+
+        // 解析 JSON
+        const parsed = JSON.parse(content.replace(/```json/gi, '').replace(/```/g, '').trim());
+        return parsed;
+      } catch (e: any) {
+        console.error("AI 智能选号请求/解析异常:", e);
+        throw new Error(e.message || "智能选号服务暂时不可用");
+      }
+    }),
+});

@@ -255,6 +255,7 @@ export default function HomePage() {
   const [result, setResult] = useState<string | null>(null);
   const refreshAllMutation = trpc.refreshAll.useMutation();
 
+
   const { data: user, isLoading: userLoading } = trpc.auth.getMe.useQuery();
   const isAdmin = user?.role === "ADMIN";
 
@@ -421,6 +422,8 @@ export default function HomePage() {
       });
     }
   };
+
+
 
   // 统一的彩种切换
   const handleLotteryTypeChange = (type: "ssq" | "dlt") => {
@@ -787,6 +790,14 @@ export default function HomePage() {
                   <span>添加一组</span>
                 </button>
 
+                {/* AI 选号中心入口 */}
+                <Link
+                  href="/dashboard/ai"
+                  className="w-full lg:w-auto px-6 h-10 rounded-xl border border-transparent bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-bold text-xs hover:opacity-90 transition-all shadow-sm flex items-center justify-center gap-2"
+                >
+                  <span>🤖 AI 预测中心</span>
+                </Link>
+
                 {/* 比冲按钮 */}
                 <button
                   onClick={handleStartCompareLatest}
@@ -829,6 +840,12 @@ export default function HomePage() {
                 </div>
                 
                 <div className="flex items-center gap-2 self-stretch sm:self-auto justify-end shrink-0">
+                  <Link
+                    href="/dashboard/ai"
+                    className="flex-1 sm:flex-none px-3.5 py-2 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-xl font-bold transition-all hover:opacity-90 active:scale-95 text-[10px] flex items-center justify-center"
+                  >
+                    🤖 AI 预测中心
+                  </Link>
                   <button
                     onClick={handlePanelRandomSelect}
                     className="flex-1 sm:flex-none px-3.5 py-2 bg-indigo-50 border border-indigo-200 text-indigo-600 rounded-xl font-bold transition-all hover:bg-indigo-100 active:scale-95 text-[10px]"
@@ -1039,8 +1056,8 @@ export default function HomePage() {
 
       {/* 智能雷达对奖舱全屏弹窗 */}
       {isScanning && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="w-full max-w-lg p-8 md:p-10 rounded-[2.5rem] bg-white border border-slate-200/80 shadow-2xl overflow-hidden relative animate-in zoom-in-95 duration-300 flex flex-col items-center text-center space-y-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-950/40 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto overflow-x-hidden p-6 md:p-10 rounded-[2.5rem] bg-white border border-slate-200/80 shadow-2xl relative animate-in zoom-in-95 duration-300 flex flex-col items-center text-center space-y-6">
             
             {/* 彩色背景光 */}
             <div className="absolute top-[-20%] left-[-20%] w-[60%] h-[60%] bg-indigo-100/30 blur-[80px] rounded-full pointer-events-none" />
@@ -1065,7 +1082,7 @@ export default function HomePage() {
             )}
 
             {/* 解算标题 */}
-            <div className="space-y-2 relative z-10 w-full">
+            <div className="space-y-2 relative z-10 w-full shrink-0">
               <h3 className="text-xl font-bold text-slate-800 tracking-tight">
                 {scanStep === 5 ? "中央雷达比对完毕" : "中央雷达正在全网比对"}
               </h3>
@@ -1088,7 +1105,7 @@ export default function HomePage() {
             </div>
 
             {/* 步骤描述框与喜报通报框 */}
-            <div className="w-full bg-slate-50/80 border border-slate-200/60 rounded-3xl p-6 min-h-[110px] flex items-center justify-center relative z-10 text-xs text-slate-500 leading-relaxed font-semibold transition-all shadow-inner">
+            <div className="w-full bg-slate-50/80 border border-slate-200/60 rounded-3xl p-6 min-h-[110px] flex items-center justify-center relative z-10 text-xs text-slate-500 leading-relaxed font-semibold transition-all shadow-inner shrink-0">
               {scanStep === 1 && "📡 步骤 1/3: 正在握手官方数据枢纽，获取最新一期开奖走势..."}
               {scanStep === 2 && `🔴 步骤 2/3: 正在智能对齐 [最新第 ${lotteryType === "ssq" ? latestSsq?.data?.list?.[0]?.issueNumber : latestDlt?.data?.list?.[0]?.issueNumber} 期] 的官方开奖号码图谱...`}
               {scanStep === 3 && "⚡️ 步骤 3/3: 正在进行自选号码的高能交叉解算与命中概率解密..."}
@@ -1119,7 +1136,7 @@ export default function HomePage() {
                           <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider text-left pl-1">
                             🏆 派奖明细详单：
                           </div>
-                          <div className="space-y-1.5 max-h-[140px] overflow-y-auto pr-1">
+                          <div className="space-y-1.5">
                             {radarPrizeResult.multiPrizeList.map((item) => (
                               <div key={item.level} className="flex items-center justify-between bg-white border border-slate-100 p-2.5 rounded-xl text-xs">
                                 <div className="flex items-center gap-2">
@@ -1194,7 +1211,7 @@ export default function HomePage() {
                       您的球格命中情况（彩色代表击中，灰色代表未中）：
                     </div>
                     
-                    <div className="flex flex-col gap-3 max-h-[300px] overflow-y-auto pr-1">
+                    <div className="flex flex-col gap-3">
                       {(radarPrizeResult.userNumbersList || [radarPrizeResult.userNumbers]).map((userNumSet, groupIdx) => (
                         <div key={groupIdx} className="flex flex-wrap items-center justify-start sm:justify-center gap-2 bg-white border border-slate-100 p-3.5 rounded-2xl shadow-sm">
                           {radarPrizeResult.userNumbersList && radarPrizeResult.userNumbersList.length > 1 && (
