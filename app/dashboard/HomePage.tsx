@@ -790,14 +790,6 @@ export default function HomePage() {
                   <span>添加一组</span>
                 </button>
 
-                {/* AI 选号中心入口 */}
-                <Link
-                  href="/dashboard/ai"
-                  className="w-full lg:w-auto px-6 h-10 rounded-xl border border-transparent bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-bold text-xs hover:opacity-90 transition-all shadow-sm flex items-center justify-center gap-2"
-                >
-                  <span>🤖 AI 预测中心</span>
-                </Link>
-
                 {/* 比冲按钮 */}
                 <button
                   onClick={handleStartCompareLatest}
@@ -840,12 +832,7 @@ export default function HomePage() {
                 </div>
                 
                 <div className="flex items-center gap-2 self-stretch sm:self-auto justify-end shrink-0">
-                  <Link
-                    href="/dashboard/ai"
-                    className="flex-1 sm:flex-none px-3.5 py-2 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-xl font-bold transition-all hover:opacity-90 active:scale-95 text-[10px] flex items-center justify-center"
-                  >
-                    🤖 AI 预测中心
-                  </Link>
+
                   <button
                     onClick={handlePanelRandomSelect}
                     className="flex-1 sm:flex-none px-3.5 py-2 bg-indigo-50 border border-indigo-200 text-indigo-600 rounded-xl font-bold transition-all hover:bg-indigo-100 active:scale-95 text-[10px]"
@@ -947,7 +934,7 @@ export default function HomePage() {
       </div>
 
       {/* Main Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 relative z-10">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-6 relative z-10">
         
         {/* Card 1: SSQ */}
         <Link href="/lottery-crawler" className="group rounded-[2.5rem] p-8 bg-white/60 border border-slate-200/80 hover:bg-white/95 hover:border-red-200 hover:shadow-[0_20px_50px_rgba(239,68,68,0.06)] backdrop-blur-xl transition-all duration-500 outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 relative overflow-hidden flex flex-col justify-between min-h-[220px]">
@@ -984,19 +971,36 @@ export default function HomePage() {
         </Link>
 
         {/* Card 4: Settings */}
-        <Link href="/settings" className="group rounded-[2.5rem] p-8 bg-white/60 border border-slate-200/80 hover:bg-white/95 hover:border-indigo-200 hover:shadow-[0_20px_50px_rgba(99,102,241,0.06)] backdrop-blur-xl transition-all duration-500 outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 relative overflow-hidden flex flex-col justify-between min-h-[220px]">
-          <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/[0.01] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+        <Link href="/settings" className="group rounded-[2.5rem] p-8 bg-white/60 border border-slate-200/80 hover:bg-white/95 hover:border-slate-300 hover:shadow-[0_20px_50px_rgba(100,116,139,0.06)] backdrop-blur-xl transition-all duration-500 outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 relative overflow-hidden flex flex-col justify-between min-h-[220px]">
+          <div className="absolute inset-0 bg-gradient-to-br from-slate-500/[0.01] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
           <div className="flex items-center justify-between relative z-10 mb-8">
-            <div className="p-4 bg-indigo-50 rounded-2xl text-indigo-500 group-hover:scale-110 group-hover:bg-indigo-500 group-hover:text-white group-hover:rotate-45 transition-all duration-500 ease-out">
+            <div className="p-4 bg-slate-100 rounded-2xl text-slate-500 group-hover:scale-110 group-hover:bg-slate-500 group-hover:text-white group-hover:rotate-45 transition-all duration-500 ease-out">
               <Settings className="w-7 h-7" />
             </div>
-            <div className="peer p-2 rounded-full border border-slate-100 bg-slate-50 text-slate-400 group-hover:border-indigo-200 group-hover:bg-indigo-50 group-hover:text-indigo-500 transition-all duration-300">
+            <div className="peer p-2 rounded-full border border-slate-100 bg-slate-50 text-slate-400 group-hover:border-slate-300 group-hover:bg-slate-100 group-hover:text-slate-500 transition-all duration-300">
               <ChevronRight className="w-5 h-5 group-hover:translate-x-0.5 transition-transform duration-300" />
             </div>
           </div>
           <div className="relative z-10">
-            <h3 className="text-2xl font-bold text-slate-800 mb-2 tracking-wide group-hover:text-indigo-600 transition-colors">系统参数设置</h3>
+            <h3 className="text-2xl font-bold text-slate-800 mb-2 tracking-wide group-hover:text-slate-700 transition-colors">系统参数设置</h3>
             <p className="text-sm text-slate-500 leading-relaxed font-light">全局运行参数配置、数据源健康检查及核心调度管理。</p>
+          </div>
+        </Link>
+        
+        {/* Card 3: AI Predict (Moved from inline) */}
+        <Link href="/dashboard/ai" className="group rounded-[2.5rem] p-8 bg-white/60 border border-slate-200/80 hover:bg-white/95 hover:border-purple-300 hover:shadow-[0_20px_50px_rgba(168,85,247,0.15)] backdrop-blur-xl transition-all duration-500 outline-none focus-visible:ring-2 focus-visible:ring-purple-500 relative overflow-hidden flex flex-col justify-between min-h-[220px]">
+          <div className="absolute inset-0 bg-gradient-to-br from-purple-500/[0.03] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          <div className="flex items-center justify-between relative z-10 mb-8">
+            <div className="p-4 bg-purple-50 rounded-2xl text-purple-600 group-hover:scale-110 group-hover:bg-gradient-to-br group-hover:from-indigo-500 group-hover:to-purple-500 group-hover:text-white group-hover:rotate-12 transition-all duration-500 ease-out shadow-sm border border-purple-100/50">
+              <Radar className="w-7 h-7" />
+            </div>
+            <div className="peer p-2 rounded-full border border-slate-100 bg-slate-50 text-slate-400 group-hover:border-purple-200 group-hover:bg-purple-50 group-hover:text-purple-600 transition-all duration-300">
+              <ChevronRight className="w-5 h-5 group-hover:translate-x-0.5 transition-transform duration-300" />
+            </div>
+          </div>
+          <div className="relative z-10">
+            <h3 className="text-2xl font-bold text-slate-800 mb-2 tracking-wide group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-indigo-600 group-hover:to-purple-600 transition-all">AI 预测中心</h3>
+            <p className="text-sm text-slate-500 leading-relaxed font-light">基于深度学习与概率矩阵，智能推演未来走势的高能测算舱。</p>
           </div>
         </Link>
       </div>
