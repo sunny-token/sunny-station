@@ -139,7 +139,7 @@ export async function GET(req: NextRequest) {
     }
 
     // 直接调用 tRPC 方法，复用代码
-    const caller = createCaller({ user: null, ip: "cron" });
+    const caller = createCaller({ user: { userId: "cron", role: "ADMIN" }, ip: "cron" });
     const currentYear = new Date().getFullYear().toString();
     console.log(`[CRON] 目标年份: ${currentYear}`);
 
