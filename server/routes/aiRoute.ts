@@ -1,8 +1,8 @@
 import { z } from "zod";
 import { router, publicProcedure } from "../trpc";
-import { PrismaClient } from "@prisma/client";
+import prismaService from "../../lib/prismaService";
 
-const prisma = new PrismaClient();
+const prisma = prismaService.getPrismaClient();
 
 export const aiRouter = router({
   predictNumbers: publicProcedure
@@ -82,7 +82,23 @@ export const aiRouter = router({
         return parsed;
       } catch (e: any) {
         console.error("AI 智能选号请求/解析异常:", e);
-        throw new Error(e.message || "智能选号服务暂时不可用");
+        
+        let userMessage = "大模型服务繁忙或网络波动，请稍后再试";
+        
+        if (e.message) {
+          const msg = e.message.toLowerCase();
+          if (msg.includes("prisma") || msg.includes("database") || msg.includes("pooler") || msg.includes("pool")) {
+            userMessage = "当前请求人数过多导致系统繁忙，请稍后重试";
+          } else if (msg.includes("fetch") || msg.includes("network") || msg.includes("请求ai接口失败")) {
+            userMessage = "连接智能推演中枢超时，请检查网络或稍后重新推演";
+          } else if (msg.includes("json") || msg.includes("parse")) {
+            userMessage = "AI 预测引擎返回的号码格式无法识别，请重新测算";
+          } else if (msg.includes("gptgod_api_key")) {
+            userMessage = "AI 测算服务尚未配置访问密钥，请联系系统管理员";
+          }
+        }
+        
+        throw new Error(userMessage);
       }
     }),
 });
