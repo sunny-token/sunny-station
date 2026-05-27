@@ -8,11 +8,6 @@ export const aiRouter = router({
   predictNumbers: publicProcedure
     .input(z.object({ type: z.enum(["ssq", "dlt"]) }))
     .mutation(async ({ input }) => {
-      const apiKey = process.env.GPTGOD_API_KEY;
-      if (!apiKey) {
-        throw new Error("请在 .env 中配置 GPTGOD_API_KEY");
-      }
-
       // 获取历史开奖数据（最近100期作为样本，避免超出上下文）
       let historyData = "";
       if (input.type === "ssq") {
@@ -49,10 +44,6 @@ export const aiRouter = router({
 
       try {
         const fallbackModels = [
-          "claude-sonnet-4-6",
-          "claude-sonnet-4-5-20250929",
-          "claude-opus-4-6",
-          "claude-haiku-4-5-20251001",
           "gpt-5.5",
           "gpt-5.4",
           "gpt-5.4-mini",
@@ -63,7 +54,11 @@ export const aiRouter = router({
           "gpt-5.1-minimal",
           "gpt-5-high",
           "gpt-5",
-          "gpt-5-minimal"
+          "gpt-5-minimal",
+          "gemini-1.5-pro",
+          "gemini-1.5-flash",
+          "gemini-2.0-flash",
+          "gemini-1.0-pro"
         ];
         
         let content = "";
@@ -71,45 +66,41 @@ export const aiRouter = router({
 
         for (const model of fallbackModels) {
           try {
-            const isClaude = model.includes("claude");
-            let currentApiKey = apiKey;
-            
-            // 如果是 Claude 模型，强制要求使用独立的 Key
-            if (isClaude) {
-              if (!process.env.CLAUDE_API_KEY) {
-                console.warn(`[AI Route] 跳过 ${model}，因为未配置 CLAUDE_API_KEY`);
-                continue;
-              }
-              currentApiKey = process.env.CLAUDE_API_KEY;
+            const isGemini = model.includes("gemini");
+            // Gemini模型使用独立的环境变量配置
+            const currentApiKey = isGemini ? process.env.GPTGOD_GEMINI_API_KEY : process.env.GPTGOD_API_KEY;
+
+            if (!currentApiKey) {
+              throw new Error(`缺少环境变量配置: ${isGemini ? 'GPTGOD_GEMINI_API_KEY' : 'GPTGOD_API_KEY'}`);
             }
+            
+            let url = "https://api.gptgod.online/v1/chat/completions";
+            let headers: any = {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${currentApiKey}`
+            };
+            let body: any = JSON.stringify({
+              model,
+              messages: [{ role: "user", content: prompt }],
+              temperature: 0.8
+            });
 
-            const url = isClaude 
-              ? "https://api.gptgod.online/v1/messages" 
-              : "https://api.gptgod.online/v1/chat/completions";
-
-            const headers: any = isClaude 
-              ? {
-                  "Content-Type": "application/json",
-                  "x-api-key": currentApiKey,
-                  "anthropic-version": "2023-06-01"
+            if (isGemini) {
+              // 根据代理商文档要求，使用 Gemini 原生端点和格式
+              url = `https://api.gptgod.online/v1beta/models/${model}:generateContent?key=${currentApiKey}`;
+              headers = {
+                "Content-Type": "application/json"
+              };
+              body = JSON.stringify({
+                contents: [{
+                  role: "user",
+                  parts: [{ text: prompt }]
+                }],
+                generationConfig: {
+                  temperature: 0.8
                 }
-              : {
-                  "Content-Type": "application/json",
-                  "Authorization": `Bearer ${currentApiKey}`
-                };
-
-            const body = isClaude 
-              ? JSON.stringify({
-                  model,
-                  messages: [{ role: "user", content: prompt }],
-                  max_tokens: 1024,
-                  temperature: 0.8
-                })
-              : JSON.stringify({
-                  model,
-                  messages: [{ role: "user", content: prompt }],
-                  temperature: 0.8
-                });
+              });
+            }
 
             const response = await fetch(url, {
               method: "POST",
@@ -125,7 +116,14 @@ export const aiRouter = router({
             }
 
             const data = await response.json();
-            content = isClaude ? data.content[0].text : (data.choices[0].message.content || "");
+            
+            if (isGemini) {
+              content = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+            } else {
+              content = data.choices?.[0]?.message?.content || "";
+            }
+            
+            console.log(`[AI Route] 模型 ${model} 推演成功！`);
             // 成功则跳出重试循环
             break;
           } catch (fetchErr: any) {
