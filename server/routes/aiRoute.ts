@@ -62,7 +62,9 @@ export const aiRouter = router({
         });
 
         if (!response.ok) {
-          throw new Error(`请求AI接口失败: ${response.statusText}`);
+          const errorText = await response.text();
+          console.error(`AI 接口返回错误: ${response.status} - ${errorText}`);
+          throw new Error(`请求AI接口失败: ${response.statusText} (${errorText})`);
         }
 
         const data = await response.json();
