@@ -49,10 +49,10 @@ export const aiRouter = router({
 
       try {
         const fallbackModels = [
-          "claude-3-7-sonnet-20250219",
           "claude-sonnet-4-6",
-          "claude-3-5-haiku-20241022",
-          "claude-3-5-sonnet-20241022",
+          "claude-sonnet-4-5-20250929",
+          "claude-opus-4-6",
+          "claude-haiku-4-5-20251001",
           "gpt-5.5",
           "gpt-5.4",
           "gpt-5.4-mini",
@@ -71,10 +71,11 @@ export const aiRouter = router({
 
         for (const model of fallbackModels) {
           try {
+            const isClaude = model.includes("claude");
             let currentApiKey = apiKey;
             
             // 如果是 Claude 模型，强制要求使用独立的 Key
-            if (model.includes("claude")) {
+            if (isClaude) {
               if (!process.env.CLAUDE_API_KEY) {
                 console.warn(`[AI Route] 跳过 ${model}，因为未配置 CLAUDE_API_KEY`);
                 continue;
@@ -82,17 +83,38 @@ export const aiRouter = router({
               currentApiKey = process.env.CLAUDE_API_KEY;
             }
 
-            const response = await fetch("https://api.gptgod.online/v1/chat/completions", {
+            const url = isClaude 
+              ? "https://api.gptgod.online/v1/messages" 
+              : "https://api.gptgod.online/v1/chat/completions";
+
+            const headers: any = isClaude 
+              ? {
+                  "Content-Type": "application/json",
+                  "x-api-key": currentApiKey,
+                  "anthropic-version": "2023-06-01"
+                }
+              : {
+                  "Content-Type": "application/json",
+                  "Authorization": `Bearer ${currentApiKey}`
+                };
+
+            const body = isClaude 
+              ? JSON.stringify({
+                  model,
+                  messages: [{ role: "user", content: prompt }],
+                  max_tokens: 1024,
+                  temperature: 0.8
+                })
+              : JSON.stringify({
+                  model,
+                  messages: [{ role: "user", content: prompt }],
+                  temperature: 0.8
+                });
+
+            const response = await fetch(url, {
               method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${currentApiKey}`,
-              },
-              body: JSON.stringify({
-                model,
-                messages: [{ role: "user", content: prompt }],
-                temperature: 0.8,
-              }),
+              headers,
+              body,
             });
 
             if (!response.ok) {
@@ -103,7 +125,7 @@ export const aiRouter = router({
             }
 
             const data = await response.json();
-            content = data.choices[0].message.content || "";
+            content = isClaude ? data.content[0].text : (data.choices[0].message.content || "");
             // 成功则跳出重试循环
             break;
           } catch (fetchErr: any) {
