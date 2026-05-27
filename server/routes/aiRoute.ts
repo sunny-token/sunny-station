@@ -48,27 +48,56 @@ export const aiRouter = router({
 返回要求：必须且只能返回一个合法的 JSON 数组，不要有任何其他分析文本。数组包含5个对象，每个对象结构必须为 {"red": ["xx","xx",...], "blue": ["xx",...], "reason": "简短的一句话推演理由"}，其中红球和蓝球里的数字必须补齐两位数（例如"01"），reason 字段提供该注号码的生成逻辑或冷热走势依据（约20-30字）。双色球的蓝球数组长度为1，大乐透蓝球数组长度为2。`;
 
       try {
-        const response = await fetch("https://api.gptgod.online/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${apiKey}`,
-          },
-          body: JSON.stringify({
-            model: "gpt-5.5",
-            messages: [{ role: "user", content: prompt }],
-            temperature: 0.8,
-          }),
-        });
+        const fallbackModels = [
+          "gpt-5.3-codex",
+          "gpt-5.5",
+          "gpt-5.4-mini",
+          "gpt-5.4",
+          "gpt-5.2-codex",
+          "gpt-5.1-codex",
+          "gpt-4o",
+          "gpt-3.5-turbo"
+        ];
+        
+        let content = "";
+        let lastError: any = null;
 
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error(`AI 接口返回错误: ${response.status} - ${errorText}`);
-          throw new Error(`请求AI接口失败: ${response.statusText} (${errorText})`);
+        for (const model of fallbackModels) {
+          try {
+            const response = await fetch("https://api.gptgod.online/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${apiKey}`,
+              },
+              body: JSON.stringify({
+                model,
+                messages: [{ role: "user", content: prompt }],
+                temperature: 0.8,
+              }),
+            });
+
+            if (!response.ok) {
+              const errorText = await response.text();
+              console.warn(`[AI Route] 模型 ${model} 失败 (${response.status})，尝试切换... 错误信息: ${errorText}`);
+              lastError = new Error(`请求AI接口失败: ${response.statusText} (${errorText})`);
+              continue;
+            }
+
+            const data = await response.json();
+            content = data.choices[0].message.content || "";
+            // 成功则跳出重试循环
+            break;
+          } catch (fetchErr: any) {
+            console.warn(`[AI Route] 模型 ${model} 网络异常，尝试切换...`, fetchErr.message);
+            lastError = fetchErr;
+            continue;
+          }
         }
 
-        const data = await response.json();
-        let content = data.choices[0].message.content || "";
+        if (!content) {
+          throw lastError || new Error("所有可用模型均请求失败，请检查网络或配置");
+        }
 
         // 移除深度思考模型可能带有的 <think>...</think> 标签
         content = content.replace(/<think>[\s\S]*?<\/think>/g, "");
