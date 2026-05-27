@@ -49,15 +49,21 @@ export const aiRouter = router({
 
       try {
         const fallbackModels = [
+          "claude-3-7-sonnet-20250219",
+          "claude-sonnet-4-6",
+          "claude-3-5-haiku-20241022",
+          "claude-3-5-sonnet-20241022",
           "gpt-5.5",
           "gpt-5.4",
           "gpt-5.4-mini",
           "gpt-5.3-codex",
           "gpt-5.2",
-          "claude-3-5-sonnet-20241022",
-          "claude-3-5-sonnet-20240620",
-          "claude-3-opus-20240229",
-          "claude-3-haiku-20240307"
+          "gpt-5.1-high",
+          "gpt-5.1",
+          "gpt-5.1-minimal",
+          "gpt-5-high",
+          "gpt-5",
+          "gpt-5-minimal"
         ];
         
         let content = "";
