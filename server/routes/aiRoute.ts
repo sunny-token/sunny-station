@@ -49,14 +49,15 @@ export const aiRouter = router({
 
       try {
         const fallbackModels = [
-          "gpt-5.3-codex",
           "gpt-5.5",
-          "gpt-5.4-mini",
           "gpt-5.4",
-          "gpt-5.2-codex",
-          "gpt-5.1-codex",
-          "gpt-4o",
-          "gpt-3.5-turbo"
+          "gpt-5.4-mini",
+          "gpt-5.3-codex",
+          "gpt-5.2",
+          "claude-3-5-sonnet-20241022",
+          "claude-3-5-sonnet-20240620",
+          "claude-3-opus-20240229",
+          "claude-3-haiku-20240307"
         ];
         
         let content = "";
@@ -64,11 +65,22 @@ export const aiRouter = router({
 
         for (const model of fallbackModels) {
           try {
+            let currentApiKey = apiKey;
+            
+            // 如果是 Claude 模型，强制要求使用独立的 Key
+            if (model.includes("claude")) {
+              if (!process.env.CLAUDE_API_KEY) {
+                console.warn(`[AI Route] 跳过 ${model}，因为未配置 CLAUDE_API_KEY`);
+                continue;
+              }
+              currentApiKey = process.env.CLAUDE_API_KEY;
+            }
+
             const response = await fetch("https://api.gptgod.online/v1/chat/completions", {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
-                "Authorization": `Bearer ${apiKey}`,
+                "Authorization": `Bearer ${currentApiKey}`,
               },
               body: JSON.stringify({
                 model,
