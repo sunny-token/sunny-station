@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { trpc } from "@/server/client";
-import { Radar, ChevronLeft, Sparkles, AlertCircle, ChevronDown, Trophy, BarChart3, Target, Award, TrendingUp, Percent } from "lucide-react";
+import { Radar, ChevronLeft, Sparkles, AlertCircle, ChevronDown, Trophy, BarChart3, Target, Award, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import LotteryNumbersInput from "@/components/LotteryNumbersInput";
 

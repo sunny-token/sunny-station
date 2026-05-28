@@ -40,6 +40,7 @@ export default function LotteryNumbersInput({
   const allNumbersStr = allNumbers.join(",");
   useEffect(() => {
     lastValuesRef.current = [...allNumbers];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allNumbersStr]);
 
   // 确保 refs 数组长度符合要求
