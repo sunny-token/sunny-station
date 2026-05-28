@@ -11,7 +11,12 @@ export default function AiPredictPage() {
   const [scanStep, setScanStep] = useState(0);
   const [scanProgress, setScanProgress] = useState(0);
   const [error, setError] = useState("");
-  const [predictedNumbers, setPredictedNumbers] = useState<{ red: string[]; blue: string[]; reason?: string }[] | null>(null);
+  const [sessionPredictions, setSessionPredictions] = useState<{
+    ssq: { red: string[]; blue: string[]; reason?: string }[] | null;
+    dlt: { red: string[]; blue: string[]; reason?: string }[] | null;
+  }>({ ssq: null, dlt: null });
+
+  const predictedNumbers = sessionPredictions[lotteryType];
   const [toastMessage, setToastMessage] = useState("");
   const [expandedMap, setExpandedMap] = useState<Record<string, boolean>>({});
 
@@ -78,7 +83,7 @@ export default function AiPredictPage() {
     isRequestingRef.current = true;
 
     setError("");
-    setPredictedNumbers(null);
+    setSessionPredictions(prev => ({ ...prev, [lotteryType]: null }));
     setIsPredicting(true);
     
     try {
@@ -89,7 +94,7 @@ export default function AiPredictPage() {
       setScanProgress(100);
       
       setTimeout(() => {
-        setPredictedNumbers(res);
+        setSessionPredictions(prev => ({ ...prev, [lotteryType]: res }));
         setIsPredicting(false);
         setScanStep(0);
         setScanProgress(0);
@@ -143,7 +148,10 @@ export default function AiPredictPage() {
               <label className="text-xs md:text-sm font-bold text-slate-400 uppercase tracking-wider pl-1">选择分析彩种</label>
               <div className="flex bg-slate-50 p-1.5 rounded-2xl border border-slate-100">
                 <button
-                  onClick={() => setLotteryType("ssq")}
+                  onClick={() => {
+                    setLotteryType("ssq");
+                    setError("");
+                  }}
                   className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 ${
                     lotteryType === "ssq" ? "bg-white text-rose-500 shadow-sm" : "text-slate-400 hover:text-slate-600"
                   }`}
@@ -151,7 +159,10 @@ export default function AiPredictPage() {
                   双色球
                 </button>
                 <button
-                  onClick={() => setLotteryType("dlt")}
+                  onClick={() => {
+                    setLotteryType("dlt");
+                    setError("");
+                  }}
                   className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 ${
                     lotteryType === "dlt" ? "bg-white text-emerald-500 shadow-sm" : "text-slate-400 hover:text-slate-600"
                   }`}
