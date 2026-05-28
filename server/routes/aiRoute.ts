@@ -128,6 +128,19 @@ export const aiRouter = router({
                   temperature: 0.8
                 }
               });
+            } else if (isClaude) {
+              url = "https://api.gptgod.online/v1/messages";
+              headers = {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${currentApiKey}`,
+                "anthropic-version": "2023-06-01"
+              };
+              body = JSON.stringify({
+                model: actualModel,
+                max_tokens: 2048,
+                messages: [{ role: "user", content: prompt }],
+                temperature: 0.8
+              });
             }
 
             const response = await fetch(url, {
@@ -147,6 +160,8 @@ export const aiRouter = router({
             
             if (isGemini) {
               content = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+            } else if (isClaude) {
+              content = data.content?.[0]?.text || "";
             } else {
               content = data.choices?.[0]?.message?.content || "";
             }
