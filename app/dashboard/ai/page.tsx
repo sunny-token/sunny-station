@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { trpc } from "@/server/client";
-import { Radar, ChevronLeft, Sparkles, AlertCircle, ChevronDown } from "lucide-react";
+import { Radar, ChevronLeft, Sparkles, AlertCircle, ChevronDown, Trophy, BarChart3, Target, Award, TrendingUp, Percent } from "lucide-react";
 import Link from "next/link";
 import LotteryNumbersInput from "@/components/LotteryNumbersInput";
 
@@ -25,6 +25,10 @@ export default function AiPredictPage() {
   };
 
   const { data: history, refetch: refetchHistory } = trpc.ai.getPredictionHistory.useQuery({
+    type: lotteryType
+  });
+
+  const { data: stats, refetch: refetchStats } = trpc.ai.getPredictionStats.useQuery({
     type: lotteryType
   });
 
@@ -99,6 +103,7 @@ export default function AiPredictPage() {
         setScanStep(0);
         setScanProgress(0);
         refetchHistory(); // 刷新预测足迹记录
+        refetchStats(); // 刷新战绩面板数据
         isRequestingRef.current = false;
       }, 600);
       
@@ -110,6 +115,8 @@ export default function AiPredictPage() {
       isRequestingRef.current = false;
     }
   };
+
+  const bestCombo = stats?.bestCombo as any;
 
   return (
     <main className="min-h-screen bg-slate-50 flex justify-center lg:py-10">
@@ -281,6 +288,167 @@ export default function AiPredictPage() {
             </div>
           )}
 
+          {/* AI 预测战绩看板板块 */}
+          {stats && stats.totalPredictions > 0 && (
+            <div className="border-t border-slate-100 pt-8 space-y-5 animate-in fade-in duration-500">
+              <div className="flex items-center gap-2 px-1">
+                <div className="w-1 h-4 bg-indigo-500 rounded-full" />
+                <h3 className="font-bold text-slate-800 text-lg">AI 实战战绩看板</h3>
+              </div>
+
+              {/* 核心指标网格 */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex flex-col gap-1 relative overflow-hidden group hover:shadow-md transition-all duration-300">
+                  <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:scale-110 transition-transform">
+                    <Sparkles className="w-8 h-8 text-indigo-500" />
+                  </div>
+                  <span className="text-xs text-slate-400 font-medium">累计测算</span>
+                  <div className="flex items-baseline gap-1 mt-1">
+                    <span className="text-xl font-black text-slate-800">{stats.totalPredictions}</span>
+                    <span className="text-[10px] text-slate-400">期</span>
+                  </div>
+                  <span className="text-[10px] text-slate-400 block mt-1">共计 {stats.totalBets} 注推荐</span>
+                </div>
+
+                <div className="bg-rose-50/30 border border-rose-100/50 rounded-2xl p-4 flex flex-col gap-1 relative overflow-hidden group hover:shadow-md transition-all duration-300">
+                  <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:scale-110 transition-transform">
+                    <TrendingUp className="w-8 h-8 text-rose-500" />
+                  </div>
+                  <span className="text-xs text-rose-500 font-bold">推演中奖率</span>
+                  <div className="flex items-baseline gap-0.5 mt-1">
+                    <span className="text-xl font-black text-rose-600">{stats.winRate}</span>
+                    <span className="text-[10px] text-rose-500 font-bold">%</span>
+                  </div>
+                  <span className="text-[10px] text-slate-400 block mt-1">已中奖 {stats.winningBets} 注</span>
+                </div>
+
+                <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex flex-col gap-1 relative overflow-hidden group hover:shadow-md transition-all duration-300">
+                  <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:scale-110 transition-transform">
+                    <Target className="w-8 h-8 text-indigo-500" />
+                  </div>
+                  <span className="text-xs text-slate-400 font-medium">红球命中总数</span>
+                  <div className="flex items-baseline gap-1 mt-1">
+                    <span className="text-xl font-black text-slate-800">{stats.totalRedHits}</span>
+                    <span className="text-[10px] text-slate-400">次</span>
+                  </div>
+                  <span className="text-[10px] text-slate-400 block mt-1">均注击中 {stats.totalBets > 0 ? (stats.totalRedHits / stats.totalBets).toFixed(1) : 0} 个</span>
+                </div>
+
+                <div className="bg-amber-50/40 border border-amber-100/50 rounded-2xl p-4 flex flex-col gap-1 relative overflow-hidden group hover:shadow-md transition-all duration-300">
+                  <div className="absolute top-0 right-0 p-3 opacity-15 group-hover:scale-110 transition-transform">
+                    <Trophy className="w-8 h-8 text-amber-500" />
+                  </div>
+                  <span className="text-xs text-amber-600 font-bold">累计中奖金额</span>
+                  <div className="flex items-baseline gap-0.5 mt-1">
+                    <span className="text-sm font-black text-amber-600">¥</span>
+                    <span className="text-xl font-black text-amber-600">{(stats.totalPrizeMoney || 0).toLocaleString("zh-CN")}</span>
+                  </div>
+                  <span className="text-[10px] text-slate-400 block mt-1">平均每注收益 {stats.totalBets > 0 ? (stats.totalPrizeMoney / stats.totalBets).toFixed(1) : 0} 元</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-4">
+                {/* 奖级分布柱状图 */}
+                <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-[0_4px_16px_rgba(0,0,0,0.01)] flex flex-col gap-4">
+                  <div className="flex items-center gap-1.5 border-b border-slate-50 pb-2.5">
+                    <BarChart3 className="w-4 h-4 text-indigo-500" />
+                    <span className="text-sm font-black text-slate-800">斩获大奖分布</span>
+                  </div>
+                  <div className="space-y-3.5 my-1.5">
+                    {Object.keys(stats.prizeDistribution).length === 0 ? (
+                      <div className="h-28 flex items-center justify-center text-xs text-slate-400 font-light">
+                        暂无中奖奖项记录
+                      </div>
+                    ) : (() => {
+                      const prizeWeights: Record<string, number> = {
+                        "一等奖": 100,
+                        "二等奖": 90,
+                        "三等奖": 80,
+                        "四等奖": 70,
+                        "五等奖": 60,
+                        "六等奖": 50,
+                        "七等奖": 40,
+                        "八等奖": 30,
+                        "福运奖": 20,
+                        "其它": 10,
+                      };
+                      return Object.entries(stats.prizeDistribution)
+                        .sort(([a], [b]) => (prizeWeights[b] || 0) - (prizeWeights[a] || 0))
+                        .map(([prizeName, count]) => {
+                          const maxCount = Math.max(...Object.values(stats.prizeDistribution));
+                          const pct = (count / maxCount) * 100;
+                          return (
+                            <div key={prizeName} className="space-y-1">
+                              <div className="flex justify-between text-xs font-bold text-slate-600">
+                                <span>{prizeName}</span>
+                                <span className="text-indigo-600">{count} 注</span>
+                              </div>
+                              <div className="w-full bg-slate-50 h-2 rounded-full overflow-hidden border border-slate-100/50">
+                                <div 
+                                  className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-1000"
+                                  style={{ width: `${pct}%` }}
+                                />
+                              </div>
+                            </div>
+                          );
+                        });
+                    })()}
+                  </div>
+                </div>
+
+                {/* 历史最强单注纪念墙 */}
+                <div className="bg-gradient-to-br from-slate-900 to-indigo-950 text-white rounded-3xl p-5 shadow-[0_4px_20px_rgba(0,0,0,0.08)] flex flex-col justify-between relative overflow-hidden min-h-[180px]">
+                  <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-white/5 rounded-full pointer-events-none" />
+                  <div className="absolute right-4 top-4 bg-amber-500/10 border border-amber-500/20 text-amber-400 p-2 rounded-full shadow-lg">
+                    <Trophy className="w-5 h-5 animate-bounce" style={{ animationDuration: '3s' }} />
+                  </div>
+
+                  <div className="space-y-2 relative z-10">
+                    <div className="flex items-center gap-1.5">
+                      <Award className="w-4 h-4 text-amber-400" />
+                      <span className="text-xs font-black text-amber-300 uppercase tracking-widest">历史最强推演</span>
+                    </div>
+                    {bestCombo ? (
+                      <div className="space-y-3 pt-1">
+                        <div>
+                          <p className="text-base font-black tracking-tight text-white leading-tight">
+                            第 {bestCombo.issueNumber} 期 • 斩获 {bestCombo.prize}
+                          </p>
+                          <p className="text-[10px] text-slate-300 font-light mt-0.5">
+                            匹配度: {bestCombo.redHit} 红球 + {bestCombo.blueHit} 蓝球 {bestCombo.prizeMoney > 0 && `• 奖金 ¥${bestCombo.prizeMoney.toLocaleString("zh-CN")}`}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {bestCombo.red.map((num: string, idx: number) => (
+                            <span key={idx} className="w-6 h-6 rounded-full bg-rose-500 text-white flex items-center justify-center text-[10px] font-black shadow-sm shadow-rose-900/20">
+                              {num}
+                            </span>
+                          ))}
+                          <span className="text-white/20 text-xs">|</span>
+                          {bestCombo.blue.map((num: string, idx: number) => (
+                            <span key={idx} className="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-[10px] font-black shadow-sm shadow-blue-900/20">
+                              {num}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="h-24 flex items-center justify-center text-xs text-slate-400 font-light">
+                        等待第一注中奖号码诞生...
+                      </div>
+                    )}
+                  </div>
+
+                  {bestCombo && (
+                    <span className="text-[9px] text-slate-400 font-light block mt-4 border-t border-white/5 pt-2">
+                      * 数据实时比对，期待大奖降临
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* AI 历史预测足迹板块 */}
           <div className="border-t border-slate-100 pt-8 space-y-5">
             <div className="flex items-center justify-between px-1">
@@ -343,18 +511,32 @@ export default function AiPredictPage() {
                             }`}>
                               {pred.lotteryType === "ssq" ? "双色球" : "大乐透"}
                             </span>
-                            <span className="text-sm font-extrabold text-slate-700">
+                            <span className="text-sm font-extrabold text-slate-700 flex items-center gap-1.5 flex-wrap">
                               第 {pred.issueNumber} 期 推演预测
+                              {pred.openDate && (
+                                <span className={`text-xs font-bold px-2 py-0.5 rounded-md shadow-sm ${
+                                  pred.isEstimated 
+                                    ? "bg-amber-50 text-amber-600 border border-amber-100" 
+                                    : "bg-indigo-50 text-indigo-600 border border-indigo-100"
+                                }`}>
+                                  {pred.isEstimated ? "预计" : ""}{new Date(pred.openDate).toLocaleDateString("zh-CN", {
+                                    month: "2-digit",
+                                    day: "2-digit"
+                                  })}开奖
+                                </span>
+                              )}
                             </span>
                           </div>
-                          <span className="text-[10px] text-slate-400 block mt-1 pl-0.5 font-light">
-                            测算：{new Date(pred.createdAt).toLocaleString("zh-CN", {
-                              month: "2-digit",
-                              day: "2-digit",
-                              hour: "2-digit",
-                              minute: "2-digit"
-                            })}
-                          </span>
+                          <div className="flex flex-col gap-0.5 mt-1 pl-0.5 font-light">
+                            <span className="text-[10px] text-slate-400 block">
+                              测算时间：{new Date(pred.createdAt).toLocaleString("zh-CN", {
+                                month: "2-digit",
+                                day: "2-digit",
+                                hour: "2-digit",
+                                minute: "2-digit"
+                              })}
+                            </span>
+                          </div>
                         </div>
 
                         {/* Status Badge */}
@@ -409,7 +591,9 @@ export default function AiPredictPage() {
                                       ? "bg-emerald-100 text-emerald-700 shadow-sm shadow-emerald-50"
                                       : "text-slate-400"
                                   }`}>
-                                    {hit.isWinner ? `🎉 中奖！${hit.prize} (${hit.redHit}+${hit.blueHit})` : `未中奖 (${hit.redHit}+${hit.blueHit})`}
+                                    {hit.isWinner 
+                                      ? `🎉 中奖！${hit.prize} (¥${(hit.prizeMoney || 0).toLocaleString("zh-CN")}) (${hit.redHit}+${hit.blueHit})` 
+                                      : `未中奖 (${hit.redHit}+${hit.blueHit})`}
                                   </span>
                                 )}
                               </div>

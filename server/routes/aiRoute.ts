@@ -18,6 +18,165 @@ function getNextIssueNumber(currentIssue: string): string {
   return `${year}${String(nextNum).padStart(numStr.length, "0")}`;
 }
 
+function getPrevIssueNumber(currentIssue: string): string {
+  if (!currentIssue || currentIssue.length < 5) return "";
+  const yearLen = currentIssue.length === 5 ? 2 : 4;
+  const year = currentIssue.substring(0, yearLen);
+  const numStr = currentIssue.substring(yearLen);
+  const prevNum = parseInt(numStr, 10) - 1;
+  if (prevNum <= 0) return "";
+  return `${year}${String(prevNum).padStart(numStr.length, "0")}`;
+}
+
+function getNextDrawDate(lastDrawDate: Date, lotteryType: string): Date {
+  const date = new Date(lastDrawDate);
+  const day = date.getDay(); // 0 是周日, 1-6 是周一到周六
+  
+  if (lotteryType === "ssq") {
+    // 双色球每周二(2)、四(4)、日(0)开奖
+    let daysToAdd = 2;
+    if (day === 2) daysToAdd = 2; 
+    else if (day === 4) daysToAdd = 3; 
+    else if (day === 0) daysToAdd = 2; 
+    else {
+      if (day === 1) daysToAdd = 1; 
+      else if (day === 3) daysToAdd = 1; 
+      else if (day === 5) daysToAdd = 2; 
+      else if (day === 6) daysToAdd = 1; 
+    }
+    date.setDate(date.getDate() + daysToAdd);
+  } else {
+    // 大乐透每周一(1)、三(3)、六(6)开奖
+    let daysToAdd = 2;
+    if (day === 1) daysToAdd = 2; 
+    else if (day === 3) daysToAdd = 3; 
+    else if (day === 6) daysToAdd = 2; 
+    else {
+      if (day === 0) daysToAdd = 1; 
+      else if (day === 2) daysToAdd = 1; 
+      else if (day === 4) daysToAdd = 2; 
+      else if (day === 5) daysToAdd = 1; 
+    }
+    date.setDate(date.getDate() + daysToAdd);
+  }
+  return date;
+}
+
+async function enrichPredictions(predictions: any[]) {
+  if (predictions.length === 0) return predictions;
+
+  // 收集当前期号与前一期号，以实现一次性批量查询
+  const ssqIssuesSet = new Set<string>();
+  const dltIssuesSet = new Set<string>();
+
+  predictions.forEach(p => {
+    if (p.lotteryType === "ssq") {
+      ssqIssuesSet.add(p.issueNumber);
+      const prev = getPrevIssueNumber(p.issueNumber);
+      if (prev) ssqIssuesSet.add(prev);
+    } else {
+      dltIssuesSet.add(p.issueNumber);
+      const prev = getPrevIssueNumber(p.issueNumber);
+      if (prev) dltIssuesSet.add(prev);
+    }
+  });
+
+  const ssqIssues = Array.from(ssqIssuesSet);
+  const dltIssues = Array.from(dltIssuesSet);
+
+  const ssqResultsMap = new Map<string, any>();
+  const dltResultsMap = new Map<string, any>();
+
+  if (ssqIssues.length > 0) {
+    const ssqResults = await prisma.sSQResult.findMany({
+      where: { issueNumber: { in: ssqIssues } }
+    });
+    ssqResults.forEach(r => ssqResultsMap.set(r.issueNumber, r));
+  }
+
+  if (dltIssues.length > 0) {
+    const dltResults = await prisma.dLTResult.findMany({
+      where: { issueNumber: { in: dltIssues } }
+    });
+    dltResults.forEach(r => dltResultsMap.set(r.issueNumber, r));
+  }
+
+  return predictions.map(pred => {
+    const hits = pred.hitDetail
+      ? (typeof pred.hitDetail === "string" ? JSON.parse(pred.hitDetail) : pred.hitDetail)
+      : null;
+
+    if (!Array.isArray(hits)) return pred;
+
+    const resultsMap = pred.lotteryType === "ssq" ? ssqResultsMap : dltResultsMap;
+    const drawResult = resultsMap.get(pred.issueNumber);
+
+    // 计算或获取开奖时间
+    let openDate: Date | null = null;
+    let isEstimated = false;
+
+    if (drawResult) {
+      openDate = drawResult.openDate;
+    } else {
+      // 动态推算 PENDING 期的开奖时间
+      const prevIssue = getPrevIssueNumber(pred.issueNumber);
+      const prevResult = resultsMap.get(prevIssue);
+      if (prevResult && prevResult.openDate) {
+        openDate = getNextDrawDate(prevResult.openDate, pred.lotteryType);
+        isEstimated = true;
+      }
+    }
+
+    const enrichedHits = hits.map((hit: any) => {
+      if (!hit.isWinner) return { ...hit, prizeMoney: 0 };
+
+      const prizeName = hit.prize || "其它";
+      let prizeMoney = 0;
+
+      if (drawResult && drawResult.prizeAmounts) {
+        const amounts = typeof drawResult.prizeAmounts === "string"
+          ? JSON.parse(drawResult.prizeAmounts)
+          : drawResult.prizeAmounts;
+        if (Array.isArray(amounts)) {
+          const matchedPrize = amounts.find((a: any) => a.level === prizeName || (prizeName.includes("等奖") && a.level.includes(prizeName.replace("等奖", ""))));
+          if (matchedPrize && matchedPrize.amount) {
+            const amtNum = parseFloat(String(matchedPrize.amount).replace(/,/g, ''));
+            if (!isNaN(amtNum)) {
+              prizeMoney = amtNum;
+            }
+          }
+        }
+      }
+
+      return {
+        ...hit,
+        prizeMoney
+      };
+    });
+
+    // 对返回的号码统一排序，保证前端显示的红球蓝球为升序
+    let sortedPredictedNumbers = pred.predictedNumbers;
+    if (typeof sortedPredictedNumbers === "string") {
+      try { sortedPredictedNumbers = JSON.parse(sortedPredictedNumbers); } catch(e) {}
+    }
+    if (Array.isArray(sortedPredictedNumbers)) {
+      sortedPredictedNumbers = sortedPredictedNumbers.map((combo: any) => ({
+        ...combo,
+        red: Array.isArray(combo.red) ? [...combo.red].sort((a, b) => parseInt(a, 10) - parseInt(b, 10)) : combo.red,
+        blue: Array.isArray(combo.blue) ? [...combo.blue].sort((a, b) => parseInt(a, 10) - parseInt(b, 10)) : combo.blue,
+      }));
+    }
+
+    return {
+      ...pred,
+      predictedNumbers: sortedPredictedNumbers,
+      hitDetail: enrichedHits,
+      openDate,
+      isEstimated
+    };
+  });
+}
+
 export const aiRouter = router({
   predictNumbers: publicProcedure
     .input(z.object({ type: z.enum(["ssq", "dlt"]) }))
@@ -192,6 +351,18 @@ export const aiRouter = router({
         // 解析 JSON
         const parsed = JSON.parse(content.replace(/```json/gi, '').replace(/```/g, '').trim());
 
+        // 对 AI 返回的红蓝球号码进行排序
+        if (Array.isArray(parsed)) {
+          parsed.forEach((combo: any) => {
+            if (Array.isArray(combo.red)) {
+              combo.red.sort((a: string, b: string) => parseInt(a, 10) - parseInt(b, 10));
+            }
+            if (Array.isArray(combo.blue)) {
+              combo.blue.sort((a: string, b: string) => parseInt(a, 10) - parseInt(b, 10));
+            }
+          });
+        }
+
         // 将预测结果异步持久化到数据库
         try {
           let latestResult = null;
@@ -253,11 +424,148 @@ export const aiRouter = router({
     )
     .query(async ({ input }) => {
       const where = input.type ? { lotteryType: input.type } : {};
-      return await prisma.aIPrediction.findMany({
+      const predictions = await prisma.aIPrediction.findMany({
         where,
         orderBy: { createdAt: "desc" },
         take: input.take,
       });
+      return await enrichPredictions(predictions);
+    }),
+
+  getPredictionStats: publicProcedure
+    .input(z.object({ type: z.enum(["ssq", "dlt"]) }))
+    .query(async ({ input }) => {
+      try {
+        const predictions = await prisma.aIPrediction.findMany({
+          where: {
+            lotteryType: input.type,
+            status: "OPENED",
+          },
+          orderBy: { createdAt: "desc" },
+        });
+
+        // 收集所有关联的期号进行一次性批量查询
+        const issueNumbers = predictions.map(p => p.issueNumber);
+        const resultsMap = new Map<string, any>();
+
+        if (issueNumbers.length > 0) {
+          if (input.type === "ssq") {
+            const results = await prisma.sSQResult.findMany({
+              where: { issueNumber: { in: issueNumbers } }
+            });
+            results.forEach(r => resultsMap.set(r.issueNumber, r));
+          } else {
+            const results = await prisma.dLTResult.findMany({
+              where: { issueNumber: { in: issueNumbers } }
+            });
+            results.forEach(r => resultsMap.set(r.issueNumber, r));
+          }
+        }
+
+        let totalPredictions = predictions.length;
+        let totalBets = totalPredictions * 5; // 每期预测5注
+        let winningBets = 0;
+        let totalRedHits = 0;
+        let totalBlueHits = 0;
+        let totalPrizeMoney = 0;
+        
+        // 奖级统计
+        const prizeDistribution: Record<string, number> = {};
+        
+        // 最强单注寻找
+        let bestCombo: {
+          red: string[];
+          blue: string[];
+          redHit: number;
+          blueHit: number;
+          prize: string;
+          prizeMoney: number;
+          issueNumber: string;
+        } | null = null;
+
+        for (const pred of predictions) {
+          const combos = typeof pred.predictedNumbers === "string" 
+            ? JSON.parse(pred.predictedNumbers) 
+            : pred.predictedNumbers;
+          
+          const hits = pred.hitDetail 
+            ? (typeof pred.hitDetail === "string" ? JSON.parse(pred.hitDetail) : pred.hitDetail) 
+            : null;
+
+          if (Array.isArray(combos) && Array.isArray(hits)) {
+            combos.forEach((combo: any, idx: number) => {
+              const hit = hits[idx];
+              if (!hit) return;
+
+              totalRedHits += hit.redHit || 0;
+              totalBlueHits += hit.blueHit || 0;
+
+              let prizeMoney = 0;
+
+              if (hit.isWinner) {
+                winningBets++;
+                const prizeName = hit.prize || "其它";
+                prizeDistribution[prizeName] = (prizeDistribution[prizeName] || 0) + 1;
+
+                // 尝试从真实开奖数据中查找该奖级的金额
+                const drawResult = resultsMap.get(pred.issueNumber);
+                if (drawResult && drawResult.prizeAmounts) {
+                  const amounts = typeof drawResult.prizeAmounts === "string"
+                    ? JSON.parse(drawResult.prizeAmounts)
+                    : drawResult.prizeAmounts;
+                  if (Array.isArray(amounts)) {
+                    const matchedPrize = amounts.find((a: any) => a.level === prizeName || (prizeName.includes("等奖") && a.level.includes(prizeName.replace("等奖", ""))));
+                    if (matchedPrize && matchedPrize.amount) {
+                      const amtNum = parseFloat(String(matchedPrize.amount).replace(/,/g, ''));
+                      if (!isNaN(amtNum)) {
+                        prizeMoney = amtNum;
+                      }
+                    }
+                  }
+                }
+
+                totalPrizeMoney += prizeMoney;
+              }
+
+              // 评判“最强”的策略：先比匹配红球数，若一样比蓝球数，若一样比奖级是否为Winner
+              const isCurrentBetter = !bestCombo || 
+                (hit.redHit + hit.blueHit > bestCombo.redHit + bestCombo.blueHit) ||
+                (hit.redHit + hit.blueHit === bestCombo.redHit + bestCombo.blueHit && hit.isWinner && !bestCombo.prize.includes("中奖"));
+
+              if (isCurrentBetter) {
+                const sortedRed = [...(combo.red || [])].sort((a: string, b: string) => parseInt(a, 10) - parseInt(b, 10));
+                const sortedBlue = [...(combo.blue || [])].sort((a: string, b: string) => parseInt(a, 10) - parseInt(b, 10));
+                bestCombo = {
+                  red: sortedRed,
+                  blue: sortedBlue,
+                  redHit: hit.redHit || 0,
+                  blueHit: hit.blueHit || 0,
+                  prize: hit.prize || "未中奖",
+                  prizeMoney,
+                  issueNumber: pred.issueNumber,
+                };
+              }
+            });
+          }
+        }
+
+        const winRate = totalBets > 0 ? parseFloat(((winningBets / totalBets) * 100).toFixed(2)) : 0;
+
+        return {
+          totalPredictions,
+          totalBets,
+          winningBets,
+          winRate,
+          totalRedHits,
+          totalBlueHits,
+          totalPrizeMoney,
+          prizeDistribution,
+          bestCombo,
+        };
+      } catch (err) {
+        console.error("[AI Route] 获取预测战绩统计异常:", err);
+        throw new Error("获取历史战绩失败");
+      }
     }),
 });
 
