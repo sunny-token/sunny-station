@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { trpc } from "@/server/client";
 import { Radar, ChevronLeft, Sparkles, AlertCircle, ChevronDown } from "lucide-react";
 import Link from "next/link";
@@ -71,7 +71,12 @@ export default function AiPredictPage() {
     });
   };
 
+  const isRequestingRef = useRef(false);
+
   const handleStartPredict = async () => {
+    if (isRequestingRef.current) return;
+    isRequestingRef.current = true;
+
     setError("");
     setPredictedNumbers(null);
     setIsPredicting(true);
@@ -89,6 +94,7 @@ export default function AiPredictPage() {
         setScanStep(0);
         setScanProgress(0);
         refetchHistory(); // 刷新预测足迹记录
+        isRequestingRef.current = false;
       }, 600);
       
     } catch (e: any) {
@@ -96,6 +102,7 @@ export default function AiPredictPage() {
       setIsPredicting(false);
       setScanStep(0);
       setScanProgress(0);
+      isRequestingRef.current = false;
     }
   };
 
