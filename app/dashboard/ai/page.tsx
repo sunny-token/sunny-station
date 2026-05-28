@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { trpc } from "@/server/client";
-import { Radar, ChevronLeft, Sparkles, AlertCircle } from "lucide-react";
+import { Radar, ChevronLeft, Sparkles, AlertCircle, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import LotteryNumbersInput from "@/components/LotteryNumbersInput";
 
@@ -12,6 +12,16 @@ export default function AiPredictPage() {
   const [scanProgress, setScanProgress] = useState(0);
   const [error, setError] = useState("");
   const [predictedNumbers, setPredictedNumbers] = useState<{ red: string[]; blue: string[]; reason?: string }[] | null>(null);
+  const [toastMessage, setToastMessage] = useState("");
+  const [expandedMap, setExpandedMap] = useState<Record<string, boolean>>({});
+
+  const toggleExpand = (id: string) => {
+    setExpandedMap(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const { data: history, refetch: refetchHistory } = trpc.ai.getPredictionHistory.useQuery({
+    type: lotteryType
+  });
 
   const predictNumbersMutation = trpc.ai.predictNumbers.useMutation();
 
@@ -38,6 +48,29 @@ export default function AiPredictPage() {
     };
   }, [isPredicting]);
 
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(""), 2000);
+  };
+
+  const handleCopyCombo = (combo: { red: string[]; blue: string[] }) => {
+    const text = `${combo.red.join(" ")} | ${combo.blue.join(" ")}`;
+    navigator.clipboard.writeText(text).then(() => {
+      showToast("📋 号码复制成功！");
+    }).catch(() => {
+      showToast("❌ 复制失败，请重试");
+    });
+  };
+
+  const handleCopyAll = (combos: { red: string[]; blue: string[] }[]) => {
+    const text = combos.map(combo => `${combo.red.join(" ")} | ${combo.blue.join(" ")}`).join("\n");
+    navigator.clipboard.writeText(text).then(() => {
+      showToast("📋 全部 5 注推荐号码已复制！");
+    }).catch(() => {
+      showToast("❌ 复制失败，请重试");
+    });
+  };
+
   const handleStartPredict = async () => {
     setError("");
     setPredictedNumbers(null);
@@ -55,6 +88,7 @@ export default function AiPredictPage() {
         setIsPredicting(false);
         setScanStep(0);
         setScanProgress(0);
+        refetchHistory(); // 刷新预测足迹记录
       }, 600);
       
     } catch (e: any) {
@@ -81,7 +115,7 @@ export default function AiPredictPage() {
           <div className="w-10 h-10" /> {/* 占位符以居中标题 */}
         </div>
 
-        <div className="px-6 md:px-12 py-6 md:py-10 space-y-6 md:space-y-8">
+        <div className="px-6 md:px-12 py-6 md:py-10 space-y-8 md:space-y-12">
           
           {/* Hero Section */}
           <div className="text-center space-y-3">
@@ -157,7 +191,7 @@ export default function AiPredictPage() {
               </div>
 
               <h3 className="text-base font-bold text-white mb-2 tracking-wide">
-                AI 深度学习网络推演中
+                AI 深度学习 network 推演中
               </h3>
               
               <div className="h-6 mb-4">
@@ -181,9 +215,17 @@ export default function AiPredictPage() {
           {/* Results Section */}
           {!isPredicting && predictedNumbers && predictedNumbers.length > 0 && (
             <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="flex items-center gap-2 px-1">
-                <div className="w-1 h-4 bg-indigo-500 rounded-full" />
-                <h3 className="font-bold text-slate-800 text-lg">智能推荐组合 ({predictedNumbers.length}注)</h3>
+              <div className="flex items-center justify-between px-1">
+                <div className="flex items-center gap-2">
+                  <div className="w-1 h-4 bg-indigo-500 rounded-full" />
+                  <h3 className="font-bold text-slate-800 text-lg">智能推荐组合 ({predictedNumbers.length}注)</h3>
+                </div>
+                <button
+                  onClick={() => handleCopyAll(predictedNumbers)}
+                  className="text-xs font-bold text-white bg-gradient-to-r from-indigo-500 to-purple-500 hover:opacity-90 px-4 py-2 rounded-xl transition-all active:scale-[0.95] shadow-sm shadow-indigo-100 flex items-center gap-1 cursor-pointer"
+                >
+                  一键复制全部 5 注
+                </button>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -193,6 +235,12 @@ export default function AiPredictPage() {
                       <span className="text-xs font-bold text-slate-400 bg-slate-50 px-2.5 py-1 rounded-full border border-slate-100">
                         推演组合 {index + 1}
                       </span>
+                      <button
+                        onClick={() => handleCopyCombo(combo)}
+                        className="text-xs font-bold text-indigo-500 hover:text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-1 rounded-full border border-indigo-100/50 transition-all active:scale-[0.95] flex items-center gap-1 cursor-pointer"
+                      >
+                        复制本注
+                      </button>
                     </div>
                     <LotteryNumbersInput
                       lotteryType={lotteryType}
@@ -215,8 +263,219 @@ export default function AiPredictPage() {
             </div>
           )}
 
+          {/* AI 历史预测足迹板块 */}
+          <div className="border-t border-slate-100 pt-8 space-y-5">
+            <div className="flex items-center justify-between px-1">
+              <div className="flex items-center gap-2">
+                <div className="w-1 h-4 bg-indigo-500 rounded-full" />
+                <h3 className="font-bold text-slate-800 text-lg">AI 历史预测足迹</h3>
+              </div>
+              <span className="text-xs text-slate-400 font-light">最近 10 次测算记录</span>
+            </div>
+
+            {/* 骨架屏加载状态 */}
+            {!history ? (
+              <div className="space-y-4">
+                {[1, 2, 3].map((n) => (
+                  <div key={n} className="bg-white rounded-3xl p-5 border border-slate-100 shadow-[0_4px_12px_rgba(0,0,0,0.01)] animate-pulse space-y-3">
+                    <div className="flex justify-between items-center">
+                      <div className="h-4 w-28 bg-slate-100 rounded-full" />
+                      <div className="h-4 w-16 bg-slate-100 rounded-full" />
+                    </div>
+                    <div className="h-20 w-full bg-slate-100 rounded-2xl" />
+                  </div>
+                ))}
+              </div>
+            ) : history.length === 0 ? (
+              <div className="bg-slate-50 rounded-3xl p-10 text-center border border-dashed border-slate-200">
+                <p className="text-sm text-slate-400 font-light">暂无 AI 历史预测足迹，赶快点击测算一次吧！</p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {history.slice(0, 10).map((pred: any) => {
+                  const combos = typeof pred.predictedNumbers === "string" 
+                    ? JSON.parse(pred.predictedNumbers) 
+                    : pred.predictedNumbers;
+                  const hits = pred.hitDetail 
+                    ? (typeof pred.hitDetail === "string" ? JSON.parse(pred.hitDetail) : pred.hitDetail) 
+                    : null;
+
+                  const hasWon = hits && hits.some((h: any) => h.isWinner);
+                  const isExpanded = expandedMap[pred.id] || false;
+
+                  return (
+                    <div 
+                      key={pred.id} 
+                      className={`bg-white rounded-3xl p-5 md:p-6 border transition-all duration-300 shadow-[0_4px_16px_rgba(0,0,0,0.02)] ${
+                        pred.status === "PENDING"
+                          ? "border-amber-100 bg-gradient-to-r from-white to-amber-50/5 shadow-amber-50/5"
+                          : hasWon
+                            ? "border-emerald-100 bg-gradient-to-r from-white to-emerald-50/5"
+                            : "border-slate-100"
+                      }`}
+                    >
+                      {/* Header */}
+                      <div className="flex justify-between items-start gap-2 mb-4 pb-3 border-b border-slate-50">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className={`text-[10px] md:text-xs font-black uppercase px-2.5 py-0.5 rounded-full border ${
+                              pred.lotteryType === "ssq" 
+                                ? "bg-rose-50 text-rose-500 border-rose-100" 
+                                : "bg-emerald-50 text-emerald-500 border-emerald-100"
+                            }`}>
+                              {pred.lotteryType === "ssq" ? "双色球" : "大乐透"}
+                            </span>
+                            <span className="text-sm font-extrabold text-slate-700">
+                              第 {pred.issueNumber} 期 推演预测
+                            </span>
+                          </div>
+                          <span className="text-[10px] text-slate-400 block mt-1 pl-0.5 font-light">
+                            测算：{new Date(pred.createdAt).toLocaleString("zh-CN", {
+                              month: "2-digit",
+                              day: "2-digit",
+                              hour: "2-digit",
+                              minute: "2-digit"
+                            })}
+                          </span>
+                        </div>
+
+                        {/* Status Badge */}
+                        {pred.status === "PENDING" ? (
+                          <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-100 text-amber-600 px-3 py-1 rounded-full text-xs font-bold animate-pulse">
+                            <span className="w-1.5 h-1.5 bg-amber-500 rounded-full" />
+                            等待开奖
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-100 text-slate-400 px-3 py-1 rounded-full text-xs font-bold">
+                            已开奖
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Toggle & Summary */}
+                      <div className="flex justify-between items-center mt-3">
+                        <span className="text-sm font-medium text-slate-500">
+                          {hasWon ? "🎉 包含中奖号码" : "生成了 5 注号码"}
+                        </span>
+                        <button 
+                          onClick={() => toggleExpand(pred.id)}
+                          className="text-xs font-bold text-indigo-500 hover:text-indigo-600 flex items-center gap-1 cursor-pointer transition-colors"
+                        >
+                          {isExpanded ? "收起详情" : "查看详情"}
+                          <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isExpanded ? "rotate-180" : ""}`} />
+                        </button>
+                      </div>
+
+                      {isExpanded && (
+                        <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                          {/* Number Combos List */}
+                          <div className="space-y-3 mt-4">
+                        {combos.map((combo: any, cIdx: number) => {
+                          const hit = hits?.[cIdx];
+                          return (
+                            <div 
+                              key={cIdx} 
+                              className={`p-3 rounded-2xl border transition-all ${
+                                hit?.isWinner 
+                                  ? "bg-emerald-50/40 border-emerald-100/50" 
+                                  : "bg-slate-50/50 border-slate-100/30"
+                              }`}
+                            >
+                              <div className="flex flex-wrap items-center justify-between gap-2 mb-2 px-0.5">
+                                <span className="text-[10px] font-bold text-slate-400">
+                                  推荐组合 {cIdx + 1}
+                                </span>
+                                {pred.status === "OPENED" && hit && (
+                                  <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
+                                    hit.isWinner
+                                      ? "bg-emerald-100 text-emerald-700 shadow-sm shadow-emerald-50"
+                                      : "text-slate-400"
+                                  }`}>
+                                    {hit.isWinner ? `🎉 中奖！${hit.prize} (${hit.redHit}+${hit.blueHit})` : `未中奖 (${hit.redHit}+${hit.blueHit})`}
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                {/* Red Balls */}
+                                {combo.red.map((num: string, nIdx: number) => (
+                                  <span 
+                                    key={nIdx} 
+                                    className="w-7 h-7 flex items-center justify-center rounded-full bg-rose-50 text-rose-500 border border-rose-100 text-xs font-bold shadow-sm"
+                                  >
+                                    {num}
+                                  </span>
+                                ))}
+                                <span className="text-slate-300 mx-0.5 text-sm font-light">|</span>
+                                {/* Blue Balls */}
+                                {combo.blue.map((num: string, nIdx: number) => (
+                                  <span 
+                                    key={nIdx} 
+                                    className="w-7 h-7 flex items-center justify-center rounded-full bg-blue-50 text-blue-500 border border-blue-100 text-xs font-bold shadow-sm"
+                                  >
+                                    {num}
+                                  </span>
+                                ))}
+
+                                <button
+                                  onClick={() => handleCopyCombo(combo)}
+                                  className="ml-auto w-6.5 h-6.5 flex items-center justify-center rounded-full bg-slate-50 hover:bg-slate-100 border border-slate-100 text-slate-400 hover:text-indigo-500 transition-all active:scale-[0.9] cursor-pointer"
+                                  title="复制此注"
+                                >
+                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                                  </svg>
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Display Open Numbers for comparison when status is OPENED */}
+                      {pred.status === "OPENED" && pred.openNumbers && (
+                        <div className="mt-4 pt-3.5 border-t border-slate-100 flex items-center gap-3">
+                          <span className="text-xs font-black text-slate-400 shrink-0">真实开奖：</span>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            {((pred.openNumbers as any).red || []).map((num: string, nIdx: number) => (
+                              <span key={nIdx} className="w-5.5 h-5.5 flex items-center justify-center rounded-full bg-rose-500 text-white text-[10px] font-black shadow-sm">
+                                {num}
+                              </span>
+                            ))}
+                            <span className="text-slate-300 mx-0.5 text-xs font-light">|</span>
+                            {/* Blue */}
+                            {Array.isArray((pred.openNumbers as any).blue) 
+                              ? (pred.openNumbers as any).blue.map((num: string, nIdx: number) => (
+                                  <span key={nIdx} className="w-5.5 h-5.5 flex items-center justify-center rounded-full bg-blue-500 text-white text-[10px] font-black shadow-sm">
+                                    {num}
+                                  </span>
+                                ))
+                              : <span className="w-5.5 h-5.5 flex items-center justify-center rounded-full bg-blue-500 text-white text-[10px] font-black shadow-sm">{(pred.openNumbers as any).blue}</span>
+                            }
+                          </div>
+                        </div>
+                      )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
         </div>
+
+        {/* 精美 Custom Toast 提示 */}
+        {toastMessage && (
+          <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 bg-slate-900/90 backdrop-blur-md text-white text-xs md:text-sm font-bold px-5 py-3 rounded-2xl shadow-xl flex items-center gap-2 border border-slate-800 animate-in fade-in slide-in-from-bottom-4 duration-300">
+            <Sparkles className="w-4 h-4 text-indigo-400 animate-pulse" />
+            {toastMessage}
+          </div>
+        )}
+
       </div>
     </main>
   );
 }
+

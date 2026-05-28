@@ -350,6 +350,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
+
 /**
  * 检查中奖并发送邮件通知
  * 开奖日：大乐透(1,3,6) 双色球(2,4,0)
@@ -469,6 +470,62 @@ async function checkAndNotifyWinners(
   console.log(
     `[CRON] [MATCH] 检查期号: ${latestResult.issueNumber}, 开奖日期: ${latestResult.openDate}`,
   );
+
+  // 同步更新对应期号的 AI 预测号码中奖状态
+  try {
+    console.log(`[CRON] [AI_UPDATE] 开始同步 AI 预测号码的中奖状态 - 期号: ${latestResult.issueNumber}`);
+
+    const predictions = await prisma.aIPrediction.findMany({
+      where: {
+        lotteryType,
+        issueNumber: latestResult.issueNumber,
+        status: "PENDING",
+      },
+    });
+
+    if (predictions.length > 0) {
+      console.log(`[CRON] [AI_UPDATE] 找到 ${predictions.length} 条待处理的 ${lotteryType.toUpperCase()} 预测记录，开始核对中奖...`);
+      for (const pred of predictions) {
+        const predictedCombos = typeof pred.predictedNumbers === "string" ? JSON.parse(pred.predictedNumbers) : pred.predictedNumbers;
+
+        if (!Array.isArray(predictedCombos)) {
+          console.warn(`[CRON] [AI_UPDATE] 预测记录 ID ${pred.id} 号码格式非数组，跳过`);
+          continue;
+        }
+
+        const hitDetail: Array<{redHit: number; blueHit: number; isWinner: boolean; prize: string; description: string;}> = [];
+
+        for (const combo of predictedCombos) {
+          try {
+            const ticketNumbers = { red: combo.red || [], blue: combo.blue || [] };
+            const matchResult = checkWin(lotteryType, ticketNumbers as TicketNumbers, openNumbers as TicketNumbers);
+
+            hitDetail.push({
+              redHit: matchResult.redMatch,
+              blueHit: matchResult.blueMatch,
+              isWinner: matchResult.isWinner,
+              prize: matchResult.prizeLevels[0]?.name || "未中奖",
+              description: matchResult.prizeLevels[0]?.description || "",
+            });
+          } catch (err) {
+            console.error(`[CRON] [AI_UPDATE] 预测记录比对失败:`, err);
+            hitDetail.push({ redHit: 0, blueHit: 0, isWinner: false, prize: "核对失败", description: "" });
+          }
+        }
+
+        await prisma.aIPrediction.update({
+          where: { id: pred.id },
+          data: { status: "OPENED", openNumbers: openNumbers, hitDetail: hitDetail },
+        });
+
+        console.log(`[CRON] [AI_UPDATE] ✅ 成功同步 AI 预测记录 ID: ${pred.id} 的中奖状态`);
+      }
+    } else {
+      console.log(`[CRON] [AI_UPDATE] 没有找到期号为 ${latestResult.issueNumber} 的待处理 AI 预测号码记录`);
+    }
+  } catch (aiErr) {
+    console.error(`[CRON] [AI_UPDATE] 同步 AI 预测数据出错:`, aiErr);
+  }
 
   // 检查是否已经发送过邮件（防重复发送）
   // 方法1: 使用内存缓存（在同一实例内有效）

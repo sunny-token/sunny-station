@@ -4,6 +4,14 @@ import prismaService from "../../lib/prismaService";
 
 const prisma = prismaService.getPrismaClient();
 
+function getNextIssueNumber(currentIssue: string): string {
+  if (!currentIssue || currentIssue.length < 5) return "";
+  const year = currentIssue.substring(0, 4);
+  const numStr = currentIssue.substring(4);
+  const nextNum = parseInt(numStr, 10) + 1;
+  return `${year}${String(nextNum).padStart(numStr.length, "0")}`;
+}
+
 export const aiRouter = router({
   predictNumbers: publicProcedure
     .input(z.object({ type: z.enum(["ssq", "dlt"]) }))
@@ -40,7 +48,7 @@ export const aiRouter = router({
       const prompt = `你是专业的彩票数据分析师。这里是最近100期的${lotteryName}开奖历史：\n${historyData}\n
 请根据这些数据进行走势分析，并给出5注下一期最有可能的推荐号码。
 规则要求：${rule}
-返回要求：必须且只能返回一个合法的 JSON 数组，不要有任何其他分析文本。数组包含5个对象，每个对象结构必须为 {"red": ["xx","xx",...], "blue": ["xx",...], "reason": "简短的一句话推演理由"}，其中红球和蓝球里的数字必须补齐两位数（例如"01"），reason 字段提供该注号码的生成逻辑或冷热走势依据（约20-30字）。双色球的蓝球数组长度为1，大乐透蓝球数组长度为2。`;
+返回要求：必须且只能返回一个合法的 JSON 数组，不要有任何其他分析文本。数组包含5个对象，每个对象结构必须为 {"red": ["xx","xx",...], "blue": ["xx",...], "reason": "简短的一句话推演理由"}，其中红球和蓝球里的数字必须补齐两位数（例如"01"），reason 字段提供该注号码的生成逻辑 or 冷热走势依据（约20-30字）。双色球的蓝球数组长度为1，大乐透蓝球数组长度为2。`;
 
       try {
         const fallbackModels = [
@@ -148,6 +156,36 @@ export const aiRouter = router({
 
         // 解析 JSON
         const parsed = JSON.parse(content.replace(/```json/gi, '').replace(/```/g, '').trim());
+
+        // 将预测结果异步持久化到数据库
+        try {
+          let latestResult = null;
+          if (input.type === "ssq") {
+            latestResult = await prisma.sSQResult.findFirst({
+              orderBy: { issueNumber: "desc" },
+            });
+          } else {
+            latestResult = await prisma.dLTResult.findFirst({
+              orderBy: { issueNumber: "desc" },
+            });
+          }
+
+          const currentYear = new Date().getFullYear().toString();
+          const nextIssue = latestResult ? getNextIssueNumber(latestResult.issueNumber) : `${currentYear}001`;
+
+          await prisma.aIPrediction.create({
+            data: {
+              lotteryType: input.type,
+              issueNumber: nextIssue,
+              predictedNumbers: parsed,
+              status: "PENDING",
+            },
+          });
+          console.log(`[AI Route] 成功记录 ${input.type} 预测号码，目标期号: ${nextIssue}`);
+        } catch (dbErr) {
+          console.error("[AI Route] 写入 AI 预测号码失败:", dbErr);
+        }
+
         return parsed;
       } catch (e: any) {
         console.error("AI 智能选号请求/解析异常:", e);
@@ -170,4 +208,21 @@ export const aiRouter = router({
         throw new Error(userMessage);
       }
     }),
+
+  getPredictionHistory: publicProcedure
+    .input(
+      z.object({
+        type: z.enum(["ssq", "dlt"]).optional(),
+        take: z.number().default(20),
+      }),
+    )
+    .query(async ({ input }) => {
+      const where = input.type ? { lotteryType: input.type } : {};
+      return await prisma.aIPrediction.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        take: input.take,
+      });
+    }),
 });
+

@@ -111,3 +111,18 @@ enum Role {
   ADMIN
   GUEST
 }
+
+model AIPrediction {
+  id               Int      @id @default(autoincrement())
+  lotteryType      String   // "ssq" | "dlt"
+  issueNumber      String   // 预测的目标期号，例如 "2026061"
+  predictedNumbers Json     // 预测的号码数组，格式如：[{"red":["01","02",...],"blue":["03",...],"reason":"..."}]
+  status           String   @default("PENDING") // "PENDING" (待开奖), "OPENED" (已开奖)
+  openNumbers      Json?    // 实际开奖号码，例如：{"red":["01","02",...],"blue":["03",...]}
+  hitDetail        Json?    // 对应 5 注的命中详情，例如：[{"redHit":3,"blueHit":1,"isWinner":true,"prize":"五等奖"}]
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([lotteryType, status])
+  @@index([issueNumber])
+}
