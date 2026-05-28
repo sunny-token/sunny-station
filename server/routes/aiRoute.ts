@@ -52,21 +52,20 @@ export const aiRouter = router({
 
       try {
         const fallbackModels = [
+          // GPT 系列
           "gpt-5.5",
           "gpt-5.4",
           "gpt-5.4-mini",
-          "gpt-5.3-codex",
-          "gpt-5.2",
-          "gpt-5.1-high",
-          "gpt-5.1",
-          "gpt-5.1-minimal",
-          "gpt-5-high",
-          "gpt-5",
-          "gpt-5-minimal",
-          "gemini-1.5-pro",
-          "gemini-1.5-flash",
-          "gemini-2.0-flash",
-          "gemini-1.0-pro"
+          
+          // Claude 系列
+          "claude-3-5-sonnet-20241022",
+          "claude-3-opus-20240229",
+          "claude-3-5-haiku-20241022",
+          
+          // 官方 Gemini 直连容错
+          "gemini-3.5-flash-official",
+          "gemini-3-flash-official",
+          "gemini-3.1-flash-lite-official"
         ];
         
         let content = "";
@@ -74,12 +73,26 @@ export const aiRouter = router({
 
         for (const model of fallbackModels) {
           try {
-            const isGemini = model.includes("gemini");
-            // Gemini模型使用独立的环境变量配置
-            const currentApiKey = isGemini ? process.env.GPTGOD_GEMINI_API_KEY : process.env.GPTGOD_API_KEY;
+            const isOfficialGemini = model.endsWith("-official");
+            const actualModel = model.replace("-official", "");
+            const isGemini = actualModel.includes("gemini");
+            const isClaude = actualModel.includes("claude");
+            
+            // API Key 判断
+            let currentApiKey;
+            if (isOfficialGemini) {
+              currentApiKey = process.env.GEMINI_API_KEY;
+            } else if (isClaude) {
+              currentApiKey = process.env.GPTGOD_CLAUDE_API_KEY || process.env.GPTGOD_API_KEY;
+            } else {
+              currentApiKey = process.env.GPTGOD_API_KEY;
+            }
 
             if (!currentApiKey) {
-              throw new Error(`缺少环境变量配置: ${isGemini ? 'GPTGOD_GEMINI_API_KEY' : 'GPTGOD_API_KEY'}`);
+              // 如果某个渠道缺少key，直接跳过使用下一个模型
+              console.warn(`[AI Route] 缺少对应的 API Key，跳过模型: ${model}`);
+              lastError = new Error(`缺少对应的 API Key: ${model}`);
+              continue;
             }
             
             let url = "https://api.gptgod.online/v1/chat/completions";
@@ -88,14 +101,15 @@ export const aiRouter = router({
               "Authorization": `Bearer ${currentApiKey}`
             };
             let body: any = JSON.stringify({
-              model,
+              model: actualModel,
               messages: [{ role: "user", content: prompt }],
               temperature: 0.8
             });
 
             if (isGemini) {
-              // 根据代理商文档要求，使用 Gemini 原生端点和格式
-              url = `https://api.gptgod.online/v1beta/models/${model}:generateContent?key=${currentApiKey}`;
+              // 根据不同渠道使用对应域名
+              const baseUrl = isOfficialGemini ? "https://generativelanguage.googleapis.com" : "https://api.gptgod.online";
+              url = `${baseUrl}/v1beta/models/${actualModel}:generateContent?key=${currentApiKey}`;
               headers = {
                 "Content-Type": "application/json"
               };
@@ -200,8 +214,8 @@ export const aiRouter = router({
             userMessage = "连接智能推演中枢超时，请检查网络或稍后重新推演";
           } else if (msg.includes("json") || msg.includes("parse")) {
             userMessage = "AI 预测引擎返回的号码格式无法识别，请重新测算";
-          } else if (msg.includes("gptgod_api_key")) {
-            userMessage = "AI 测算服务尚未配置访问密钥，请联系系统管理员";
+          } else if (msg.includes("gptgod_api_key") || msg.includes("api key") || msg.includes("配置")) {
+            userMessage = "AI 测算服务尚未配置访问密钥或可用模型均失败，请联系系统管理员";
           }
         }
         
