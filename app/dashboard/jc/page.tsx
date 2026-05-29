@@ -1,30 +1,8 @@
 "use client";
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { trpc } from "@/server/client";
-import { Radar, ChevronLeft, AlertCircle, Trophy, Dices, Copy, CheckCheck, Bot, CalendarDays, RefreshCw } from "lucide-react";
+import { Radar, ChevronLeft, AlertCircle, Trophy, Bot, RefreshCw } from "lucide-react";
 import Link from "next/link";
-
-const HOT_TEAMS = [
-  "🇦🇷阿根廷", "🇫🇷法国", "🇧🇷巴西", "🏴󠁧󠁢󠁥󠁮󠁧󠁿英格兰", 
-  "🇪🇸西班牙", "🇩🇪德国", "🇵🇹葡萄牙", "🇮🇹意大利",
-  "🇳🇱荷兰", "🇧🇪比利时", "🇭🇷克罗地亚", "🇯🇵日本"
-];
-
-const HOT_CONTEXTS = [
-  "💰 预算100元，求稳赚饭钱",
-  "🚀 想要高赔率搏冷，以小博大",
-  "🛡️ 双选防冷门",
-  "🤒 主队核心前锋伤停",
-  "🔥 客队近期状态极佳"
-];
-
-const CLASSIC_MATCHES = [
-  ["🇦🇷阿根廷", "🇫🇷法国"],
-  ["🇧🇷巴西", "🇩🇪德国"],
-  ["🇪🇸西班牙", "🇵🇹葡萄牙"],
-  ["🏴󠁧󠁢󠁥󠁮󠁧󠁿英格兰", "🇮🇹意大利"],
-  ["🇳🇱荷兰", "🇦🇷阿根廷"]
-];
 
 export default function JcPredictPage() {
   const [error, setError] = useState("");
