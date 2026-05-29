@@ -126,3 +126,17 @@ model AIPrediction {
   @@index([lotteryType, status])
   @@index([issueNumber])
 }
+
+model JcPrediction {
+  id           Int      @id @default(autoincrement())
+  homeTeam     String
+  awayTeam     String
+  matchTime    DateTime?
+  prediction   Json     
+  status       String   @default("PENDING") // PENDING, FINISHED
+  actualResult String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([status])
+}

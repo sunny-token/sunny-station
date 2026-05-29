@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { trpc } from "@/server/client";
-import { Database, RefreshCw, Settings, CircleDot, Layers, ChevronRight, Activity, LogOut, Radar, Cpu, Plus, Trash2 } from "lucide-react";
+import { Database, RefreshCw, Settings, CircleDot, Layers, ChevronRight, Activity, LogOut, Radar, Cpu, Plus, Trash2, Trophy } from "lucide-react";
 import LotteryNumbersInput from "@/components/LotteryNumbersInput";
 
 // 组合数计算 C_n_k
@@ -934,12 +934,12 @@ export default function HomePage() {
       </div>
 
       {/* Main Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-6 relative z-10">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 lg:gap-6 relative z-10">
         
         {/* Card 1: SSQ */}
-        <Link href="/lottery-crawler" className="group rounded-[2.5rem] p-8 bg-white/60 border border-slate-200/80 hover:bg-white/95 hover:border-red-200 hover:shadow-[0_20px_50px_rgba(239,68,68,0.06)] backdrop-blur-xl transition-all duration-500 outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 relative overflow-hidden flex flex-col justify-between min-h-[220px]">
+        <Link href="/lottery-crawler" className="group rounded-[2rem] p-6 bg-white/60 border border-slate-200/80 hover:bg-white/95 hover:border-red-200 hover:shadow-[0_20px_50px_rgba(239,68,68,0.06)] backdrop-blur-xl transition-all duration-500 outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 relative overflow-hidden flex flex-col justify-between min-h-[180px]">
           <div className="absolute inset-0 bg-gradient-to-br from-red-500/[0.01] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-          <div className="flex items-center justify-between relative z-10 mb-8">
+          <div className="flex items-center justify-between relative z-10 mb-4">
             <div className="p-4 bg-red-50 rounded-2xl text-red-500 group-hover:scale-110 group-hover:bg-red-500 group-hover:text-white transition-all duration-500 ease-out">
               <CircleDot className="w-7 h-7" />
             </div>
@@ -948,15 +948,15 @@ export default function HomePage() {
             </div>
           </div>
           <div className="relative z-10">
-            <h3 className="text-2xl font-bold text-slate-800 mb-2 tracking-wide group-hover:text-red-600 transition-colors">双色球数据中心</h3>
-            <p className="text-sm text-slate-500 leading-relaxed font-light">管理红蓝球历史走势及最新开奖数据的自动化采集模块。</p>
+            <h3 className="text-lg font-bold text-slate-800 mb-1.5 tracking-wide group-hover:text-red-600 transition-colors">双色球数据中心</h3>
+            <p className="text-xs text-slate-500 leading-relaxed font-light">管理红蓝球历史走势及最新开奖数据的自动化采集模块。</p>
           </div>
         </Link>
 
         {/* Card 2: DLT */}
-        <Link href="/lottery-dlt-crawler" className="group rounded-[2.5rem] p-8 bg-white/60 border border-slate-200/80 hover:bg-white/95 hover:border-amber-200 hover:shadow-[0_20px_50px_rgba(245,158,11,0.06)] backdrop-blur-xl transition-all duration-500 outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 relative overflow-hidden flex flex-col justify-between min-h-[220px]">
+        <Link href="/lottery-dlt-crawler" className="group rounded-[2rem] p-6 bg-white/60 border border-slate-200/80 hover:bg-white/95 hover:border-amber-200 hover:shadow-[0_20px_50px_rgba(245,158,11,0.06)] backdrop-blur-xl transition-all duration-500 outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 relative overflow-hidden flex flex-col justify-between min-h-[180px]">
           <div className="absolute inset-0 bg-gradient-to-br from-amber-500/[0.01] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-          <div className="flex items-center justify-between relative z-10 mb-8">
+          <div className="flex items-center justify-between relative z-10 mb-4">
             <div className="p-4 bg-amber-50 rounded-2xl text-amber-600 group-hover:scale-110 group-hover:bg-amber-500 group-hover:text-white transition-all duration-500 ease-out">
               <Layers className="w-7 h-7" />
             </div>
@@ -965,15 +965,15 @@ export default function HomePage() {
             </div>
           </div>
           <div className="relative z-10">
-            <h3 className="text-2xl font-bold text-slate-800 mb-2 tracking-wide group-hover:text-amber-600 transition-colors">大乐透数据中心</h3>
-            <p className="text-sm text-slate-500 leading-relaxed font-light">管理前区与后区走势数据，提供全方位的开奖历史分析。</p>
+            <h3 className="text-lg font-bold text-slate-800 mb-1.5 tracking-wide group-hover:text-amber-600 transition-colors">大乐透数据中心</h3>
+            <p className="text-xs text-slate-500 leading-relaxed font-light">管理前区与后区走势数据，提供全方位的开奖历史分析。</p>
           </div>
         </Link>
 
         {/* Card 4: Settings */}
-        <Link href="/settings" className="group rounded-[2.5rem] p-8 bg-white/60 border border-slate-200/80 hover:bg-white/95 hover:border-slate-300 hover:shadow-[0_20px_50px_rgba(100,116,139,0.06)] backdrop-blur-xl transition-all duration-500 outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 relative overflow-hidden flex flex-col justify-between min-h-[220px]">
+        <Link href="/settings" className="group rounded-[2rem] p-6 bg-white/60 border border-slate-200/80 hover:bg-white/95 hover:border-slate-300 hover:shadow-[0_20px_50px_rgba(100,116,139,0.06)] backdrop-blur-xl transition-all duration-500 outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 relative overflow-hidden flex flex-col justify-between min-h-[180px]">
           <div className="absolute inset-0 bg-gradient-to-br from-slate-500/[0.01] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-          <div className="flex items-center justify-between relative z-10 mb-8">
+          <div className="flex items-center justify-between relative z-10 mb-4">
             <div className="p-4 bg-slate-100 rounded-2xl text-slate-500 group-hover:scale-110 group-hover:bg-slate-500 group-hover:text-white group-hover:rotate-45 transition-all duration-500 ease-out">
               <Settings className="w-7 h-7" />
             </div>
@@ -982,15 +982,15 @@ export default function HomePage() {
             </div>
           </div>
           <div className="relative z-10">
-            <h3 className="text-2xl font-bold text-slate-800 mb-2 tracking-wide group-hover:text-slate-700 transition-colors">系统参数设置</h3>
-            <p className="text-sm text-slate-500 leading-relaxed font-light">全局运行参数配置、数据源健康检查及核心调度管理。</p>
+            <h3 className="text-lg font-bold text-slate-800 mb-1.5 tracking-wide group-hover:text-slate-700 transition-colors">系统参数设置</h3>
+            <p className="text-xs text-slate-500 leading-relaxed font-light">全局运行参数配置、数据源健康检查及核心调度管理。</p>
           </div>
         </Link>
         
         {/* Card 3: AI Predict (Moved from inline) */}
-        <Link href="/dashboard/ai" className="group rounded-[2.5rem] p-8 bg-white/60 border border-slate-200/80 hover:bg-white/95 hover:border-purple-300 hover:shadow-[0_20px_50px_rgba(168,85,247,0.15)] backdrop-blur-xl transition-all duration-500 outline-none focus-visible:ring-2 focus-visible:ring-purple-500 relative overflow-hidden flex flex-col justify-between min-h-[220px]">
+        <Link href="/dashboard/ai" className="group rounded-[2rem] p-6 bg-white/60 border border-slate-200/80 hover:bg-white/95 hover:border-purple-300 hover:shadow-[0_20px_50px_rgba(168,85,247,0.15)] backdrop-blur-xl transition-all duration-500 outline-none focus-visible:ring-2 focus-visible:ring-purple-500 relative overflow-hidden flex flex-col justify-between min-h-[180px]">
           <div className="absolute inset-0 bg-gradient-to-br from-purple-500/[0.03] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-          <div className="flex items-center justify-between relative z-10 mb-8">
+          <div className="flex items-center justify-between relative z-10 mb-4">
             <div className="p-4 bg-purple-50 rounded-2xl text-purple-600 group-hover:scale-110 group-hover:bg-gradient-to-br group-hover:from-indigo-500 group-hover:to-purple-500 group-hover:text-white group-hover:rotate-12 transition-all duration-500 ease-out shadow-sm border border-purple-100/50">
               <Radar className="w-7 h-7" />
             </div>
@@ -999,10 +999,29 @@ export default function HomePage() {
             </div>
           </div>
           <div className="relative z-10">
-            <h3 className="text-2xl font-bold text-slate-800 mb-2 tracking-wide group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-indigo-600 group-hover:to-purple-600 transition-all">AI 预测中心</h3>
-            <p className="text-sm text-slate-500 leading-relaxed font-light">基于深度学习与概率矩阵，智能推演未来走势的高能测算舱。</p>
+            <h3 className="text-lg font-bold text-slate-800 mb-1.5 tracking-wide group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-indigo-600 group-hover:to-purple-600 transition-all">AI 预测中心</h3>
+            <p className="text-xs text-slate-500 leading-relaxed font-light">基于深度学习与概率矩阵，智能推演未来走势的高能测算舱。</p>
           </div>
         </Link>
+        
+        {/* Card 5: JC Predict (Admin Only) */}
+        {isAdmin && (
+          <Link href="/dashboard/jc" className="group rounded-[2rem] p-6 bg-white/60 border border-slate-200/80 hover:bg-white/95 hover:border-blue-300 hover:shadow-[0_20px_50px_rgba(59,130,246,0.15)] backdrop-blur-xl transition-all duration-500 outline-none focus-visible:ring-2 focus-visible:ring-blue-500 relative overflow-hidden flex flex-col justify-between min-h-[180px]">
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/[0.03] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            <div className="flex items-center justify-between relative z-10 mb-4">
+              <div className="p-4 bg-blue-50 rounded-2xl text-blue-600 group-hover:scale-110 group-hover:bg-gradient-to-br group-hover:from-cyan-500 group-hover:to-blue-500 group-hover:text-white group-hover:rotate-12 transition-all duration-500 ease-out shadow-sm border border-blue-100/50">
+                <Trophy className="w-7 h-7" />
+              </div>
+              <div className="peer p-2 rounded-full border border-slate-100 bg-slate-50 text-slate-400 group-hover:border-blue-200 group-hover:bg-blue-50 group-hover:text-blue-600 transition-all duration-300">
+                <ChevronRight className="w-5 h-5 group-hover:translate-x-0.5 transition-transform duration-300" />
+              </div>
+            </div>
+            <div className="relative z-10">
+              <h3 className="text-lg font-bold text-slate-800 mb-1.5 tracking-wide group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-cyan-600 group-hover:to-blue-600 transition-all">世界杯竞彩</h3>
+              <p className="text-xs text-slate-500 leading-relaxed font-light">基于专业分析师提示词的比赛预测模块（仅限管理员访问）。</p>
+            </div>
+          </Link>
+        )}
       </div>
 
       {/* Global Actions Section */}
