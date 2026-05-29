@@ -125,9 +125,15 @@ async function callAI(prompt: string): Promise<string> {
 }
 
 export const jcRouter = router({
-    getHistory: adminProcedure
-    .query(async () => {
+  getHistory: adminProcedure
+    .input(z.object({ type: z.enum(["worldcup", "regular"]).default("worldcup") }).optional())
+    .query(async ({ input }) => {
+      const matchType = input?.type || "worldcup";
       const predictions = await prisma.jcPrediction.findMany({
+        where: {
+          homeTeam: "BATCH_SCAN",
+          awayTeam: matchType
+        },
         orderBy: { createdAt: "desc" },
         take: 50,
       });
@@ -264,6 +270,16 @@ ${input.matches.map(m => `[${m.matchNumStr} ${m.league}] 主队：${m.homeTeam} 
       try {
         let content = await callAI(prompt);
         const parsed = JSON.parse(content.replace(/```json/gi, '').replace(/```/g, '').trim());
+
+        await prisma.jcPrediction.create({
+          data: {
+            homeTeam: "BATCH_SCAN",
+            awayTeam: input.type,
+            prediction: parsed,
+            status: "FINISHED"
+          }
+        });
+
         return parsed;
       } catch (e: any) {
         console.error("批量预测异常:", e);

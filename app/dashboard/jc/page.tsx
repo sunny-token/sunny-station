@@ -31,8 +31,8 @@ export default function JcPredictPage() {
   const [mode, setMode] = useState<"worldcup" | "regular">("worldcup");
   const [batchResult, setBatchResult] = useState<any>(null);
   const [isBatchPredicting, setIsBatchPredicting] = useState(false);
-  const [batchBudget, setBatchBudget] = useState("100元");
-  const [batchRisk, setBatchRisk] = useState("稳健理财");
+  const [batchBudget, setBatchBudget] = useState("50元 (小试牛刀)");
+  const [batchRisk, setBatchRisk] = useState("稳健理财 (尽量买正路保本)");
   const [toastMessage, setToastMessage] = useState("");
 
   const showToast = (msg: string) => {
@@ -42,7 +42,7 @@ export default function JcPredictPage() {
 
   const { data: todayMatches, isLoading: isLoadingMatches, isFetching: isFetchingMatches, refetch: refetchMatches } = trpc.jc.getTodayMatches.useQuery(
     { type: mode },
-    { enabled: true, retry: false }
+    { enabled: true, retry: false, refetchOnWindowFocus: false }
   );
   const batchPredictMutation = trpc.jc.batchPredictMatches.useMutation();
 
@@ -55,8 +55,9 @@ export default function JcPredictPage() {
     }
   };
 
-  const { data: history, refetch: refetchHistory, error: queryError } = trpc.jc.getHistory.useQuery(undefined, {
+  const { data: history, refetch: refetchHistory, error: queryError } = trpc.jc.getHistory.useQuery({ type: mode }, {
     retry: false,
+    refetchOnWindowFocus: false,
   });
 
   useEffect(() => {
@@ -79,6 +80,7 @@ export default function JcPredictPage() {
       });
       setBatchResult(res);
       refetchHistory();
+      showToast("🎉 扫盘完成！方案已生成");
     } catch (e: any) {
       setError(e.message || "批量预测失败");
     } finally {
@@ -308,39 +310,35 @@ export default function JcPredictPage() {
                       <div className="flex justify-between items-start mb-3 border-b border-slate-50 pb-3">
                         <div className="flex items-center gap-2">
                           <span className="bg-slate-50 border border-slate-100 px-2.5 py-0.5 rounded-full text-xs font-bold text-slate-500">
-                            {new Date(pred.createdAt).toLocaleDateString("zh-CN", { month: "short", day: "numeric" })}
+                            {new Date(pred.createdAt).toLocaleDateString("zh-CN", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                           </span>
                           <span className="font-bold text-slate-800 text-sm">
-                            {pred.homeTeam} <span className="text-amber-500 text-[10px] mx-1">VS</span> {pred.awayTeam}
+                            {pred.awayTeam === "worldcup" ? "🏆 世界杯专属扫盘" : "⚽️ 日常联赛扫盘"}
                           </span>
                         </div>
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                          pred.status === "PENDING" ? "bg-amber-50 text-amber-500 border-amber-100" : "bg-emerald-50 text-emerald-500 border-emerald-100"
-                        }`}>
-                          {pred.status === "PENDING" ? "未完赛" : "已完赛"}
-                        </span>
                       </div>
                       
-                      <div className="grid grid-cols-2 gap-3 mb-3">
-                        <div className="bg-slate-50 rounded-xl p-2.5 text-center">
-                          <span className="text-[10px] text-slate-400 block mb-0.5">主队{p.result}</span>
-                          <span className="font-black text-slate-700 text-sm">{p.score}</span>
-                        </div>
-                        <div className="bg-slate-50 rounded-xl p-2.5 text-center">
-                          <span className="text-[10px] text-slate-400 block mb-0.5">实际结果</span>
-                          <span className="font-black text-slate-400 text-sm">{pred.actualResult || "-"}</span>
-                        </div>
+                      <div className="bg-indigo-50/50 rounded-xl p-3 mb-3">
+                        <span className="text-[10px] font-bold text-indigo-400 block mb-1">宏观策略跟单方案</span>
+                        <span className="font-bold text-slate-700 text-xs leading-relaxed">{p.summary}</span>
                       </div>
                       
-                      <p className="text-xs text-slate-500 leading-relaxed bg-slate-50/50 p-2.5 rounded-xl">
-                        <span className="font-bold text-amber-500 mr-1">🧠 推演:</span> {p.reason}
-                      </p>
-                      
-                      {p.plan && (
-                        <p className="text-xs text-slate-600 leading-relaxed bg-red-50 p-2.5 rounded-xl mt-2 border border-red-100/50">
-                          <span className="font-bold text-red-500 mr-1">💰 方案:</span> {p.plan}
-                        </p>
-                      )}
+                      <div className="space-y-2">
+                        {p.matches?.slice(0, 3).map((m: any, idx: number) => (
+                          <div key={idx} className="flex justify-between items-center text-xs bg-slate-50 p-2 rounded-lg border border-slate-100">
+                            <span className="font-bold text-slate-600">{m.homeTeam} <span className="text-[10px] text-slate-400">vs</span> {m.awayTeam}</span>
+                            <div className="flex gap-2">
+                              <span className="text-amber-600 font-bold">{m.result}</span>
+                              <span className="text-rose-500 font-bold">{m.score}</span>
+                            </div>
+                          </div>
+                        ))}
+                        {p.matches?.length > 3 && (
+                          <div className="text-center text-[10px] text-slate-400 font-bold mt-2">
+                            ... 等 {p.matches.length} 场赛事推演
+                          </div>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
