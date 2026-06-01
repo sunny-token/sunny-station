@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { trpc } from "@/server/client";
 import { Radar, ChevronLeft, AlertCircle, Trophy, Bot, RefreshCw } from "lucide-react";
 import Link from "next/link";
@@ -22,9 +22,12 @@ export default function JcPredictPage() {
   const [isLoadingMatches, setIsLoadingMatches] = useState(false);
   const [isFetchingMatches, setIsFetchingMatches] = useState(false);
 
-  const fetchMatchesClient = async () => {
+  const fetchMatchesClient = useCallback(async () => {
     setIsFetchingMatches(true);
-    if (!todayMatches.length) setIsLoadingMatches(true);
+    setTodayMatches(prev => {
+      if (!prev.length) setIsLoadingMatches(true);
+      return prev;
+    });
     try {
       const res = await fetch("https://webapi.sporttery.cn/gateway/jc/football/getMatchCalculatorV1.qry?poolCode=hhad,had&channel=c");
       if (!res.ok) throw new Error("Fetch failed");
@@ -60,11 +63,11 @@ export default function JcPredictPage() {
       setIsLoadingMatches(false);
       setIsFetchingMatches(false);
     }
-  };
+  }, [mode]);
 
   useEffect(() => {
     fetchMatchesClient();
-  }, [mode]);
+  }, [fetchMatchesClient]);
 
   const batchPredictMutation = trpc.jc.batchPredictMatches.useMutation();
 
@@ -142,6 +145,7 @@ export default function JcPredictPage() {
       refetchHistory();
       showToast(isHit ? "🎉 恭喜！本单全中，红单！" : `📝 对奖完成，命中 ${hitCount}/${totalCount} 场`);
     } catch (e: any) {
+      console.error("Check prize error:", e);
       showToast("❌ 对奖失败，可能官方暂未开奖");
     } finally {
       setCheckingId(null);
