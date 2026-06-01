@@ -52,6 +52,10 @@ export default function JcPredictPage() {
         homeTeam: m.homeTeamAbbName,
         awayTeam: m.awayTeamAbbName,
         matchTime: m.matchTime,
+        homeRank: m.homeRank,
+        awayRank: m.awayRank,
+        had: m.had,
+        hhad: m.hhad,
       })).slice(0, 10);
       
       setTodayMatches(matches);

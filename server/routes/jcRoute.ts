@@ -228,7 +228,11 @@ export const jcRouter = router({
         league: z.string(),
         homeTeam: z.string(),
         awayTeam: z.string(),
-        matchTime: z.string()
+        matchTime: z.string(),
+        homeRank: z.string().optional().nullable(),
+        awayRank: z.string().optional().nullable(),
+        had: z.any().optional(),
+        hhad: z.any().optional()
       })),
       budget: z.string().optional(),
       risk: z.string().optional(),
@@ -239,15 +243,26 @@ export const jcRouter = router({
         ? "你是专业的体育竞彩数据分析师，也是资深的世界杯专家。" 
         : "你是专业的体育竞彩数据分析师，精通五大联赛等常规足彩赛事。";
 
+      const matchesStr = input.matches.map(m => {
+        let text = `[${m.matchNumStr} ${m.league}] 主队：${m.homeTeam}${m.homeRank ? `(排名${m.homeRank})` : ''} VS 客队：${m.awayTeam}${m.awayRank ? `(排名${m.awayRank})` : ''} | 比赛时间: ${m.matchTime}`;
+        if (m.had && m.had.a) {
+          text += ` | 标准胜平负赔率: 胜${m.had.h} 平${m.had.d} 负${m.had.a}`;
+        }
+        if (m.hhad && m.hhad.a) {
+          text += ` | 让球(${m.hhad.goalLine}): 胜${m.hhad.h} 平${m.hhad.d} 负${m.hhad.a}`;
+        }
+        return text;
+      }).join("\n");
+
       const prompt = `${aiRole}
 现在我需要你对今日的以下 ${input.matches.length} 场竞彩比赛进行批量推演，并给出一个总的购彩跟单方案：
-${input.matches.map(m => `[${m.matchNumStr} ${m.league}] 主队：${m.homeTeam} VS 客队：${m.awayTeam}`).join("\n")}
+${matchesStr}
 
 用户的购彩偏好设定如下：
 - 打票总预算：${input.budget || "未指定（默认建议100元左右）"}
 - 风险承受等级：${input.risk || "未指定（默认稳妥为主）"}
 
-请基于近期球队表现和盘口，进行分析。特别注意用户是完全不懂球的小白，请直接结合预算和风险偏好，给出简单粗暴的“傻瓜式”打票方案（例如挑几场打串关或者单场，分别投入多少钱）。
+请基于近期球队表现、伤停以及我提供给你的最新体彩官方赔率（包括标准胜平负和让球胜平负）进行深度分析。赔率和让球深度往往蕴含了庄家对双方基本面和冷门可能性的精算。特别注意用户是完全不懂球的小白，请直接结合预算和风险偏好，给出简单粗暴的“傻瓜式”打票方案（例如挑几场打串关或者单场，分别投入多少钱），可以在 reason 中提及赔率异常或看好依据。
 
 返回要求：必须且只能返回一个合法的 JSON 对象，不要有任何其他分析文本。
 格式必须严格为：
