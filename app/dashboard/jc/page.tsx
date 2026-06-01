@@ -18,14 +18,58 @@ export default function JcPredictPage() {
     setTimeout(() => setToastMessage(""), 2000);
   };
 
-  const { data: todayMatches, isLoading: isLoadingMatches, isFetching: isFetchingMatches, refetch: refetchMatches } = trpc.jc.getTodayMatches.useQuery(
-    { type: mode },
-    { enabled: true, retry: false, refetchOnWindowFocus: false }
-  );
+  const [todayMatches, setTodayMatches] = useState<any[]>([]);
+  const [isLoadingMatches, setIsLoadingMatches] = useState(false);
+  const [isFetchingMatches, setIsFetchingMatches] = useState(false);
+
+  const fetchMatchesClient = async () => {
+    setIsFetchingMatches(true);
+    if (!todayMatches.length) setIsLoadingMatches(true);
+    try {
+      const res = await fetch("https://webapi.sporttery.cn/gateway/jc/football/getMatchCalculatorV1.qry?poolCode=hhad,had&channel=c");
+      if (!res.ok) throw new Error("Fetch failed");
+      const json = await res.json();
+      
+      if (!json?.value?.matchInfoList) {
+        setTodayMatches([]);
+        return { status: 'success', data: [] };
+      }
+      
+      const allMatches = json.value.matchInfoList.flatMap((group: any) => group.subMatchList || []);
+      const filteredMatches = allMatches.filter((m: any) => {
+        const league = m.leagueAbbName || "";
+        const isWorldCup = league.includes("世界杯") || league.includes("世预") || league.includes("世亚预") || league.includes("世欧预") || league.includes("国际赛") || league.includes("欧洲杯") || league.includes("美洲杯");
+        return mode === "worldcup" ? isWorldCup : !isWorldCup;
+      });
+      
+      const matches = filteredMatches.map((m: any) => ({
+        matchId: m.matchId,
+        matchNumStr: m.matchNumStr,
+        league: m.leagueAbbName,
+        homeTeam: m.homeTeamAbbName,
+        awayTeam: m.awayTeamAbbName,
+        matchTime: m.matchTime,
+      })).slice(0, 10);
+      
+      setTodayMatches(matches);
+      return { status: 'success', data: matches };
+    } catch (e) {
+      console.error("Client fetch error:", e);
+      return { status: 'error' };
+    } finally {
+      setIsLoadingMatches(false);
+      setIsFetchingMatches(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchMatchesClient();
+  }, [mode]);
+
   const batchPredictMutation = trpc.jc.batchPredictMatches.useMutation();
 
   const handleRefresh = async () => {
-    const result = await refetchMatches();
+    const result = await fetchMatchesClient();
     if (result.status === 'success') {
       showToast(`✅ 刷新成功，拉取到 ${result.data?.length || 0} 场焦点赛事`);
     } else {
@@ -114,8 +158,8 @@ export default function JcPredictPage() {
           <div className="bg-white rounded-3xl p-5 md:p-8 border border-slate-100 shadow-[0_4px_20px_rgba(0,0,0,0.03)] space-y-5 md:space-y-6">
             
             <div className="flex bg-slate-50 p-1 rounded-2xl mb-2">
-              <button onClick={() => setMode("worldcup")} className={`flex-1 py-2 text-sm font-bold rounded-xl transition-all ${mode === "worldcup" ? "bg-white text-slate-800 shadow-sm border border-slate-200" : "text-slate-400 hover:text-slate-600"}`}>🏆 世界杯专属</button>
-              <button onClick={() => setMode("regular")} className={`flex-1 py-2 text-sm font-bold rounded-xl transition-all ${mode === "regular" ? "bg-white text-slate-800 shadow-sm border border-slate-200" : "text-slate-400 hover:text-slate-600"}`}>⚽️ 日常联赛</button>
+              <button onClick={() => { setMode("worldcup"); setBatchResult(null); }} className={`flex-1 py-2 text-sm font-bold rounded-xl transition-all ${mode === "worldcup" ? "bg-white text-slate-800 shadow-sm border border-slate-200" : "text-slate-400 hover:text-slate-600"}`}>🏆 世界杯专属</button>
+              <button onClick={() => { setMode("regular"); setBatchResult(null); }} className={`flex-1 py-2 text-sm font-bold rounded-xl transition-all ${mode === "regular" ? "bg-white text-slate-800 shadow-sm border border-slate-200" : "text-slate-400 hover:text-slate-600"}`}>⚽️ 日常联赛</button>
             </div>
 
             <div className="space-y-5 animate-in fade-in zoom-in-95 duration-300">
@@ -176,21 +220,21 @@ export default function JcPredictPage() {
                         <span className="text-xs text-slate-400 font-bold bg-slate-50 px-2 py-1 rounded-md">{m.matchTime ? m.matchTime.slice(0, 5) : ""}</span>
                       </div>
                     ))}
-                    <button
-                      onClick={handleBatchPredict}
-                      disabled={isBatchPredicting}
-                      className={`w-full py-4 mt-4 rounded-2xl font-bold text-white shadow-lg transition-all active:scale-[0.98] ${
-                        isBatchPredicting 
-                          ? "bg-indigo-300 cursor-not-allowed shadow-none" 
-                          : "bg-gradient-to-r from-indigo-500 to-blue-500 hover:opacity-90 shadow-indigo-200"
-                      }`}
-                    >
-                      {isBatchPredicting ? "🤖 正在多线程智能扫盘中..." : "🤖 一键扫盘并出今日总单"}
-                    </button>
                   </div>
                 ) : (
-                  <div className="text-center py-10 text-slate-400 text-sm font-medium bg-slate-50 rounded-2xl border border-dashed border-slate-200">今日暂无可分析的竞彩赛事</div>
+                  <div className="text-center py-10 text-slate-400 text-sm font-medium bg-slate-50 rounded-2xl border border-dashed border-slate-200 mb-3">今日暂无可分析的竞彩赛事</div>
                 )}
+                <button
+                  onClick={handleBatchPredict}
+                  disabled={isBatchPredicting || !todayMatches?.length}
+                  className={`w-full py-4 mt-4 rounded-2xl font-bold text-white shadow-lg transition-all active:scale-[0.98] ${
+                    isBatchPredicting || !todayMatches?.length
+                      ? "bg-indigo-300 cursor-not-allowed shadow-none" 
+                      : "bg-gradient-to-r from-indigo-500 to-blue-500 hover:opacity-90 shadow-indigo-200"
+                  }`}
+                >
+                  {isBatchPredicting ? "🤖 正在多线程智能扫盘中..." : "🤖 一键扫盘并出今日总单"}
+                </button>
             </div>
           </div>
 
@@ -230,43 +274,47 @@ export default function JcPredictPage() {
               <div className="bg-gradient-to-br from-indigo-50 to-blue-50/50 rounded-3xl p-6 border border-indigo-100/60 shadow-sm relative overflow-hidden">
                 <div className="absolute right-0 top-0 w-32 h-32 bg-white/40 rounded-full blur-3xl" />
                 <div className="relative z-10">
-                  <div className="bg-white/80 backdrop-blur-md rounded-2xl p-5 mb-5 border border-indigo-100 shadow-sm">
-                    <h4 className="font-black text-indigo-600 mb-2 flex items-center gap-2"><Bot className="w-4 h-4"/> 宏观策略概览</h4>
-                    <p className="text-slate-800 font-bold leading-relaxed">{batchResult.summary}</p>
-                    
-                    {(batchResult.ticketPlan || batchResult.purchaseTime) && (
-                      <div className="mt-4 pt-4 border-t border-indigo-100/50 space-y-3">
-                        {batchResult.ticketPlan && (
-                          <div className="flex flex-col">
-                            <span className="text-[10px] text-indigo-400 font-bold mb-1 uppercase tracking-wider flex items-center gap-1">🎫 核心打票方案 (小白直接抄)</span>
-                            <span className="text-sm font-black text-slate-800 bg-indigo-50/80 px-3 py-2 rounded-xl border border-indigo-100">{batchResult.ticketPlan}</span>
-                          </div>
-                        )}
-                        
-                        <div className="grid grid-cols-2 gap-3">
-                          {batchResult.estimatedCost && (
-                            <div className="flex flex-col bg-white rounded-xl p-3 border border-indigo-50 shadow-sm">
-                              <span className="text-[10px] text-slate-400 font-bold mb-1 uppercase tracking-wider">💰 预计成本</span>
-                              <span className="text-sm font-black text-slate-700">{batchResult.estimatedCost}</span>
-                            </div>
-                          )}
-                          {batchResult.expectedReturn && (
-                            <div className="flex flex-col bg-white rounded-xl p-3 border border-indigo-50 shadow-sm">
-                              <span className="text-[10px] text-slate-400 font-bold mb-1 uppercase tracking-wider">🏆 预计中奖金额</span>
-                              <span className="text-sm font-black text-rose-500">{batchResult.expectedReturn}</span>
-                            </div>
-                          )}
-                        </div>
-                        
-                        {batchResult.purchaseTime && (
-                          <div className="flex items-center gap-2 bg-amber-50/80 p-3 rounded-xl border border-amber-100/50 mt-1">
-                            <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" />
-                            <span className="text-xs font-bold text-amber-700">{batchResult.purchaseTime}</span>
-                          </div>
-                        )}
+                  {/* 怎么买 - 直接发给老板 */}
+                  {batchResult.howToBuy && (
+                    <div className="bg-white/90 backdrop-blur-md rounded-2xl p-5 mb-4 border-2 border-indigo-400 shadow-[0_4px_20px_-4px_rgba(99,102,241,0.3)]">
+                      <div className="flex justify-between items-center mb-3">
+                        <h4 className="font-black text-indigo-600 flex items-center gap-2 text-base"><Bot className="w-5 h-5"/> 怎么买 (直接发给老板)</h4>
+                        <button 
+                          onClick={() => { navigator.clipboard.writeText(batchResult.howToBuy); showToast("✅ 复制成功，快去发给老板吧！"); }} 
+                          className="bg-indigo-100 text-indigo-700 px-4 py-1.5 rounded-full text-xs font-bold hover:bg-indigo-200 transition-colors shadow-sm active:scale-95"
+                        >
+                          一键复制
+                        </button>
                       </div>
-                    )}
-                  </div>
+                      <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-4 rounded-xl font-bold text-[15px] leading-relaxed relative">
+                        {/* Chat bubble tail */}
+                        <div className="absolute -left-1.5 top-4 w-3 h-3 bg-emerald-50 rotate-45 border-l border-b border-emerald-200"></div>
+                        <p className="relative z-10">{batchResult.howToBuy}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 什么时候买 */}
+                  {batchResult.whenToBuy && (
+                    <div className="bg-white/80 backdrop-blur-md rounded-2xl p-4 mb-4 border border-indigo-100 shadow-sm flex items-start gap-3">
+                      <div className="bg-amber-100 p-2.5 rounded-xl shrink-0"><AlertCircle className="w-5 h-5 text-amber-600"/></div>
+                      <div>
+                        <h4 className="font-bold text-slate-800 text-sm mb-1 tracking-wide">什么时候买</h4>
+                        <p className="text-slate-600 font-semibold text-sm leading-relaxed">{batchResult.whenToBuy}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 为什么买 */}
+                  {batchResult.whyToBuy && (
+                    <div className="bg-white/80 backdrop-blur-md rounded-2xl p-4 mb-5 border border-indigo-100 shadow-sm flex items-start gap-3">
+                      <div className="bg-blue-100 p-2.5 rounded-xl shrink-0"><Trophy className="w-5 h-5 text-blue-600"/></div>
+                      <div>
+                        <h4 className="font-bold text-slate-800 text-sm mb-1 tracking-wide">为什么买</h4>
+                        <p className="text-slate-600 font-semibold text-sm leading-relaxed">{batchResult.whyToBuy}</p>
+                      </div>
+                    </div>
+                  )}
                   <div className="space-y-3">
                     {batchResult.matches?.map((m: any, idx: number) => (
                       <div key={idx} className="bg-white/60 rounded-2xl p-4 border border-indigo-50 hover:bg-white transition-colors">
@@ -284,7 +332,9 @@ export default function JcPredictPage() {
                             <span className="text-base font-black text-rose-500">{m.score}</span>
                           </div>
                         </div>
-                        <p className="text-[11px] text-slate-500 font-medium leading-relaxed bg-slate-50/50 p-2.5 rounded-xl">🧠 {m.reason}</p>
+                        {m.reason && (
+                          <p className="text-[11px] text-slate-500 font-medium leading-relaxed bg-slate-50/50 p-2.5 rounded-xl">🧠 {m.reason}</p>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -330,12 +380,12 @@ export default function JcPredictPage() {
                       </div>
                       
                       <div className="bg-indigo-50/50 rounded-xl p-3 mb-3">
-                        <span className="text-[10px] font-bold text-indigo-400 block mb-1">宏观策略概览</span>
-                        <span className="font-bold text-slate-700 text-xs leading-relaxed">{p.summary}</span>
-                        {p.ticketPlan && (
+                        <span className="text-[10px] font-bold text-indigo-400 block mb-1">为什么买</span>
+                        <span className="font-bold text-slate-700 text-xs leading-relaxed">{p.whyToBuy || p.summary}</span>
+                        {p.howToBuy && (
                           <div className="mt-2 pt-2 border-t border-indigo-100/50">
-                            <span className="text-[10px] font-bold text-indigo-400 block mb-1">核心打票方案</span>
-                            <span className="font-black text-slate-800 text-xs block bg-white px-2 py-1 rounded-md border border-indigo-50">{p.ticketPlan}</span>
+                            <span className="text-[10px] font-bold text-indigo-400 block mb-1">怎么买</span>
+                            <span className="font-black text-emerald-800 text-xs block bg-emerald-50 px-2 py-1.5 rounded-md border border-emerald-100">{p.howToBuy}</span>
                           </div>
                         )}
                       </div>

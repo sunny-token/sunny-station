@@ -190,7 +190,7 @@ export const jcRouter = router({
         
         const filteredMatches = allMatches.filter((m: any) => {
           const league = m.leagueAbbName || "";
-          const isWorldCup = league.includes("世界杯") || league.includes("世预") || league.includes("世亚预") || league.includes("世欧预");
+          const isWorldCup = league.includes("世界杯") || league.includes("世预") || league.includes("世亚预") || league.includes("世欧预") || league.includes("国际赛") || league.includes("欧洲杯") || league.includes("美洲杯");
           if (matchType === "worldcup") {
             return isWorldCup;
           } else {
@@ -252,6 +252,9 @@ ${input.matches.map(m => `[${m.matchNumStr} ${m.league}] 主队：${m.homeTeam} 
 返回要求：必须且只能返回一个合法的 JSON 对象，不要有任何其他分析文本。
 格式必须严格为：
 {
+  "howToBuy": "（直接复制发给彩票店老板的话，必须指明几串几、编号和赛果。例如：老板，帮我打个2串1：001胜 串 002平，打50块钱）",
+  "whenToBuy": "（建议购买时间，例如：今晚19:00前，必须在第一场开打前去买）",
+  "whyToBuy": "（用大白话解释理由，且必须在开头明确写出预计能中奖多少钱。例如：预计能中约150-250元。主队近期状态极佳...）",
   "matches": [
     {
       "matchNumStr": "周五008",
@@ -259,14 +262,9 @@ ${input.matches.map(m => `[${m.matchNumStr} ${m.league}] 主队：${m.homeTeam} 
       "awayTeam": "客队",
       "result": "胜|平|负",
       "score": "x:y",
-      "reason": "简短的一句话推演理由"
+      "reason": "单场推演理由（用一句话概括为什么预测这个结果）"
     }
-  ],
-  "summary": "👑今日总分析概括，约50字内。",
-  "ticketPlan": "具体打票方案（如：2串1：周五001胜 + 周五002平，适合小白直接照抄买）",
-  "purchaseTime": "建议购买时间（如：今晚 19:00 前，去线下体彩店购买）",
-  "estimatedCost": "预计成本（如：50元）",
-  "expectedReturn": "预计奖金（如：约 150 - 250 元）"
+  ]
 }`;
 
       console.log(`[JC Route] 开始批量预测，比赛数量: ${input.matches.length}, 预算: ${input.budget}, 风险: ${input.risk}`);
