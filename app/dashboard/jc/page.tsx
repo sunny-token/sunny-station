@@ -231,8 +231,41 @@ export default function JcPredictPage() {
                 <div className="absolute right-0 top-0 w-32 h-32 bg-white/40 rounded-full blur-3xl" />
                 <div className="relative z-10">
                   <div className="bg-white/80 backdrop-blur-md rounded-2xl p-5 mb-5 border border-indigo-100 shadow-sm">
-                    <h4 className="font-black text-indigo-600 mb-2 flex items-center gap-2"><Bot className="w-4 h-4"/> 宏观策略跟单方案</h4>
+                    <h4 className="font-black text-indigo-600 mb-2 flex items-center gap-2"><Bot className="w-4 h-4"/> 宏观策略概览</h4>
                     <p className="text-slate-800 font-bold leading-relaxed">{batchResult.summary}</p>
+                    
+                    {(batchResult.ticketPlan || batchResult.purchaseTime) && (
+                      <div className="mt-4 pt-4 border-t border-indigo-100/50 space-y-3">
+                        {batchResult.ticketPlan && (
+                          <div className="flex flex-col">
+                            <span className="text-[10px] text-indigo-400 font-bold mb-1 uppercase tracking-wider flex items-center gap-1">🎫 核心打票方案 (小白直接抄)</span>
+                            <span className="text-sm font-black text-slate-800 bg-indigo-50/80 px-3 py-2 rounded-xl border border-indigo-100">{batchResult.ticketPlan}</span>
+                          </div>
+                        )}
+                        
+                        <div className="grid grid-cols-2 gap-3">
+                          {batchResult.estimatedCost && (
+                            <div className="flex flex-col bg-white rounded-xl p-3 border border-indigo-50 shadow-sm">
+                              <span className="text-[10px] text-slate-400 font-bold mb-1 uppercase tracking-wider">💰 预计成本</span>
+                              <span className="text-sm font-black text-slate-700">{batchResult.estimatedCost}</span>
+                            </div>
+                          )}
+                          {batchResult.expectedReturn && (
+                            <div className="flex flex-col bg-white rounded-xl p-3 border border-indigo-50 shadow-sm">
+                              <span className="text-[10px] text-slate-400 font-bold mb-1 uppercase tracking-wider">🏆 预计中奖金额</span>
+                              <span className="text-sm font-black text-rose-500">{batchResult.expectedReturn}</span>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {batchResult.purchaseTime && (
+                          <div className="flex items-center gap-2 bg-amber-50/80 p-3 rounded-xl border border-amber-100/50 mt-1">
+                            <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" />
+                            <span className="text-xs font-bold text-amber-700">{batchResult.purchaseTime}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <div className="space-y-3">
                     {batchResult.matches?.map((m: any, idx: number) => (
@@ -297,8 +330,14 @@ export default function JcPredictPage() {
                       </div>
                       
                       <div className="bg-indigo-50/50 rounded-xl p-3 mb-3">
-                        <span className="text-[10px] font-bold text-indigo-400 block mb-1">宏观策略跟单方案</span>
+                        <span className="text-[10px] font-bold text-indigo-400 block mb-1">宏观策略概览</span>
                         <span className="font-bold text-slate-700 text-xs leading-relaxed">{p.summary}</span>
+                        {p.ticketPlan && (
+                          <div className="mt-2 pt-2 border-t border-indigo-100/50">
+                            <span className="text-[10px] font-bold text-indigo-400 block mb-1">核心打票方案</span>
+                            <span className="font-black text-slate-800 text-xs block bg-white px-2 py-1 rounded-md border border-indigo-50">{p.ticketPlan}</span>
+                          </div>
+                        )}
                       </div>
                       
                       <div className="space-y-2">

@@ -262,7 +262,11 @@ ${input.matches.map(m => `[${m.matchNumStr} ${m.league}] 主队：${m.homeTeam} 
       "reason": "简短的一句话推演理由"
     }
   ],
-  "summary": "👑今日总答案（终极跟单方案），指出这几场里哪几场最稳，怎么组合买，资金怎么分配，约100字内。"
+  "summary": "👑今日总分析概括，约50字内。",
+  "ticketPlan": "具体打票方案（如：2串1：周五001胜 + 周五002平，适合小白直接照抄买）",
+  "purchaseTime": "建议购买时间（如：今晚 19:00 前，去线下体彩店购买）",
+  "estimatedCost": "预计成本（如：50元）",
+  "expectedReturn": "预计奖金（如：约 150 - 250 元）"
 }`;
 
       console.log(`[JC Route] 开始批量预测，比赛数量: ${input.matches.length}, 预算: ${input.budget}, 风险: ${input.risk}`);
