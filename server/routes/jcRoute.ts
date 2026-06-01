@@ -278,7 +278,7 @@ ${input.matches.map(m => `[${m.matchNumStr} ${m.league}] 主队：${m.homeTeam} 
             homeTeam: "BATCH_SCAN",
             awayTeam: input.type,
             prediction: parsed,
-            status: "FINISHED"
+            status: "PENDING"
           }
         });
 

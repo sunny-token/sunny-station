@@ -88,6 +88,66 @@ export default function JcPredictPage() {
     }
   }, [queryError]);
 
+  const updateResultMutation = trpc.jc.updateResult.useMutation();
+  const [checkingId, setCheckingId] = useState<number | null>(null);
+  const [expandedIds, setExpandedIds] = useState<number[]>([]);
+
+  const toggleExpand = (id: number) => {
+    setExpandedIds(prev => 
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const handleCheckPrize = async (pred: any) => {
+    setCheckingId(pred.id);
+    try {
+      const res = await fetch("https://webapi.sporttery.cn/gateway/jc/football/getMatchResultV1.qry?matchPage=1&matchType=0&pcNl=1");
+      if (!res.ok) throw new Error("Fetch failed");
+      const json = await res.json();
+      
+      const officialMatches = json.value?.matchResult || [];
+      const p = typeof pred.prediction === "string" ? JSON.parse(pred.prediction) : pred.prediction;
+      
+      let hitCount = 0;
+      let totalCount = 0;
+      
+      if (p.matches && Array.isArray(p.matches)) {
+        totalCount = p.matches.length;
+        for (const m of p.matches) {
+          const matchedOfficial = officialMatches.find((om: any) => om.matchNumStr === m.matchNumStr && om.homeTeamAbbName === m.homeTeam);
+          if (matchedOfficial) {
+            const hhad = matchedOfficial.hhad?.a || ""; 
+            const had = matchedOfficial.had?.a || "";
+            // Simplified check: if the actual result (胜/平/负) is included in our prediction string, we count it as a hit
+            if (m.result.includes("胜") && (hhad.includes("胜") || had.includes("胜"))) hitCount++;
+            else if (m.result.includes("平") && (hhad.includes("平") || had.includes("平"))) hitCount++;
+            else if (m.result.includes("负") && (hhad.includes("负") || had.includes("负"))) hitCount++;
+          }
+        }
+      }
+      
+      const isHit = totalCount > 0 && hitCount === totalCount;
+      const actualResult = JSON.stringify({
+        hitCount,
+        totalCount,
+        isHit,
+        checkedAt: new Date().toISOString()
+      });
+
+      await updateResultMutation.mutateAsync({
+        id: pred.id,
+        actualResult
+      });
+      
+      refetchHistory();
+      showToast(isHit ? "🎉 恭喜！本单全中，红单！" : `📝 对奖完成，命中 ${hitCount}/${totalCount} 场`);
+    } catch (e: any) {
+      showToast("❌ 对奖失败，可能官方暂未开奖");
+    } finally {
+      setCheckingId(null);
+    }
+  };
+
   const handleBatchPredict = async () => {
     if (!todayMatches || todayMatches.length === 0) return;
     setIsBatchPredicting(true);
@@ -366,17 +426,50 @@ export default function JcPredictPage() {
               <div className="space-y-4">
                 {history.map((pred: any) => {
                   const p = typeof pred.prediction === "string" ? JSON.parse(pred.prediction) : pred.prediction;
+                  const estimatedCheckTime = new Date(new Date(pred.createdAt).getTime() + 24 * 60 * 60 * 1000);
+                  estimatedCheckTime.setHours(12, 0, 0, 0);
+                  const isCheckable = Date.now() >= estimatedCheckTime.getTime();
+                  
                   return (
                     <div key={pred.id} className="bg-white rounded-3xl p-5 border border-slate-100 shadow-[0_4px_16px_rgba(0,0,0,0.02)]">
                       <div className="flex justify-between items-start mb-3 border-b border-slate-50 pb-3">
-                        <div className="flex items-center gap-2">
-                          <span className="bg-slate-50 border border-slate-100 px-2.5 py-0.5 rounded-full text-xs font-bold text-slate-500">
-                            {new Date(pred.createdAt).toLocaleDateString("zh-CN", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-                          </span>
-                          <span className="font-bold text-slate-800 text-sm">
-                            {pred.awayTeam === "worldcup" ? "🏆 世界杯专属扫盘" : "⚽️ 日常联赛扫盘"}
-                          </span>
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-slate-800 text-sm">
+                              {pred.awayTeam === "worldcup" ? "🏆 世界杯专属扫盘" : "⚽️ 日常联赛扫盘"}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 text-[10px] text-slate-400 font-medium">
+                            <span>打票: {new Date(pred.createdAt).toLocaleDateString("zh-CN", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
+                            <span>|</span>
+                            {pred.status === "FINISHED" && pred.actualResult && JSON.parse(pred.actualResult).checkedAt ? (
+                              <span>对奖: {new Date(JSON.parse(pred.actualResult).checkedAt).toLocaleDateString("zh-CN", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
+                            ) : (
+                              <span>预计开奖: {estimatedCheckTime.toLocaleDateString("zh-CN", { month: "short", day: "numeric" })} 12:00</span>
+                            )}
+                          </div>
                         </div>
+                        
+                        {pred.status === "PENDING" && (
+                          <button 
+                            onClick={() => isCheckable && handleCheckPrize(pred)}
+                            disabled={!isCheckable || checkingId === pred.id}
+                            title={!isCheckable ? "官方尚未开奖，请于预计时间后再试" : ""}
+                            className={`text-[11px] font-bold px-3 py-1 rounded-full flex items-center gap-1 transition-colors ${
+                              isCheckable 
+                                ? "bg-indigo-50 text-indigo-500 hover:bg-indigo-100 cursor-pointer" 
+                                : "bg-slate-50 text-slate-300 cursor-not-allowed"
+                            }`}
+                          >
+                            {checkingId === pred.id ? <RefreshCw className="w-3 h-3 animate-spin" /> : "自动对奖"}
+                          </button>
+                        )}
+                        
+                        {pred.status === "FINISHED" && pred.actualResult && (
+                          <div className={`text-[11px] font-bold px-3 py-1 rounded-full ${JSON.parse(pred.actualResult).isHit ? 'bg-rose-50 text-rose-500 border border-rose-100' : 'bg-slate-50 text-slate-500'}`}>
+                            {JSON.parse(pred.actualResult).isHit ? "🎯 红单" : `命中 ${JSON.parse(pred.actualResult).hitCount}/${JSON.parse(pred.actualResult).totalCount} 场`}
+                          </div>
+                        )}
                       </div>
                       
                       <div className="bg-indigo-50/50 rounded-xl p-3 mb-3">
@@ -391,7 +484,7 @@ export default function JcPredictPage() {
                       </div>
                       
                       <div className="space-y-2">
-                        {p.matches?.slice(0, 3).map((m: any, idx: number) => (
+                        {p.matches?.slice(0, expandedIds.includes(pred.id) ? p.matches.length : 3).map((m: any, idx: number) => (
                           <div key={idx} className="flex justify-between items-center text-xs bg-slate-50 p-2 rounded-lg border border-slate-100">
                             <span className="font-bold text-slate-600">{m.homeTeam} <span className="text-[10px] text-slate-400">vs</span> {m.awayTeam}</span>
                             <div className="flex gap-2">
@@ -401,9 +494,12 @@ export default function JcPredictPage() {
                           </div>
                         ))}
                         {p.matches?.length > 3 && (
-                          <div className="text-center text-[10px] text-slate-400 font-bold mt-2">
-                            ... 等 {p.matches.length} 场赛事推演
-                          </div>
+                          <button 
+                            onClick={() => toggleExpand(pred.id)}
+                            className="w-full text-center text-[10px] text-slate-400 font-bold mt-2 py-1 hover:text-slate-600 transition-colors bg-slate-50 rounded-lg border border-slate-100"
+                          >
+                            {expandedIds.includes(pred.id) ? "收起列表" : `展开其余 ${p.matches.length - 3} 场赛事推演 ▾`}
+                          </button>
                         )}
                       </div>
                     </div>
