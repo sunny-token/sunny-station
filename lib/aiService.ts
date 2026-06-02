@@ -1,19 +1,24 @@
+// 交叉排列：每一梯队包含 GPT / Claude / Gemini 各一个
+// 5xx 错误 → 整个厂商可能宕机，立即跳到下一厂商
+// 非 5xx 错误 → 仅该型号不可用，继续按顺序尝试
 const defaultFallbackModels = [
-  // GPT 系列
+  // 第一梯队
   "gpt-5.5",
-  "gpt-5.4",
-  "gpt-5.4-mini",
-  
-  // Claude 系列 (按性价比排序：次数计费 > 按量计费便宜 > 按量计费贵)
-  "claude-sonnet-4-20250514",       // 次数计费 400积分/次，最划算
-  "claude-haiku-4-5-20251001",      // 官方 12,000积分/1M，token最便宜
-  "claude-sonnet-4-6",              // 官方 36,000积分/1M
-  "claude-opus-4-8",                // 官方 60,000积分/1M，最强兜底
-  
-  // 官方 Gemini 直连容错
+  "claude-sonnet-4-20250514",       // 次数计费 400积分/次
   "gemini-3.5-flash-official",
+  
+  // 第二梯队
+  "gpt-5.4",
+  "claude-haiku-4-5-20251001",      // 官方 12,000积分/1M
   "gemini-3-flash-official",
-  "gemini-3.1-flash-lite-official"
+  
+  // 第三梯队
+  "gpt-5.4-mini",
+  "claude-sonnet-4-6",              // 官方 36,000积分/1M
+  "gemini-3.1-flash-lite-official",
+  
+  // 终极兜底
+  "claude-opus-4-8",                // 官方 60,000积分/1M
 ];
 
 interface AICallOptions {
@@ -33,6 +38,8 @@ export async function callAI({
   
   let content = "";
   let lastError: any = null;
+  // 记录哪些厂商返回了 5xx，说明整个厂商服务可能宕机，后续直接跳过
+  const serverErrorProviders = new Set<string>();
 
   for (const model of fallbackModels) {
     try {
@@ -40,6 +47,15 @@ export async function callAI({
       const actualModel = model.replace("-official", "");
       const isGemini = actualModel.includes("gemini");
       const isClaude = actualModel.includes("claude");
+      
+      // 判断当前模型属于哪个厂商
+      const provider = isGemini ? "gemini" : isClaude ? "claude" : "gpt";
+      
+      // 如果该厂商已经 5xx 过，直接跳过
+      if (serverErrorProviders.has(provider)) {
+        console.log(`[AI Service] 厂商 ${provider} 已标记为宕机，跳过模型: ${model}`);
+        continue;
+      }
       
       let currentApiKey;
       if (isOfficialGemini) {
@@ -139,8 +155,16 @@ export async function callAI({
       const response = await fetch(url, { method: "POST", headers, body });
       if (!response.ok) {
           const errorText = await response.text().catch(() => "N/A");
-          console.warn(`[AI Service] 模型 ${model} 请求失败, 状态码: ${response.status}, 详情: ${errorText}`);
-          lastError = new Error(`模型 ${model} 请求失败 (${response.status}): ${errorText.substring(0, 200)}`);
+          const status = response.status;
+          console.warn(`[AI Service] 模型 ${model} 请求失败, 状态码: ${status}, 详情: ${errorText}`);
+          lastError = new Error(`模型 ${model} 请求失败 (${status}): ${errorText.substring(0, 200)}`);
+          
+          // 5xx 服务端错误：整个厂商可能宕机，拉黑该厂商
+          if (status >= 500) {
+            const failedProvider = isGemini ? "gemini" : isClaude ? "claude" : "gpt";
+            serverErrorProviders.add(failedProvider);
+            console.warn(`[AI Service] 厂商 ${failedProvider} 返回 ${status}，标记为宕机，切换到其他厂商`);
+          }
           continue;
       }
 
