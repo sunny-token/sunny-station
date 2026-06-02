@@ -309,10 +309,10 @@ export default function JcPredictPage() {
                       disabled={isBatchPredicting}
                       className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-100 focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 outline-none transition-all text-slate-700 text-sm font-medium disabled:opacity-50 appearance-none"
                     >
+                      <option value="10元 (买包烟)">10元 (买包烟)</option>
                       <option value="50元 (小试牛刀)">50元 (小试牛刀)</option>
                       <option value="100元 (赚顿饭钱)">100元 (赚顿饭钱)</option>
                       <option value="500元 (中等投入)">500元 (中等投入)</option>
-                      <option value="1000元以上 (重注)">1000元+ (重注)</option>
                     </select>
                   </div>
                   <div className="space-y-2">
