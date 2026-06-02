@@ -143,20 +143,109 @@ export const jcRouter = router({
   updateResult: adminProcedure
     .input(z.object({
       id: z.number(),
-      actualResult: z.string(),
+      actualResult: z.string().optional(),
+      status: z.enum(["PENDING", "FINISHED"]).default("FINISHED"),
+      prizeAmount: z.number().optional()
     }))
     .mutation(async ({ input }) => {
+      const dataToUpdate: any = { status: input.status };
+      if (input.actualResult !== undefined) {
+        dataToUpdate.actualResult = input.actualResult;
+      }
+      if (input.prizeAmount !== undefined) {
+        dataToUpdate.prizeAmount = input.prizeAmount;
+      }
       const updated = await prisma.jcPrediction.update({
         where: { id: input.id },
-        data: {
-          actualResult: input.actualResult,
-          status: "FINISHED"
-        }
+        data: dataToUpdate
       });
       return updated;
     }),
 
+  calculatePrizeWithAI: adminProcedure
+    .input(z.object({
+      id: z.number(),
+      base64Image: z.string(),
+      oddsText: z.string()
+    }))
+    .mutation(async ({ input }) => {
+      const prediction = await prisma.jcPrediction.findUnique({
+        where: { id: input.id }
+      });
+      if (!prediction) throw new Error("推演记录不存在");
 
+      const prompt = `你是一个专业的体育彩票算奖助手。
+这里有一张用户购买彩票的推演记录（包含买的哪些场次、预测结果，以及具体的购买方案 howToBuy）：
+${JSON.stringify(prediction.prediction)}
+
+用户实际购买时获取的赔率信息如下：
+${input.oddsText}
+
+我提供了一张官方赛果的截图（包含各场比赛的最终比分和彩果）。
+请你：
+1. 从截图中找到推演记录中对应的比赛场次，提取出它们的官方彩果（胜、平、负）。判断规则是全场比分左侧数字大于右侧为胜，等于为平，小于为负。
+2. 将官方彩果与推演记录中的预测结果进行比对。
+3. 如果有中奖的单子，请仔细阅读 \`howToBuy\` 和 \`budget\` 字段中的打票方案（可能会分为多张票，比如2串1打40元、单关打10元等）。结合用户提供的赔率，精确计算出总奖金。
+   - 串关奖金公式：赔率1 × 赔率2 × ... × 该票本金
+   - 单关奖金公式：赔率 × 该票本金
+   （如果赔率信息不完整，请在分析过程中说明，但仍尽力判断是否红单。遇到无明细本金的，用总本金按合理推算或说明。）
+4. 输出一段详细的分析过程，然后以严格的 JSON 格式返回最终结果，不要包含在 markdown 代码块中，直接返回 JSON 即可。
+
+JSON 格式要求如下：
+{
+  "analysisReasoning": "你的详细分析过程，包括你找到了哪些比赛、官方结果是什么、哪些票红了哪些黑了、奖金计算明细等",
+  "isHit": true或false (只要有一张票红了且有奖金即为true),
+  "prizeAmount": 具体的数字金额(如果全部黑单或者无法计算则为0，保留两位小数)
+}`;
+
+      // Call Vision AI
+      const fallbackModels = ["gpt-5.5", "gpt-5.4", "gpt-5.4-mini", "claude-3-5-sonnet-20241022"];
+      let content = "";
+      for (const model of fallbackModels) {
+        try {
+          const currentApiKey = process.env.GPTGOD_API_KEY;
+          if (!currentApiKey) continue;
+          const response = await fetch("https://api.gptgod.online/v1/chat/completions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${currentApiKey}` },
+            body: JSON.stringify({
+              model: model,
+              messages: [{
+                role: "user",
+                content: [
+                  { type: "text", text: prompt },
+                  { type: "image_url", image_url: { url: input.base64Image } }
+                ]
+              }],
+              temperature: 0.1
+            })
+          });
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`Vision AI API Error (${model}): ${response.status}`, errorText);
+            continue;
+          }
+          const data = await response.json();
+          content = data.choices?.[0]?.message?.content || "";
+          if (content) break;
+        } catch (e) {
+          console.warn(`Vision AI error for ${model}`, e);
+        }
+      }
+
+      if (!content) throw new Error("AI 解析失败，请重试");
+      
+      // Extract JSON from content
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error("AI 返回格式不正确");
+      
+      try {
+        const result = JSON.parse(jsonMatch[0]);
+        return result;
+      } catch(e) {
+        throw new Error("AI 返回的 JSON 无法解析");
+      }
+    }),
 
   getTodayMatches: adminProcedure
     .input(z.object({ type: z.enum(["worldcup", "regular"]).default("worldcup") }).optional())
@@ -299,6 +388,7 @@ ${matchesStr}
       try {
         let content = await callAI(prompt);
         const parsed = JSON.parse(content.replace(/```json/gi, '').replace(/```/g, '').trim());
+        parsed.budget = input.budget;
 
         await prisma.jcPrediction.create({
           data: {

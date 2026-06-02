@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { trpc } from "@/server/client";
-import { Radar, ChevronLeft, AlertCircle, Trophy, Bot, RefreshCw } from "lucide-react";
+import { Radar, ChevronLeft, AlertCircle, Trophy, Bot, RefreshCw, ExternalLink, X, Upload } from "lucide-react";
 import Link from "next/link";
 
 export default function JcPredictPage() {
@@ -21,6 +21,105 @@ export default function JcPredictPage() {
   const [todayMatches, setTodayMatches] = useState<any[]>([]);
   const [isLoadingMatches, setIsLoadingMatches] = useState(false);
   const [isFetchingMatches, setIsFetchingMatches] = useState(false);
+
+  const calculatePrizeMutation = trpc.jc.calculatePrizeWithAI.useMutation();
+  const [calculatingPredId, setCalculatingPredId] = useState<number | null>(null);
+  const [calcImage, setCalcImage] = useState<string>("");
+  const [calcOddsList, setCalcOddsList] = useState<{label: string, value: string}[]>([]);
+  const [calcResult, setCalcResult] = useState<any>(null);
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setCalcImage(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleCalculatePrize = async () => {
+    if (!calculatingPredId || !calcImage) return showToast("请先上传赛果截图");
+    setCalcResult(null);
+    
+    const oddsText = calcOddsList.map(item => `${item.label}赔率: ${item.value}`).join("\n");
+
+    try {
+      const res = await calculatePrizeMutation.mutateAsync({
+        id: calculatingPredId,
+        base64Image: calcImage,
+        oddsText: oddsText
+      });
+      setCalcResult(res);
+    } catch (err: any) {
+      showToast(err.message || "算奖失败");
+    }
+  };
+
+  const handleApplyCalcResult = async () => {
+    if (!calculatingPredId || !calcResult) return;
+    await updateResultMutation.mutateAsync({ 
+      id: calculatingPredId, 
+      actualResult: JSON.stringify({ isHit: calcResult.isHit, checkedAt: new Date().toISOString() }),
+      prizeAmount: calcResult.prizeAmount,
+      status: "FINISHED"
+    });
+    showToast(calcResult.isHit ? "🎯 已自动记录为红单！" : "📝 已自动记录为黑单");
+    refetchHistory();
+    closeCalcModal();
+  };
+
+  const handleOpenCalcModal = (pred: any) => {
+    setCalculatingPredId(pred.id);
+    const p = typeof pred.prediction === "string" ? JSON.parse(pred.prediction) : pred.prediction;
+    
+    if (p.matches && Array.isArray(p.matches)) {
+      const howToBuy = p.howToBuy || "";
+      let filteredMatches = p.matches;
+      if (howToBuy) {
+        filteredMatches = p.matches.filter((m: any) => howToBuy.includes(m.matchNumStr));
+      }
+      if (filteredMatches.length === 0) {
+        filteredMatches = p.matches;
+      }
+      const initialOdds = filteredMatches.map((m: any) => ({
+        label: `${m.matchNumStr} ${m.result}`,
+        value: ""
+      }));
+      setCalcOddsList(initialOdds);
+    }
+  };
+
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      if (!calculatingPredId) return;
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf("image") !== -1) {
+          const file = items[i].getAsFile();
+          if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              setCalcImage(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+          }
+          break;
+        }
+      }
+    };
+    window.addEventListener("paste", handlePaste);
+    return () => window.removeEventListener("paste", handlePaste);
+  }, [calculatingPredId]);
+
+  const closeCalcModal = () => {
+    setCalculatingPredId(null);
+    setCalcImage("");
+    setCalcOddsList([]);
+    setCalcResult(null);
+  };
 
   const fetchMatchesClient = useCallback(async () => {
     setIsFetchingMatches(true);
@@ -96,64 +195,12 @@ export default function JcPredictPage() {
   }, [queryError]);
 
   const updateResultMutation = trpc.jc.updateResult.useMutation();
-  const [checkingId, setCheckingId] = useState<number | null>(null);
   const [expandedIds, setExpandedIds] = useState<number[]>([]);
 
   const toggleExpand = (id: number) => {
     setExpandedIds(prev => 
       prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
     );
-  };
-
-  const handleCheckPrize = async (pred: any) => {
-    setCheckingId(pred.id);
-    try {
-      const res = await fetch("https://webapi.sporttery.cn/gateway/jc/football/getMatchResultV1.qry?matchPage=1&matchType=0&pcNl=1");
-      if (!res.ok) throw new Error("Fetch failed");
-      const json = await res.json();
-      
-      const officialMatches = json.value?.matchResult || [];
-      const p = typeof pred.prediction === "string" ? JSON.parse(pred.prediction) : pred.prediction;
-      
-      let hitCount = 0;
-      let totalCount = 0;
-      
-      if (p.matches && Array.isArray(p.matches)) {
-        totalCount = p.matches.length;
-        for (const m of p.matches) {
-          const matchedOfficial = officialMatches.find((om: any) => om.matchNumStr === m.matchNumStr && om.homeTeamAbbName === m.homeTeam);
-          if (matchedOfficial) {
-            const hhad = matchedOfficial.hhad?.a || ""; 
-            const had = matchedOfficial.had?.a || "";
-            // Simplified check: if the actual result (胜/平/负) is included in our prediction string, we count it as a hit
-            if (m.result.includes("胜") && (hhad.includes("胜") || had.includes("胜"))) hitCount++;
-            else if (m.result.includes("平") && (hhad.includes("平") || had.includes("平"))) hitCount++;
-            else if (m.result.includes("负") && (hhad.includes("负") || had.includes("负"))) hitCount++;
-          }
-        }
-      }
-      
-      const isHit = totalCount > 0 && hitCount === totalCount;
-      const actualResult = JSON.stringify({
-        hitCount,
-        totalCount,
-        isHit,
-        checkedAt: new Date().toISOString()
-      });
-
-      await updateResultMutation.mutateAsync({
-        id: pred.id,
-        actualResult
-      });
-      
-      refetchHistory();
-      showToast(isHit ? "🎉 恭喜！本单全中，红单！" : `📝 对奖完成，命中 ${hitCount}/${totalCount} 场`);
-    } catch (e: any) {
-      console.error("Check prize error:", e);
-      showToast("❌ 对奖失败，可能官方暂未开奖");
-    } finally {
-      setCheckingId(null);
-    }
   };
 
   const handleBatchPredict = async () => {
@@ -477,23 +524,69 @@ export default function JcPredictPage() {
                         </div>
                         
                         {pred.status === "PENDING" && (
-                          <button 
-                            onClick={() => isCheckable && handleCheckPrize(pred)}
-                            disabled={!isCheckable || checkingId === pred.id}
-                            title={!isCheckable ? "官方尚未开奖，请于预计时间后再试" : ""}
-                            className={`text-[11px] font-bold px-3 py-1 rounded-full flex items-center gap-1 transition-colors ${
-                              isCheckable 
-                                ? "bg-indigo-50 text-indigo-500 hover:bg-indigo-100 cursor-pointer" 
-                                : "bg-slate-50 text-slate-300 cursor-not-allowed"
-                            }`}
-                          >
-                            {checkingId === pred.id ? <RefreshCw className="w-3 h-3 animate-spin" /> : "自动对奖"}
-                          </button>
+                          <div className="flex gap-2">
+                            <a 
+                              href="https://www.sporttery.cn/jc/zqsgkj/"
+                              target="_blank"
+                              rel="noreferrer"
+                              title="点击前往体彩官网查看开奖结果"
+                              className="text-[11px] font-bold px-3 py-1 rounded-full flex items-center gap-1 transition-colors bg-blue-50 text-blue-500 hover:bg-blue-100 cursor-pointer"
+                            >
+                              <ExternalLink className="w-3 h-3" />
+                              查赛果
+                            </a>
+                            <button 
+                              onClick={() => handleOpenCalcModal(pred)}
+                              title="上传开奖截图让AI自动算奖"
+                              className="text-[11px] font-bold px-3 py-1 rounded-full flex items-center gap-1 transition-colors bg-purple-50 text-purple-600 hover:bg-purple-100 cursor-pointer"
+                            >
+                              <Bot className="w-3 h-3" />
+                              AI 智能算奖
+                            </button>
+                            <button 
+                              onClick={async () => {
+                                await updateResultMutation.mutateAsync({ id: pred.id, actualResult: JSON.stringify({ isHit: true, checkedAt: new Date().toISOString() }) });
+                                showToast("🎯 已手动标记为红单！");
+                                refetchHistory();
+                              }}
+                              disabled={updateResultMutation.isPending}
+                              title="如果全中，点击这里标记为红单"
+                              className="text-[11px] font-bold px-3 py-1 rounded-full flex items-center gap-1 transition-colors bg-emerald-50 text-emerald-600 hover:bg-emerald-100 cursor-pointer disabled:opacity-50"
+                            >
+                              红单
+                            </button>
+                            <button 
+                              onClick={async () => {
+                                await updateResultMutation.mutateAsync({ id: pred.id, actualResult: JSON.stringify({ isHit: false, checkedAt: new Date().toISOString() }) });
+                                showToast("📝 已手动标记为黑单");
+                                refetchHistory();
+                              }}
+                              disabled={updateResultMutation.isPending}
+                              title="如果没中，点击这里标记为黑单"
+                              className="text-[11px] font-bold px-3 py-1 rounded-full flex items-center gap-1 transition-colors bg-slate-50 text-slate-500 hover:bg-slate-100 cursor-pointer disabled:opacity-50 border border-slate-200"
+                            >
+                              黑单
+                            </button>
+                          </div>
                         )}
                         
                         {pred.status === "FINISHED" && pred.actualResult && (
-                          <div className={`text-[11px] font-bold px-3 py-1 rounded-full ${JSON.parse(pred.actualResult).isHit ? 'bg-rose-50 text-rose-500 border border-rose-100' : 'bg-slate-50 text-slate-500'}`}>
-                            {JSON.parse(pred.actualResult).isHit ? "🎯 红单" : `命中 ${JSON.parse(pred.actualResult).hitCount}/${JSON.parse(pred.actualResult).totalCount} 场`}
+                          <div className="flex items-center gap-2">
+                            <div className={`text-[11px] font-bold px-3 py-1 rounded-full ${JSON.parse(pred.actualResult).isHit ? 'bg-rose-50 text-rose-500 border border-rose-100' : 'bg-slate-50 text-slate-500 border border-slate-200'}`}>
+                              {JSON.parse(pred.actualResult).isHit ? "🎯 已中奖 (红单)" : "📝 未中奖 (黑单)"}
+                            </div>
+                            <button 
+                              onClick={async () => {
+                                await updateResultMutation.mutateAsync({ id: pred.id, status: "PENDING", actualResult: "" });
+                                showToast("↩️ 已撤销状态，可重新标记");
+                                refetchHistory();
+                              }}
+                              disabled={updateResultMutation.isPending}
+                              title="点错了？点击撤销标记"
+                              className="text-[11px] text-slate-400 hover:text-slate-600 underline underline-offset-2 transition-colors disabled:opacity-50"
+                            >
+                              撤销
+                            </button>
                           </div>
                         )}
                       </div>
@@ -542,6 +635,120 @@ export default function JcPredictPage() {
         {toastMessage && (
           <div className="fixed bottom-10 left-1/2 -translate-x-1/2 px-6 py-3 bg-slate-800/90 backdrop-blur-md text-white text-sm font-medium rounded-full shadow-2xl z-50 animate-in slide-in-from-bottom-5 fade-in duration-300">
             {toastMessage}
+          </div>
+        )}
+
+        {/* AI 智能算奖 Modal */}
+        {calculatingPredId && (
+          <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
+              <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                <div className="flex items-center gap-2 text-purple-600">
+                  <Bot className="w-5 h-5" />
+                  <h3 className="font-bold text-lg">AI 智能算奖</h3>
+                </div>
+                <button onClick={closeCalcModal} className="p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 rounded-full transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="p-6 overflow-y-auto space-y-6">
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-slate-700 block">1. 上传官方开奖截图</label>
+                  <p className="text-xs text-slate-400 mb-2">请截取包含您买的对应场次的“赛果”页面</p>
+                  {calcImage ? (
+                    <div className="relative rounded-xl overflow-hidden border border-slate-200 bg-slate-50 group">
+                      <img src={calcImage} alt="Uploaded" className="w-full h-auto max-h-48 object-contain" />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <button onClick={() => setCalcImage("")} className="px-4 py-2 bg-white rounded-lg text-sm font-bold text-rose-500 hover:bg-rose-50 transition-colors">
+                          重新上传
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-slate-200 border-dashed rounded-xl cursor-pointer bg-slate-50 hover:bg-slate-100 transition-colors">
+                      <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                        <Upload className="w-6 h-6 text-slate-400 mb-2" />
+                        <p className="text-xs text-slate-500 font-medium">点击上传图片或拖拽到此处</p>
+                        <p className="text-[10px] text-slate-400 mt-1">💡 也可以直接 Ctrl+V / Cmd+V 粘贴截图</p>
+                      </div>
+                      <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                    </label>
+                  )}
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-bold text-slate-700 block mb-2">2. 确认赔率信息</label>
+                    <div className="space-y-3 bg-slate-50 border border-slate-200 rounded-xl p-4">
+                      {calcOddsList.map((item, idx) => (
+                        <div key={idx} className="flex items-center justify-between gap-3">
+                          <span className="text-sm font-medium text-slate-600 shrink-0">{item.label}</span>
+                          <input 
+                            type="number"
+                            step="0.01"
+                            placeholder="例如: 1.55"
+                            className="w-32 bg-white border border-slate-200 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all text-right"
+                            value={item.value}
+                            onChange={(e) => {
+                              const newList = [...calcOddsList];
+                              newList[idx].value = e.target.value;
+                              setCalcOddsList(newList);
+                            }}
+                          />
+                        </div>
+                      ))}
+                      {calcOddsList.length === 0 && (
+                        <div className="text-xs text-slate-400 text-center py-2">暂无赛事可填</div>
+                      )}
+                    </div>
+                  </div>
+
+                </div>
+
+                {calcResult && (
+                  <div className={`p-4 rounded-xl border ${calcResult.isHit ? 'bg-emerald-50 border-emerald-100' : 'bg-slate-50 border-slate-200'}`}>
+                    <div className="flex items-center gap-2 mb-3">
+                      {calcResult.isHit ? (
+                        <span className="bg-emerald-500 text-white text-xs font-bold px-2 py-1 rounded">✅ 红单确认</span>
+                      ) : (
+                        <span className="bg-slate-500 text-white text-xs font-bold px-2 py-1 rounded">❌ 黑单</span>
+                      )}
+                      {calcResult.prizeAmount > 0 && (
+                        <span className="text-emerald-600 font-bold text-sm">奖金: {calcResult.prizeAmount.toFixed(2)} 元</span>
+                      )}
+                    </div>
+                    <div className="text-xs text-slate-600 leading-relaxed whitespace-pre-wrap bg-white/50 p-3 rounded-lg">
+                      {calcResult.analysisReasoning}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-5 border-t border-slate-100 bg-slate-50/50 flex gap-3">
+                {!calcResult ? (
+                  <button
+                    onClick={handleCalculatePrize}
+                    disabled={calculatePrizeMutation.isPending || !calcImage}
+                    className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {calculatePrizeMutation.isPending ? (
+                      <><RefreshCw className="w-4 h-4 animate-spin" /> AI 分析中...</>
+                    ) : (
+                      <><Bot className="w-4 h-4" /> 开始智能算奖</>
+                    )}
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleApplyCalcResult}
+                    disabled={updateResultMutation.isPending}
+                    className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    应用算奖结果 (标记为{calcResult.isHit ? '红单' : '黑单'})
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         )}
       </div>

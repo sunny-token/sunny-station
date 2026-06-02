@@ -135,6 +135,7 @@ model JcPrediction {
   prediction   Json     
   status       String   @default("PENDING") // PENDING, FINISHED
   actualResult String?
+  prizeAmount  Float?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
