@@ -390,16 +390,34 @@ export default function JcPredictPage() {
                           <span className="text-[10px] font-bold text-white bg-indigo-400 px-2 py-0.5 rounded-full shadow-sm">{m.matchNumStr}</span>
                           <span className="text-sm font-black text-slate-800">{m.homeTeam} <span className="text-slate-300 mx-1 text-[10px]">VS</span> {m.awayTeam}</span>
                         </div>
-                        <div className="grid grid-cols-2 gap-3 mb-3">
+                        <div className="grid grid-cols-3 gap-3 mb-2">
                           <div className="text-center bg-indigo-50/50 rounded-xl p-2 border border-indigo-50">
                             <span className="text-[10px] text-slate-400 block mb-1 font-bold">走势预测</span>
-                            <span className="text-base font-black text-amber-600">{m.result}</span>
+                            <span className="text-sm font-black text-amber-600">{m.result}</span>
                           </div>
                           <div className="text-center bg-indigo-50/50 rounded-xl p-2 border border-indigo-50">
                             <span className="text-[10px] text-slate-400 block mb-1 font-bold">参考比分</span>
-                            <span className="text-base font-black text-rose-500">{m.score}</span>
+                            <span className="text-sm font-black text-rose-500">{m.score}</span>
+                          </div>
+                          <div className="text-center bg-indigo-50/50 rounded-xl p-2 border border-indigo-50">
+                            <span className="text-[10px] text-slate-400 block mb-1 font-bold">信心指数</span>
+                            <span className="text-sm font-black text-indigo-500">{m.confidence || "-"}</span>
                           </div>
                         </div>
+                        {(m.heat || m.risk) && (
+                          <div className="flex flex-wrap gap-2 mb-2">
+                            {m.heat && (
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${m.heat.includes('高') ? 'bg-rose-50 text-rose-500 border border-rose-100' : m.heat.includes('低') ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-slate-100 text-slate-500 border border-slate-200'}`}>
+                                🔥热度: {m.heat}
+                              </span>
+                            )}
+                            {m.risk && (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-50 text-amber-600 border border-amber-100">
+                                ⚠️ {m.risk}
+                              </span>
+                            )}
+                          </div>
+                        )}
                         {m.reason && (
                           <p className="text-[11px] text-slate-500 font-medium leading-relaxed bg-slate-50/50 p-2.5 rounded-xl">🧠 {m.reason}</p>
                         )}
@@ -496,8 +514,10 @@ export default function JcPredictPage() {
                           <div key={idx} className="flex justify-between items-center text-xs bg-slate-50 p-2 rounded-lg border border-slate-100">
                             <span className="font-bold text-slate-600">{m.homeTeam} <span className="text-[10px] text-slate-400">vs</span> {m.awayTeam}</span>
                             <div className="flex gap-2">
-                              <span className="text-amber-600 font-bold">{m.result}</span>
-                              <span className="text-rose-500 font-bold">{m.score}</span>
+                              {m.heat && m.heat.includes('高') && <span className="text-[10px]" title="高热场次">🔥</span>}
+                              {m.confidence && <span className="text-indigo-500 font-bold ml-1">{m.confidence}</span>}
+                              <span className="text-amber-600 font-bold ml-1">{m.result}</span>
+                              <span className="text-rose-500 font-bold ml-1">{m.score}</span>
                             </div>
                           </div>
                         ))}
