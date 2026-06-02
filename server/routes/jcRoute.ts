@@ -4,125 +4,7 @@ import prismaService from "../../lib/prismaService";
 
 const prisma = prismaService.getPrismaClient();
 
-async function callAI(prompt: string): Promise<string> {
-  console.log(`[JC Route] 开始调用 AI, Prompt 长度: ${prompt.length}`);
-  const fallbackModels = [
-    // GPT 系列
-    "gpt-5.5",
-    "gpt-5.4",
-    "gpt-5.4-mini",
-    
-    // Claude 系列
-    "claude-3-5-sonnet-20241022",
-    "claude-3-opus-20240229",
-    "claude-3-5-haiku-20241022",
-    
-    // 官方 Gemini 直连容错
-    "gemini-3.5-flash-official",
-    "gemini-3-flash-official",
-    "gemini-3.1-flash-lite-official"
-  ];
-  
-  let content = "";
-  let lastError: any = null;
-
-  for (const model of fallbackModels) {
-    try {
-      const isOfficialGemini = model.endsWith("-official");
-      const actualModel = model.replace("-official", "");
-      const isGemini = actualModel.includes("gemini");
-      const isClaude = actualModel.includes("claude");
-      
-      let currentApiKey;
-      if (isOfficialGemini) {
-        currentApiKey = process.env.GEMINI_API_KEY;
-      } else if (isClaude) {
-        currentApiKey = process.env.GPTGOD_CLAUDE_API_KEY || process.env.GPTGOD_API_KEY;
-      } else {
-        currentApiKey = process.env.GPTGOD_API_KEY;
-      }
-
-      if (!currentApiKey) {
-        console.warn(`[JC Route] 缺少对应的 API Key，跳过模型: ${model}`);
-        continue;
-      }
-      
-      let url = "https://api.gptgod.online/v1/chat/completions";
-      let headers: any = {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${currentApiKey}`
-      };
-      let body: any = JSON.stringify({
-        model: actualModel,
-        messages: [{ role: "user", content: prompt }],
-        temperature: 0.8
-      });
-
-      if (isGemini) {
-        const baseUrl = isOfficialGemini ? "https://generativelanguage.googleapis.com" : "https://api.gptgod.online";
-        url = `${baseUrl}/v1beta/models/${actualModel}:generateContent?key=${currentApiKey}`;
-        headers = { "Content-Type": "application/json" };
-        body = JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.8 }
-        });
-      } else if (isClaude) {
-        url = "https://api.gptgod.online/v1/messages";
-        headers = {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${currentApiKey}`,
-          "anthropic-version": "2023-06-01"
-        };
-        body = JSON.stringify({
-          model: actualModel,
-          max_tokens: 2048,
-          messages: [{ role: "user", content: prompt }],
-          temperature: 0.8
-        });
-      }
-
-      console.log(`[JC Route] 尝试使用模型进行预测: ${model}`);
-      const startTime = Date.now();
-      const response = await fetch(url, { method: "POST", headers, body });
-      if (!response.ok) {
-          const errorText = await response.text().catch(() => "N/A");
-          console.warn(`[JC Route] 模型 ${model} 请求失败, 状态码: ${response.status}, 详情: ${errorText}`);
-          continue;
-      }
-
-      const data = await response.json();
-      const elapsed = Date.now() - startTime;
-      console.log(`[JC Route] 模型 ${model} 请求成功, 耗时: ${elapsed}ms`);
-      
-      if (isGemini) {
-        content = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-      } else if (isClaude) {
-        content = data.content?.[0]?.text || "";
-      } else {
-        content = data.choices?.[0]?.message?.content || "";
-      }
-      
-      break;
-    } catch (err) {
-      console.warn(`[JC Route] 模型 ${model} 请求异常:`, err);
-      lastError = err;
-      continue;
-    }
-  }
-
-  if (!content) {
-    console.error(`[JC Route] 所有模型均失败。最后错误:`, lastError);
-    throw new Error("所有可用模型均请求失败，请检查网络或配置");
-  }
-
-  content = content.replace(/<think>[\s\S]*?<\/think>/g, "");
-  const jsonMatch = content.match(/\{[\s\S]*\}/);
-  if (jsonMatch) {
-    content = jsonMatch[0];
-  }
-  console.log(`[JC Route] AI 返回内容提取成功，JSON 长度: ${content.length}`);
-  return content;
-}
+import { callAI } from "../../lib/aiService";
 
 export const jcRouter = router({
   getHistory: adminProcedure
@@ -198,49 +80,16 @@ JSON 格式要求如下：
   "prizeAmount": 具体的数字金额(如果全部黑单或者无法计算则为0，保留两位小数)
 }`;
 
-      // Call Vision AI
-      const fallbackModels = ["gpt-5.5", "gpt-5.4", "gpt-5.4-mini", "claude-3-5-sonnet-20241022"];
-      let content = "";
-      for (const model of fallbackModels) {
-        try {
-          const currentApiKey = process.env.GPTGOD_API_KEY;
-          if (!currentApiKey) continue;
-          const response = await fetch("https://api.gptgod.online/v1/chat/completions", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${currentApiKey}` },
-            body: JSON.stringify({
-              model: model,
-              messages: [{
-                role: "user",
-                content: [
-                  { type: "text", text: prompt },
-                  { type: "image_url", image_url: { url: input.base64Image } }
-                ]
-              }],
-              temperature: 0.1
-            })
-          });
-          if (!response.ok) {
-            const errorText = await response.text();
-            console.error(`Vision AI API Error (${model}): ${response.status}`, errorText);
-            continue;
-          }
-          const data = await response.json();
-          content = data.choices?.[0]?.message?.content || "";
-          if (content) break;
-        } catch (e) {
-          console.warn(`Vision AI error for ${model}`, e);
-        }
-      }
-
-      if (!content) throw new Error("AI 解析失败，请重试");
-      
-      // Extract JSON from content
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) throw new Error("AI 返回格式不正确");
+      // Call Vision AI using the new aiService
+      const content = await callAI({
+        prompt: prompt,
+        base64Image: input.base64Image,
+        fallbackModels: ["gpt-5.5", "gpt-5.4", "gpt-5.4-mini", "claude-3-5-sonnet-20241022"],
+        temperature: 0.1
+      });
       
       try {
-        const result = JSON.parse(jsonMatch[0]);
+        const result = JSON.parse(content);
         return result;
       } catch(e) {
         throw new Error("AI 返回的 JSON 无法解析");
@@ -386,7 +235,7 @@ ${matchesStr}
       console.log(`[JC Route] 开始批量预测，比赛数量: ${input.matches.length}, 预算: ${input.budget}, 风险: ${input.risk}`);
 
       try {
-        let content = await callAI(prompt);
+        let content = await callAI({ prompt });
         const parsed = JSON.parse(content.replace(/```json/gi, '').replace(/```/g, '').trim());
         parsed.budget = input.budget;
 

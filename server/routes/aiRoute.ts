@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { router, publicProcedure } from "../trpc";
 import prismaService from "../../lib/prismaService";
+import { callAI } from "../../lib/aiService";
 
 const prisma = prismaService.getPrismaClient();
 
@@ -216,138 +217,8 @@ export const aiRouter = router({
 返回要求：必须且只能返回一个合法的 JSON 数组，不要有任何其他分析文本。数组包含5个对象，每个对象结构必须为 {"red": ["xx","xx",...], "blue": ["xx",...], "reason": "简短的一句话推演理由"}，其中红球和蓝球（或后区）里的数字必须补齐两位数（例如"01"），reason 字段提供该注号码的生成逻辑 or 冷热走势依据（约20-30字）。请注意，你现在预测的是${lotteryName}，因此 blue 数组的长度必须严格为 ${input.type === "ssq" ? "1" : "2"}。`;
 
       try {
-        const fallbackModels = [
-          // GPT 系列
-          "gpt-5.5",
-          "gpt-5.4",
-          "gpt-5.4-mini",
-          
-          // Claude 系列
-          "claude-3-5-sonnet-20241022",
-          "claude-3-opus-20240229",
-          "claude-3-5-haiku-20241022",
-          
-          // 官方 Gemini 直连容错
-          "gemini-3.5-flash-official",
-          "gemini-3-flash-official",
-          "gemini-3.1-flash-lite-official"
-        ];
+        const content = await callAI({ prompt });
         
-        let content = "";
-        let lastError: any = null;
-
-        for (const model of fallbackModels) {
-          try {
-            const isOfficialGemini = model.endsWith("-official");
-            const actualModel = model.replace("-official", "");
-            const isGemini = actualModel.includes("gemini");
-            const isClaude = actualModel.includes("claude");
-            
-            // API Key 判断
-            let currentApiKey;
-            if (isOfficialGemini) {
-              currentApiKey = process.env.GEMINI_API_KEY;
-            } else if (isClaude) {
-              currentApiKey = process.env.GPTGOD_CLAUDE_API_KEY || process.env.GPTGOD_API_KEY;
-            } else {
-              currentApiKey = process.env.GPTGOD_API_KEY;
-            }
-
-            if (!currentApiKey) {
-              // 如果某个渠道缺少key，直接跳过使用下一个模型
-              console.warn(`[AI Route] 缺少对应的 API Key，跳过模型: ${model}`);
-              lastError = new Error(`缺少对应的 API Key: ${model}`);
-              continue;
-            }
-            
-            let url = "https://api.gptgod.online/v1/chat/completions";
-            let headers: any = {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${currentApiKey}`
-            };
-            let body: any = JSON.stringify({
-              model: actualModel,
-              messages: [{ role: "user", content: prompt }],
-              temperature: 0.8
-            });
-
-            if (isGemini) {
-              // 根据不同渠道使用对应域名
-              const baseUrl = isOfficialGemini ? "https://generativelanguage.googleapis.com" : "https://api.gptgod.online";
-              url = `${baseUrl}/v1beta/models/${actualModel}:generateContent?key=${currentApiKey}`;
-              headers = {
-                "Content-Type": "application/json"
-              };
-              body = JSON.stringify({
-                contents: [{
-                  role: "user",
-                  parts: [{ text: prompt }]
-                }],
-                generationConfig: {
-                  temperature: 0.8
-                }
-              });
-            } else if (isClaude) {
-              url = "https://api.gptgod.online/v1/messages";
-              headers = {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${currentApiKey}`,
-                "anthropic-version": "2023-06-01"
-              };
-              body = JSON.stringify({
-                model: actualModel,
-                max_tokens: 2048,
-                messages: [{ role: "user", content: prompt }],
-                temperature: 0.8
-              });
-            }
-
-            const response = await fetch(url, {
-              method: "POST",
-              headers,
-              body,
-            });
-
-            if (!response.ok) {
-              const errorText = await response.text();
-              console.warn(`[AI Route] 模型 ${model} 失败 (${response.status})，尝试切换... 错误信息: ${errorText}`);
-              lastError = new Error(`请求AI接口失败: ${response.statusText} (${errorText})`);
-              continue;
-            }
-
-            const data = await response.json();
-            
-            if (isGemini) {
-              content = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-            } else if (isClaude) {
-              content = data.content?.[0]?.text || "";
-            } else {
-              content = data.choices?.[0]?.message?.content || "";
-            }
-            
-            console.log(`[AI Route] 模型 ${model} 推演成功！`);
-            // 成功则跳出重试循环
-            break;
-          } catch (fetchErr: any) {
-            console.warn(`[AI Route] 模型 ${model} 网络异常，尝试切换...`, fetchErr.message);
-            lastError = fetchErr;
-            continue;
-          }
-        }
-
-        if (!content) {
-          throw lastError || new Error("所有可用模型均请求失败，请检查网络或配置");
-        }
-
-        // 移除深度思考模型可能带有的 <think>...</think> 标签
-        content = content.replace(/<think>[\s\S]*?<\/think>/g, "");
-        
-        // 提取真正的 JSON 数组部分
-        const arrayMatch = content.match(/\[[\s\S]*\]/);
-        if (arrayMatch) {
-          content = arrayMatch[0];
-        }
-
         // 解析 JSON
         const parsed = JSON.parse(content.replace(/```json/gi, '').replace(/```/g, '').trim());
 
