@@ -751,28 +751,37 @@ export default function JcPredictPage() {
                 )}
               </div>
 
-              <div className="p-5 border-t border-slate-100 bg-slate-50/50 flex gap-3">
-                {!calcResult ? (
-                  <button
-                    onClick={handleCalculatePrize}
-                    disabled={calculatePrizeMutation.isPending || !calcImage}
-                    className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  >
-                    {calculatePrizeMutation.isPending ? (
-                      <><RefreshCw className="w-4 h-4 animate-spin" /> AI 分析中...</>
-                    ) : (
-                      <><Bot className="w-4 h-4" /> 开始智能算奖</>
-                    )}
-                  </button>
-                ) : (
-                  <button
-                    onClick={handleApplyCalcResult}
-                    disabled={updateResultMutation.isPending}
-                    className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                  >
-                    应用算奖结果 (标记为{calcResult.isHit ? '红单' : '黑单'})
-                  </button>
+              <div className="p-5 border-t border-slate-100 bg-slate-50/50 flex flex-col gap-3">
+                {calculatePrizeMutation.isError && (
+                  <div className="bg-red-50 text-red-500 text-xs font-medium p-3 rounded-xl border border-red-100 flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <span>{calculatePrizeMutation.error?.message || "算奖失败，请稍后重试"}</span>
+                  </div>
                 )}
+                
+                <div className="flex gap-3">
+                  {!calcResult ? (
+                    <button
+                      onClick={handleCalculatePrize}
+                      disabled={calculatePrizeMutation.isPending || !calcImage}
+                      className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      {calculatePrizeMutation.isPending ? (
+                        <><RefreshCw className="w-4 h-4 animate-spin" /> AI 分析中...</>
+                      ) : (
+                        <><Bot className="w-4 h-4" /> 开始智能算奖</>
+                      )}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleApplyCalcResult}
+                      disabled={updateResultMutation.isPending}
+                      className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      好的，我知道了
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>
