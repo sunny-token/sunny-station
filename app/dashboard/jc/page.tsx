@@ -501,7 +501,6 @@ export default function JcPredictPage() {
                   const p = typeof pred.prediction === "string" ? JSON.parse(pred.prediction) : pred.prediction;
                   const estimatedCheckTime = new Date(new Date(pred.createdAt).getTime() + 24 * 60 * 60 * 1000);
                   estimatedCheckTime.setHours(12, 0, 0, 0);
-                  const isCheckable = Date.now() >= estimatedCheckTime.getTime();
                   
                   return (
                     <div key={pred.id} className="bg-white rounded-3xl p-5 border border-slate-100 shadow-[0_4px_16px_rgba(0,0,0,0.02)]">
@@ -658,6 +657,7 @@ export default function JcPredictPage() {
                   <p className="text-xs text-slate-400 mb-2">请截取包含您买的对应场次的“赛果”页面</p>
                   {calcImage ? (
                     <div className="relative rounded-xl overflow-hidden border border-slate-200 bg-slate-50 group">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={calcImage} alt="Uploaded" className="w-full h-auto max-h-48 object-contain" />
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                         <button onClick={() => setCalcImage("")} className="px-4 py-2 bg-white rounded-lg text-sm font-bold text-rose-500 hover:bg-rose-50 transition-colors">
