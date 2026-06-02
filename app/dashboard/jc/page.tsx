@@ -607,8 +607,15 @@ export default function JcPredictPage() {
                             {JSON.parse(pred.actualResult).analysisReasoning && (
                               <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 mt-2">
                                 <span className="text-[10px] font-bold text-slate-400 block mb-1">AI 算奖详情</span>
-                                <div className="text-[11px] text-slate-600 leading-relaxed whitespace-pre-wrap">
-                                  {JSON.parse(pred.actualResult).analysisReasoning}
+                                <div className="text-[11px] text-slate-600 leading-relaxed space-y-1.5">
+                                  {(JSON.parse(pred.actualResult).analysisReasoning as string)
+                                    .split(/(?<=。)(?=周[一二三四五六日]|第[一二三1-9]|总奖金|综合|最终|实际)/)
+                                    .map((seg: string, i: number) => (
+                                      <p key={i} className={seg.includes('总奖金') || seg.includes('最终') ? 'font-bold text-emerald-700 pt-1 border-t border-slate-200' : ''}>
+                                        {seg.trim()}
+                                      </p>
+                                    ))
+                                  }
                                 </div>
                               </div>
                             )}
