@@ -4,10 +4,11 @@ const defaultFallbackModels = [
   "gpt-5.4",
   "gpt-5.4-mini",
   
-  // Claude 系列
-  "claude-3-5-sonnet-20241022",
-  "claude-3-opus-20240229",
-  "claude-3-5-haiku-20241022",
+  // Claude 系列 (按性价比排序：次数计费 > 按量计费便宜 > 按量计费贵)
+  "claude-sonnet-4-20250514",       // 次数计费 400积分/次，最划算
+  "claude-haiku-4-5-20251001",      // 官方 12,000积分/1M，token最便宜
+  "claude-sonnet-4-6",              // 官方 36,000积分/1M
+  "claude-opus-4-8",                // 官方 60,000积分/1M，最强兜底
   
   // 官方 Gemini 直连容错
   "gemini-3.5-flash-official",
@@ -51,6 +52,7 @@ export async function callAI({
 
       if (!currentApiKey) {
         console.warn(`[AI Service] 缺少对应的 API Key，跳过模型: ${model}`);
+        lastError = new Error(`缺少 API Key，跳过模型: ${model}`);
         continue;
       }
       
@@ -138,6 +140,7 @@ export async function callAI({
       if (!response.ok) {
           const errorText = await response.text().catch(() => "N/A");
           console.warn(`[AI Service] 模型 ${model} 请求失败, 状态码: ${response.status}, 详情: ${errorText}`);
+          lastError = new Error(`模型 ${model} 请求失败 (${response.status}): ${errorText.substring(0, 200)}`);
           continue;
       }
 

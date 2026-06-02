@@ -84,7 +84,7 @@ JSON 格式要求如下：
       const content = await callAI({
         prompt: prompt,
         base64Image: input.base64Image,
-        fallbackModels: ["gpt-5.5", "gpt-5.4", "gpt-5.4-mini", "claude-3-5-sonnet-20241022"],
+        fallbackModels: ["gpt-5.5", "gpt-5.4", "gpt-5.4-mini", "claude-sonnet-4-20250514", "claude-opus-4-8"],
         temperature: 0.1
       });
       
