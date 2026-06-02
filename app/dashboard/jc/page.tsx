@@ -52,6 +52,19 @@ export default function JcPredictPage() {
         oddsText: oddsText
       });
       setCalcResult(res);
+      
+      // Auto save result
+      await updateResultMutation.mutateAsync({ 
+        id: calculatingPredId, 
+        actualResult: JSON.stringify({ 
+          isHit: res.isHit, 
+          checkedAt: new Date().toISOString(),
+          analysisReasoning: res.analysisReasoning
+        }),
+        prizeAmount: res.prizeAmount,
+        status: "FINISHED"
+      });
+      refetchHistory();
     } catch (err: any) {
       showToast(err.message || "算奖失败");
     }
@@ -59,14 +72,7 @@ export default function JcPredictPage() {
 
   const handleApplyCalcResult = async () => {
     if (!calculatingPredId || !calcResult) return;
-    await updateResultMutation.mutateAsync({ 
-      id: calculatingPredId, 
-      actualResult: JSON.stringify({ isHit: calcResult.isHit, checkedAt: new Date().toISOString() }),
-      prizeAmount: calcResult.prizeAmount,
-      status: "FINISHED"
-    });
-    showToast(calcResult.isHit ? "🎯 已自动记录为红单！" : "📝 已自动记录为黑单");
-    refetchHistory();
+    showToast(calcResult.isHit ? "🎯 已记录为红单！" : "📝 已记录为黑单");
     closeCalcModal();
   };
 
@@ -78,7 +84,11 @@ export default function JcPredictPage() {
       const howToBuy = p.howToBuy || "";
       let filteredMatches = p.matches;
       if (howToBuy) {
-        filteredMatches = p.matches.filter((m: any) => howToBuy.includes(m.matchNumStr));
+        // howToBuy 中可能是 "004胜"，所以我们只匹配这3个数字来找场次
+        filteredMatches = p.matches.filter((m: any) => {
+          const matchNum = m.matchNumStr.replace(/[^0-9]/g, '');
+          return howToBuy.includes(matchNum);
+        });
       }
       if (filteredMatches.length === 0) {
         filteredMatches = p.matches;
@@ -570,22 +580,38 @@ export default function JcPredictPage() {
                         )}
                         
                         {pred.status === "FINISHED" && pred.actualResult && (
-                          <div className="flex items-center gap-2">
-                            <div className={`text-[11px] font-bold px-3 py-1 rounded-full ${JSON.parse(pred.actualResult).isHit ? 'bg-rose-50 text-rose-500 border border-rose-100' : 'bg-slate-50 text-slate-500 border border-slate-200'}`}>
-                              {JSON.parse(pred.actualResult).isHit ? "🎯 已中奖 (红单)" : "📝 未中奖 (黑单)"}
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <div className={`text-[11px] font-bold px-3 py-1 rounded-full ${JSON.parse(pred.actualResult).isHit ? 'bg-rose-50 text-rose-500 border border-rose-100' : 'bg-slate-50 text-slate-500 border border-slate-200'}`}>
+                                {JSON.parse(pred.actualResult).isHit ? "🎯 已中奖 (红单)" : "📝 未中奖 (黑单)"}
+                              </div>
+                              {pred.prizeAmount > 0 && (
+                                <span className="text-emerald-500 font-bold text-xs bg-emerald-50 px-2 py-1 rounded border border-emerald-100">
+                                  奖金: ¥{pred.prizeAmount.toFixed(2)}
+                               </span>
+                              )}
+                              <button 
+                                onClick={async () => {
+                                  await updateResultMutation.mutateAsync({ id: pred.id, status: "PENDING", actualResult: "" });
+                                  showToast("↩️ 已撤销状态，可重新标记");
+                                  refetchHistory();
+                                }}
+                                disabled={updateResultMutation.isPending}
+                                title="点错了？点击撤销标记"
+                                className="text-[11px] text-slate-400 hover:text-slate-600 underline underline-offset-2 transition-colors disabled:opacity-50"
+                              >
+                                撤销
+                              </button>
                             </div>
-                            <button 
-                              onClick={async () => {
-                                await updateResultMutation.mutateAsync({ id: pred.id, status: "PENDING", actualResult: "" });
-                                showToast("↩️ 已撤销状态，可重新标记");
-                                refetchHistory();
-                              }}
-                              disabled={updateResultMutation.isPending}
-                              title="点错了？点击撤销标记"
-                              className="text-[11px] text-slate-400 hover:text-slate-600 underline underline-offset-2 transition-colors disabled:opacity-50"
-                            >
-                              撤销
-                            </button>
+                            
+                            {JSON.parse(pred.actualResult).analysisReasoning && (
+                              <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 mt-2">
+                                <span className="text-[10px] font-bold text-slate-400 block mb-1">AI 算奖详情</span>
+                                <div className="text-[11px] text-slate-600 leading-relaxed whitespace-pre-wrap">
+                                  {JSON.parse(pred.actualResult).analysisReasoning}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
