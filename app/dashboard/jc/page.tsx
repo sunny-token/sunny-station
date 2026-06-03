@@ -143,14 +143,21 @@ export default function JcPredictPage() {
       const json = await res.json();
       
       if (!json?.value?.matchInfoList) {
+        const vtools = json?.value?.vtoolsConfig;
+        if (vtools && (vtools.offLineSaleStatus === 1 || vtools.onLineSaleStatus === 1)) {
+          setError(`当前为体彩休市时间（工作日通常11:00开售，周末10:00）。官方提示：${vtools.offLineStopMessage || '本彩种已停止销售'}`);
+        }
         setTodayMatches([]);
         return { status: 'success', data: [] };
       }
       
+      setError(""); // Clear error if matches are successfully loaded
+
+      
       const allMatches = json.value.matchInfoList.flatMap((group: any) => group.subMatchList || []);
       const filteredMatches = allMatches.filter((m: any) => {
         const league = m.leagueAbbName || "";
-        const isWorldCup = league.includes("世界杯") || league.includes("世预") || league.includes("世亚预") || league.includes("世欧预");
+        const isWorldCup = league.includes("世界杯") || league.includes("世预") || league.includes("世亚预") || league.includes("世欧预") || league.includes("国际") || league.includes("友谊赛") || league.includes("欧洲杯") || league.includes("美洲杯");
         return mode === "worldcup" ? isWorldCup : !isWorldCup;
       });
       

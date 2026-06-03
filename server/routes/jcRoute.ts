@@ -121,7 +121,14 @@ JSON 格式要求如下：
         console.log(`[JC Route] 体彩接口请求成功，耗时: ${elapsed}ms`);
         
         if (!data?.value?.matchInfoList) {
-          console.warn(`[JC Route] 接口返回数据中没有比赛列表(matchInfoList)`);
+          console.warn(`[JC Route] 接口返回数据中没有比赛列表(matchInfoList)，原始数据:`, data);
+          
+          // 判断是否是体彩休市期
+          const vtools = data?.value?.vtoolsConfig;
+          if (vtools && (vtools.offLineSaleStatus === 1 || vtools.onLineSaleStatus === 1)) {
+             throw new Error(`当前为体彩休市时间（工作日通常11:00开售，周末10:00）。官方提示：${vtools.offLineStopMessage || '本彩种已停止销售'}`);
+          }
+          
           return [];
         }
 
@@ -130,7 +137,7 @@ JSON 格式要求如下：
         
         const filteredMatches = allMatches.filter((m: any) => {
           const league = m.leagueAbbName || "";
-          const isWorldCup = league.includes("世界杯") || league.includes("世预") || league.includes("世亚预") || league.includes("世欧预") || league.includes("国际赛") || league.includes("欧洲杯") || league.includes("美洲杯");
+          const isWorldCup = league.includes("世界杯") || league.includes("世预") || league.includes("世亚预") || league.includes("世欧预") || league.includes("国际") || league.includes("友谊赛") || league.includes("欧洲杯") || league.includes("美洲杯");
           if (matchType === "worldcup") {
             return isWorldCup;
           } else {
