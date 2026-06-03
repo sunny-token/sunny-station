@@ -157,7 +157,7 @@ export default function JcPredictPage() {
       const allMatches = json.value.matchInfoList.flatMap((group: any) => group.subMatchList || []);
       const filteredMatches = allMatches.filter((m: any) => {
         const league = m.leagueAbbName || "";
-        const isWorldCup = league.includes("世界杯") || league.includes("世预") || league.includes("世亚预") || league.includes("世欧预") || league.includes("国际") || league.includes("友谊赛") || league.includes("欧洲杯") || league.includes("美洲杯");
+        const isWorldCup = league.includes("世界杯") || league.includes("世预") || league.includes("世亚预") || league.includes("世欧预");
         return mode === "worldcup" ? isWorldCup : !isWorldCup;
       });
       

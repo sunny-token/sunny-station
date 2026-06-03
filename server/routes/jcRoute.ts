@@ -137,7 +137,7 @@ JSON 格式要求如下：
         
         const filteredMatches = allMatches.filter((m: any) => {
           const league = m.leagueAbbName || "";
-          const isWorldCup = league.includes("世界杯") || league.includes("世预") || league.includes("世亚预") || league.includes("世欧预") || league.includes("国际") || league.includes("友谊赛") || league.includes("欧洲杯") || league.includes("美洲杯");
+          const isWorldCup = league.includes("世界杯") || league.includes("世预") || league.includes("世亚预") || league.includes("世欧预");
           if (matchType === "worldcup") {
             return isWorldCup;
           } else {
@@ -188,7 +188,7 @@ JSON 格式要求如下：
     .mutation(async ({ input }) => {
       const aiRole = input.type === "worldcup" 
         ? "你是专业的体育竞彩数据分析师，也是资深的世界杯专家。" 
-        : "你是专业的体育竞彩数据分析师，精通五大联赛等常规足彩赛事。";
+        : "你是专业的体育竞彩数据分析师，精通五大联赛及常规足彩赛事。如果当前分析的赛事中包含国际友谊赛（热身赛），请特别考虑球队主要目的是磨合阵容、演练战术和考察新人，通常战意不如正赛，容易打出冷门或平局。";
 
       const matchesStr = input.matches.map(m => {
         let text = `[${m.matchNumStr} ${m.league}] 主队：${m.homeTeam}${m.homeRank ? `(排名${m.homeRank})` : ''} VS 客队：${m.awayTeam}${m.awayRank ? `(排名${m.awayRank})` : ''} | 比赛时间: ${m.matchTime}`;
