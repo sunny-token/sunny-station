@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { trpc } from "@/server/client";
 import { Radar, ChevronLeft, AlertCircle, Trophy, Bot, RefreshCw, ExternalLink, X, Upload } from "lucide-react";
 import Link from "next/link";
@@ -18,18 +18,102 @@ export default function JcPredictPage() {
     setTimeout(() => setToastMessage(""), 2000);
   };
 
-  const {
-    data: todayMatchesData,
-    isLoading: isLoadingMatches,
-    isFetching: isFetchingMatches,
-    refetch: refetchMatches,
-    error: matchQueryError
-  } = trpc.jc.getTodayMatches.useQuery({ type: mode }, {
-    retry: false,
-    refetchOnWindowFocus: false,
-  });
+  const [todayMatches, setTodayMatches] = useState<any[]>([]);
+  const [isLoadingMatches, setIsLoadingMatches] = useState(true);
+  const [isFetchingMatches, setIsFetchingMatches] = useState(false);
 
-  const todayMatches = todayMatchesData || [];
+  const fetchMatchesClient = useCallback(async () => {
+    setIsLoadingMatches(true);
+    setIsFetchingMatches(true);
+    try {
+      if (mode === "champion") {
+        const chpRes = await fetch(`https://webapi.sporttery.cn/gateway/jc/tournament/getTournCalculatorV1.qry?poolCode=CHP&sportsCode=FB&tCode=WCC&channel=c`);
+        const fnlRes = await fetch(`https://webapi.sporttery.cn/gateway/jc/tournament/getTournCalculatorV1.qry?poolCode=FNL&sportsCode=FB&tCode=WCC&channel=c`);
+        if (!chpRes.ok || !fnlRes.ok) throw new Error("获取冠军赛事失败");
+        const chpData = await chpRes.json();
+        const fnlData = await fnlRes.json();
+        
+        const chpList = chpData?.value?.list || [];
+        const fnlList = fnlData?.value?.list || [];
+        
+        const formattedChp = chpList.map((m: any) => ({
+          matchId: `CHP_${m.selectionNum}`,
+          matchNumStr: `冠军(0${m.selectionNum})`,
+          league: "世界杯冠军",
+          homeTeam: m.homeTeamCnName,
+          awayTeam: m.awayTeamCnName || "",
+          matchTime: m.saleStatus === 1 ? '在售' : '停售',
+          odds: m.odds,
+          poolCode: 'CHP'
+        }));
+        
+        const formattedFnl = fnlList.map((m: any) => ({
+          matchId: `FNL_${m.selectionNum}`,
+          matchNumStr: `冠亚军(0${m.selectionNum})`,
+          league: "世界杯冠亚军",
+          homeTeam: m.homeTeamCnName,
+          awayTeam: m.awayTeamCnName || "",
+          matchTime: m.saleStatus === 1 ? '在售' : '停售',
+          odds: m.odds,
+          poolCode: 'FNL'
+        }));
+        
+        const allChampMatches = [...formattedChp, ...formattedFnl].filter((m: any) => m.odds);
+        const matches = allChampMatches.slice(0, 50);
+        setError("");
+        setTodayMatches(matches);
+        return { status: 'success', data: matches };
+      } else {
+        const res = await fetch(`https://webapi.sporttery.cn/gateway/jc/football/getMatchCalculatorV1.qry?poolCode=hhad,had&channel=c`);
+        if (!res.ok) throw new Error("fetch failed");
+        const json = await res.json();
+        if (!json?.value?.matchInfoList) {
+          const vtools = json?.value?.vtoolsConfig;
+          if (vtools && (vtools.offLineSaleStatus === 1 || vtools.onLineSaleStatus === 1)) {
+            setError(`当前为体彩休市时间（工作日通常11:00开售，周末10:00）。官方提示：${vtools.offLineStopMessage || '本彩种已停止销售'}`);
+          }
+          setTodayMatches([]);
+          return { status: 'success', data: [] };
+        }
+        
+        setError(""); // Clear error if matches are successfully loaded
+
+        const allMatches = json.value.matchInfoList.flatMap((group: any) => group.subMatchList || []);
+        const filteredMatches = allMatches.filter((m: any) => {
+          const league = m.leagueAbbName || "";
+          const isWorldCup = league.includes("世界杯") || league.includes("世预") || league.includes("世亚预") || league.includes("世欧预");
+          return mode === "worldcup" ? isWorldCup : !isWorldCup;
+        });
+        
+        const matches = filteredMatches.map((m: any) => ({
+          matchId: m.matchId,
+          matchNumStr: m.matchNumStr,
+          league: m.leagueAbbName,
+          homeTeam: m.homeTeamAbbName,
+          awayTeam: m.awayTeamAbbName,
+          matchTime: m.matchTime,
+          homeRank: m.homeRank,
+          awayRank: m.awayRank,
+          had: m.had,
+          hhad: m.hhad,
+        })).slice(0, 10);
+        
+        setTodayMatches(matches);
+        return { status: 'success', data: matches };
+      }
+    } catch (e: any) {
+      console.error("Client fetch error:", e);
+      setError(e.message || "获取赛事失败");
+      return { status: 'error' };
+    } finally {
+      setIsLoadingMatches(false);
+      setIsFetchingMatches(false);
+    }
+  }, [mode]);
+
+  useEffect(() => {
+    fetchMatchesClient();
+  }, [fetchMatchesClient]);
 
   const calculatePrizeMutation = trpc.jc.calculatePrizeWithAI.useMutation();
   const [calculatingPredId, setCalculatingPredId] = useState<number | null>(null);
@@ -140,19 +224,9 @@ export default function JcPredictPage() {
     setCalcResult(null);
   };
 
-  useEffect(() => {
-    if (matchQueryError) {
-      setError(matchQueryError.message || "获取赛事失败");
-    } else {
-      setError("");
-    }
-  }, [matchQueryError]);
-
-  const batchPredictMutation = trpc.jc.batchPredictMatches.useMutation();
-
   const handleRefresh = async () => {
-    const result = await refetchMatches();
-    if (result.isSuccess) {
+    const result = await fetchMatchesClient();
+    if (result.status === 'success') {
       showToast(`✅ 刷新成功，拉取到 ${result.data?.length || 0} 场焦点赛事`);
     } else {
       showToast("❌ 刷新失败，请检查网络或重试");
@@ -173,6 +247,7 @@ export default function JcPredictPage() {
   const updateResultMutation = trpc.jc.updateResult.useMutation();
   const [expandedIds, setExpandedIds] = useState<number[]>([]);
 
+  const batchPredictMutation = trpc.jc.batchPredictMatches.useMutation();
   const toggleExpand = (id: number) => {
     setExpandedIds(prev => 
       prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
