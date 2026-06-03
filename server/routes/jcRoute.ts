@@ -212,7 +212,7 @@ JSON 格式要求如下：
         return finalMatches;
       } catch (e: any) {
         console.error(`[JC Route] 获取今日赛事接口出现异常:`, e);
-        throw new Error("获取今日赛事失败");
+        throw new Error(e.message || "获取今日赛事失败");
       }
     }),
 
