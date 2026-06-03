@@ -9,8 +9,8 @@ export default function JcPredictPage() {
   const [mode, setMode] = useState<"worldcup" | "regular">("worldcup");
   const [batchResult, setBatchResult] = useState<any>(null);
   const [isBatchPredicting, setIsBatchPredicting] = useState(false);
-  const [batchBudget, setBatchBudget] = useState("50元 (小试牛刀)");
-  const [batchRisk, setBatchRisk] = useState("稳健理财 (尽量买正路保本)");
+  const [batchBudget, setBatchBudget] = useState("10元 (买包烟)");
+  const [batchRisk, setBatchRisk] = useState("均衡配置 (正路+博冷)");
   const [toastMessage, setToastMessage] = useState("");
 
   const showToast = (msg: string) => {
