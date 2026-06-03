@@ -6,7 +6,7 @@ import Link from "next/link";
 
 export default function JcPredictPage() {
   const [error, setError] = useState("");
-  const [mode, setMode] = useState<"worldcup" | "regular">("worldcup");
+  const [mode, setMode] = useState<"worldcup" | "regular" | "champion">("worldcup");
   const [batchResult, setBatchResult] = useState<any>(null);
   const [isBatchPredicting, setIsBatchPredicting] = useState(false);
   const [batchBudget, setBatchBudget] = useState("10元 (买包烟)");
@@ -18,9 +18,18 @@ export default function JcPredictPage() {
     setTimeout(() => setToastMessage(""), 2000);
   };
 
-  const [todayMatches, setTodayMatches] = useState<any[]>([]);
-  const [isLoadingMatches, setIsLoadingMatches] = useState(false);
-  const [isFetchingMatches, setIsFetchingMatches] = useState(false);
+  const {
+    data: todayMatchesData,
+    isLoading: isLoadingMatches,
+    isFetching: isFetchingMatches,
+    refetch: refetchMatches,
+    error: matchQueryError
+  } = trpc.jc.getTodayMatches.useQuery({ type: mode }, {
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+
+  const todayMatches = todayMatchesData || [];
 
   const calculatePrizeMutation = trpc.jc.calculatePrizeWithAI.useMutation();
   const [calculatingPredId, setCalculatingPredId] = useState<number | null>(null);
@@ -131,69 +140,19 @@ export default function JcPredictPage() {
     setCalcResult(null);
   };
 
-  const fetchMatchesClient = useCallback(async () => {
-    setIsFetchingMatches(true);
-    setTodayMatches(prev => {
-      if (!prev.length) setIsLoadingMatches(true);
-      return prev;
-    });
-    try {
-      const res = await fetch("https://webapi.sporttery.cn/gateway/jc/football/getMatchCalculatorV1.qry?poolCode=hhad,had&channel=c");
-      if (!res.ok) throw new Error("Fetch failed");
-      const json = await res.json();
-      
-      if (!json?.value?.matchInfoList) {
-        const vtools = json?.value?.vtoolsConfig;
-        if (vtools && (vtools.offLineSaleStatus === 1 || vtools.onLineSaleStatus === 1)) {
-          setError(`当前为体彩休市时间（工作日通常11:00开售，周末10:00）。官方提示：${vtools.offLineStopMessage || '本彩种已停止销售'}`);
-        }
-        setTodayMatches([]);
-        return { status: 'success', data: [] };
-      }
-      
-      setError(""); // Clear error if matches are successfully loaded
-
-      
-      const allMatches = json.value.matchInfoList.flatMap((group: any) => group.subMatchList || []);
-      const filteredMatches = allMatches.filter((m: any) => {
-        const league = m.leagueAbbName || "";
-        const isWorldCup = league.includes("世界杯") || league.includes("世预") || league.includes("世亚预") || league.includes("世欧预");
-        return mode === "worldcup" ? isWorldCup : !isWorldCup;
-      });
-      
-      const matches = filteredMatches.map((m: any) => ({
-        matchId: m.matchId,
-        matchNumStr: m.matchNumStr,
-        league: m.leagueAbbName,
-        homeTeam: m.homeTeamAbbName,
-        awayTeam: m.awayTeamAbbName,
-        matchTime: m.matchTime,
-        homeRank: m.homeRank,
-        awayRank: m.awayRank,
-        had: m.had,
-        hhad: m.hhad,
-      })).slice(0, 10);
-      
-      setTodayMatches(matches);
-      return { status: 'success', data: matches };
-    } catch (e) {
-      console.error("Client fetch error:", e);
-      return { status: 'error' };
-    } finally {
-      setIsLoadingMatches(false);
-      setIsFetchingMatches(false);
-    }
-  }, [mode]);
-
   useEffect(() => {
-    fetchMatchesClient();
-  }, [fetchMatchesClient]);
+    if (matchQueryError) {
+      setError(matchQueryError.message || "获取赛事失败");
+    } else {
+      setError("");
+    }
+  }, [matchQueryError]);
 
   const batchPredictMutation = trpc.jc.batchPredictMatches.useMutation();
 
   const handleRefresh = async () => {
-    const result = await fetchMatchesClient();
-    if (result.status === 'success') {
+    const result = await refetchMatches();
+    if (result.isSuccess) {
       showToast(`✅ 刷新成功，拉取到 ${result.data?.length || 0} 场焦点赛事`);
     } else {
       showToast("❌ 刷新失败，请检查网络或重试");
@@ -292,6 +251,7 @@ export default function JcPredictPage() {
             <div className="flex bg-slate-50 p-1 rounded-2xl mb-2">
               <button onClick={() => { setMode("worldcup"); setBatchResult(null); }} className={`flex-1 py-2 text-sm font-bold rounded-xl transition-all ${mode === "worldcup" ? "bg-white text-slate-800 shadow-sm border border-slate-200" : "text-slate-400 hover:text-slate-600"}`}>🏆 世界杯专属</button>
               <button onClick={() => { setMode("regular"); setBatchResult(null); }} className={`flex-1 py-2 text-sm font-bold rounded-xl transition-all ${mode === "regular" ? "bg-white text-slate-800 shadow-sm border border-slate-200" : "text-slate-400 hover:text-slate-600"}`}>⚽️ 日常联赛</button>
+              <button onClick={() => { setMode("champion"); setBatchResult(null); }} className={`flex-1 py-2 text-sm font-bold rounded-xl transition-all ${mode === "champion" ? "bg-white text-slate-800 shadow-sm border border-slate-200" : "text-slate-400 hover:text-slate-600"}`}>🥇 冠军竞猜</button>
             </div>
 
             <div className="space-y-5 animate-in fade-in zoom-in-95 duration-300">
@@ -342,16 +302,37 @@ export default function JcPredictPage() {
                     {[1,2,3].map(i => <div key={i} className="h-16 bg-slate-50 rounded-xl animate-pulse" />)}
                   </div>
                 ) : todayMatches?.length ? (
-                  <div className="space-y-3">
-                    {todayMatches.map((m: any, idx: number) => (
-                      <div key={m.matchId || m.matchNumStr || idx} className="bg-white border border-slate-100 p-3 rounded-xl flex items-center justify-between shadow-sm">
-                        <div className="flex flex-col">
-                          <span className="text-[10px] text-slate-400 font-bold mb-0.5">{m.matchNumStr} {m.league}</span>
-                          <span className="text-sm font-black text-slate-700">{m.homeTeam} <span className="text-slate-300 mx-1 text-xs">VS</span> {m.awayTeam}</span>
-                        </div>
-                        <span className="text-xs text-slate-400 font-bold bg-slate-50 px-2 py-1 rounded-md">{m.matchTime ? m.matchTime.slice(0, 5) : ""}</span>
-                      </div>
-                    ))}
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                      <thead className="bg-slate-50">
+                        <tr>
+                          <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">编号</th>
+                          <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">赛事</th>
+                          <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">主队/选项</th>
+                          <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider"></th>
+                          <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">客队/赔率</th>
+                          <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">开赛/停售</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {todayMatches.map((m: any, idx: number) => (
+                          <tr key={m.matchId || m.matchNumStr || idx}>
+                            <td className="px-4 py-3 whitespace-nowrap text-xs font-bold text-slate-400">{m.matchNumStr}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-500">{m.league}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-slate-800">{m.homeTeam}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-400">{mode !== 'champion' && m.awayTeam ? 'vs' : ''}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-slate-800">{m.awayTeam} {m.odds ? <span className="text-orange-500 ml-1">赔率: {m.odds}</span> : ''}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-400">
+                              {mode === 'champion' ? (
+                                <span className={m.matchTime === '在售' ? 'text-emerald-500 font-bold' : 'text-slate-400'}>{m.matchTime}</span>
+                              ) : (
+                                m.matchTime ? m.matchTime.slice(0, 5) : ""
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 ) : (
                   <div className="text-center py-10 text-slate-400 text-sm font-medium bg-slate-50 rounded-2xl border border-dashed border-slate-200 mb-3">今日暂无可分析的竞彩赛事</div>
@@ -525,7 +506,7 @@ export default function JcPredictPage() {
                         <div className="flex flex-col gap-1">
                           <div className="flex items-center gap-2">
                             <span className="font-bold text-slate-800 text-sm">
-                              {pred.awayTeam === "worldcup" ? "🏆 世界杯专属扫盘" : "⚽️ 日常联赛扫盘"}
+                              {pred.awayTeam === "worldcup" ? "🏆 世界杯专属扫盘" : pred.awayTeam === "champion" ? "🥇 冠军竞猜扫盘" : "⚽️ 日常联赛扫盘"}
                             </span>
                           </div>
                           <div className="flex items-center gap-2 text-[10px] text-slate-400 font-medium">

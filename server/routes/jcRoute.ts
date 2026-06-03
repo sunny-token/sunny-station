@@ -8,7 +8,7 @@ import { callAI } from "../../lib/aiService";
 
 export const jcRouter = router({
   getHistory: adminProcedure
-    .input(z.object({ type: z.enum(["worldcup", "regular"]).default("worldcup") }).optional())
+    .input(z.object({ type: z.enum(["worldcup", "regular", "champion"]).default("worldcup") }).optional())
     .query(async ({ input }) => {
       const matchType = input?.type || "worldcup";
       const predictions = await prisma.jcPrediction.findMany({
@@ -97,21 +97,71 @@ JSON 格式要求如下：
     }),
 
   getTodayMatches: adminProcedure
-    .input(z.object({ type: z.enum(["worldcup", "regular"]).default("worldcup") }).optional())
+    .input(z.object({ type: z.enum(["worldcup", "regular", "champion"]).default("worldcup") }).optional())
     .query(async ({ input }) => {
       const matchType = input?.type || "worldcup";
       console.log(`[JC Route] 开始获取今日竞彩赛事数据...`);
       const startTime = Date.now();
       try {
-        const res = await fetch("https://webapi.sporttery.cn/gateway/jc/football/getMatchCalculatorV1.qry?poolCode=hhad,had&channel=c", {
-          headers: {
+        let finalMatches = [];
+
+        if (matchType === "champion") {
+          const headers = {
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             "Accept": "application/json, text/javascript, */*; q=0.01",
             "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
             "Referer": "https://www.sporttery.cn/",
             "Origin": "https://www.sporttery.cn"
-          }
-        });
+          };
+          const chpRes = await fetch(`https://webapi.sporttery.cn/gateway/jc/tournament/getTournCalculatorV1.qry?poolCode=CHP&sportsCode=FB&tCode=WCC&channel=c`, { headers });
+          const fnlRes = await fetch(`https://webapi.sporttery.cn/gateway/jc/tournament/getTournCalculatorV1.qry?poolCode=FNL&sportsCode=FB&tCode=WCC&channel=c`, { headers });
+          
+          if (!chpRes.ok || !fnlRes.ok) throw new Error("获取冠军赛事失败");
+          
+          const chpData = await chpRes.json();
+          const fnlData = await fnlRes.json();
+          
+          const chpList = chpData?.value?.list || [];
+          const fnlList = fnlData?.value?.list || [];
+          
+          const formattedChp = chpList.map((m: any) => ({
+            matchId: `CHP_${m.selectionNum}`,
+            matchNumStr: `冠军(0${m.selectionNum})`,
+            league: "世界杯冠军",
+            homeTeam: m.homeTeamCnName,
+            awayTeam: m.awayTeamCnName || "",
+            matchTime: m.saleStatus === 1 ? '在售' : '停售',
+            odds: m.odds,
+            poolCode: 'CHP'
+          }));
+          
+          const formattedFnl = fnlList.map((m: any) => ({
+            matchId: `FNL_${m.selectionNum}`,
+            matchNumStr: `冠亚军(0${m.selectionNum})`,
+            league: "世界杯冠亚军",
+            homeTeam: m.homeTeamCnName,
+            awayTeam: m.awayTeamCnName || "",
+            matchTime: m.saleStatus === 1 ? '在售' : '停售',
+            odds: m.odds,
+            poolCode: 'FNL'
+          }));
+          
+          const allChampMatches = [...formattedChp, ...formattedFnl].filter((m: any) => m.odds);
+          console.log(`[JC Route] 冠军竞猜获取到 ${allChampMatches.length} 个选项`);
+          
+          // 返回前50个选项避免AI超载，或者让用户能在前端看到
+          finalMatches = allChampMatches.slice(0, 50);
+        } else {
+          const poolCode = "hhad,had";
+          const res = await fetch(`https://webapi.sporttery.cn/gateway/jc/football/getMatchCalculatorV1.qry?poolCode=${poolCode}&channel=c`, {
+            headers: {
+              "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+              "Accept": "application/json, text/javascript, */*; q=0.01",
+              "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+              "Referer": "https://www.sporttery.cn/",
+              "Origin": "https://www.sporttery.cn"
+            }
+          });
         if (!res.ok) {
            console.error(`[JC Route] 获取体彩接口失败，状态码: ${res.status}`);
            throw new Error("Fetch failed");
@@ -123,7 +173,6 @@ JSON 格式要求如下：
         if (!data?.value?.matchInfoList) {
           console.warn(`[JC Route] 接口返回数据中没有比赛列表(matchInfoList)，原始数据:`, data);
           
-          // 判断是否是体彩休市期
           const vtools = data?.value?.vtoolsConfig;
           if (vtools && (vtools.offLineSaleStatus === 1 || vtools.onLineSaleStatus === 1)) {
              throw new Error(`当前为体彩休市时间（工作日通常11:00开售，周末10:00）。官方提示：${vtools.offLineStopMessage || '本彩种已停止销售'}`);
@@ -132,7 +181,6 @@ JSON 格式要求如下：
           return [];
         }
 
-        // Extract required data (the API groups matches by date under 'subMatchList')
         const allMatches = data.value.matchInfoList.flatMap((group: any) => group.subMatchList || []);
         
         const filteredMatches = allMatches.filter((m: any) => {
@@ -158,8 +206,8 @@ JSON 格式要求如下：
         }));
         console.log('[JC Route] 返回数据 ', matches);
         
-        // Return max 10 matches to avoid AI overload
-        const finalMatches = matches.slice(0, 10);
+        finalMatches = matches.slice(0, 10);
+        }
         console.log(`[JC Route] 截取前 ${finalMatches.length} 场作为焦点赛事返回前端`);
         return finalMatches;
       } catch (e: any) {
@@ -179,15 +227,19 @@ JSON 格式要求如下：
         homeRank: z.string().optional().nullable(),
         awayRank: z.string().optional().nullable(),
         had: z.any().optional(),
-        hhad: z.any().optional()
+        hhad: z.any().optional(),
+        odds: z.string().optional(),
+        poolCode: z.string().optional()
       })),
       budget: z.string().optional(),
       risk: z.string().optional(),
-      type: z.enum(["worldcup", "regular"]).default("worldcup")
+      type: z.enum(["worldcup", "regular", "champion"]).default("worldcup")
     }))
     .mutation(async ({ input }) => {
       const aiRole = input.type === "worldcup" 
         ? "你是专业的体育竞彩数据分析师，也是资深的世界杯专家。" 
+        : input.type === "champion"
+        ? "你是专业的体育竞彩数据分析师，精通大型杯赛冠军及冠亚军预测。请结合各支队伍的夺冠赔率、身价储备、近期大赛表现，给出客观的冠军或冠亚军组合建议。"
         : "你是专业的体育竞彩数据分析师，精通五大联赛及常规足彩赛事。如果当前分析的赛事中包含国际友谊赛（热身赛），请特别考虑球队主要目的是磨合阵容、演练战术和考察新人，通常战意不如正赛，容易打出冷门或平局。";
 
       const matchesStr = input.matches.map(m => {
@@ -197,6 +249,9 @@ JSON 格式要求如下：
         }
         if (m.hhad && m.hhad.a) {
           text += ` | 让球(${m.hhad.goalLine}): 胜${m.hhad.h} 平${m.hhad.d} 负${m.hhad.a}`;
+        }
+        if (m.odds) {
+          text += ` | 夺冠/冠亚军赔率: ${m.odds}`;
         }
         return text;
       }).join("\n");
@@ -218,6 +273,7 @@ ${matchesStr}
 
 特别注意用户是完全不懂球的小白，请结合偏好，给出简单粗暴的“傻瓜式”打票方案。
 
+特例：如果是“冠军/冠亚军”竞猜，**请务必精简并聚焦！不要罗列太多选项，只精选出 1 到 3 个最有价值或最有可能的组合进行强烈推荐即可**。不需要返回 score 和 risk，只需返回 homeTeam、awayTeam、result（可以是“夺冠”或“冠亚军”）、confidence 和 reason。但 JSON 必须是一个对象。
 返回要求：必须且只能返回一个合法的 JSON 对象，不要有任何其他分析文本。
 格式必须严格为：
 {
@@ -226,14 +282,14 @@ ${matchesStr}
   "whyToBuy": "（用大白话解释理由，必须明确写出预计能中奖多少钱。例如：预计能中约150-250元。主队近期状态极佳...）",
   "matches": [
     {
-      "matchNumStr": "周五008",
+      "matchNumStr": "周五008 (或 冠军01)",
       "homeTeam": "主队",
-      "awayTeam": "客队",
-      "result": "胜|平|负",
-      "score": "x:y",
+      "awayTeam": "客队 (若是单支球队夺冠则为空)",
+      "result": "胜|平|负 (或 夺冠/冠亚军)",
+      "score": "x:y (冠军玩法填 -)",
       "confidence": "78%",
       "heat": "高↓|中|低",
-      "risk": "可能的冷门风险或避热预警",
+      "risk": "可能的冷门风险或避热预警 (冠军玩法填 -)",
       "reason": "单场推演理由（用一句话概括，涵盖战意、赔率信号、热度情况）"
     }
   ]
