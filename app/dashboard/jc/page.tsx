@@ -406,8 +406,8 @@ export default function JcPredictPage() {
                             <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-400">
                               {mode === 'champion' ? "-" : (m.matchTime ? m.matchTime.slice(0, 5) : "")}
                             </td>
-                            <td className={`px-4 py-3 whitespace-nowrap text-xs font-bold ${mode === 'champion' && m.saleStatus !== 1 ? 'text-slate-400' : 'text-emerald-500'}`}>
-                              {mode === 'champion' ? (m.saleStatus === 1 ? '在售' : '停售') : '在售'}
+                            <td className={`px-4 py-3 whitespace-nowrap text-xs font-bold ${mode === 'champion' && m.saleStatus !== 0 ? 'text-slate-400' : 'text-emerald-500'}`}>
+                              {mode === 'champion' ? (m.saleStatus === 0 ? '在售' : '停售') : '在售'}
                             </td>
                           </tr>
                         ))}
