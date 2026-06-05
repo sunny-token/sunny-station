@@ -43,6 +43,7 @@ export default function JcPredictPage() {
           homeTeam: m.homeTeamCnName,
           awayTeam: m.awayTeamCnName || "",
           matchTime: m.saleStatus === 1 ? '在售' : '停售',
+          saleStatus: m.saleStatus,
           odds: m.odds,
           poolCode: 'CHP'
         }));
@@ -54,6 +55,7 @@ export default function JcPredictPage() {
           homeTeam: m.homeTeamCnName,
           awayTeam: m.awayTeamCnName || "",
           matchTime: m.saleStatus === 1 ? '在售' : '停售',
+          saleStatus: m.saleStatus,
           odds: m.odds,
           poolCode: 'FNL'
         }));
@@ -80,6 +82,9 @@ export default function JcPredictPage() {
 
         const allMatches = json.value.matchInfoList.flatMap((group: any) => group.subMatchList || []);
         const filteredMatches = allMatches.filter((m: any) => {
+          // Filter out suspended or stopped matches
+          if (m.matchStatus !== "Selling" || m.sellStatus === 2) return false;
+          
           const league = m.leagueAbbName || "";
           const isWorldCup = league.includes("世界杯") || league.includes("世预") || league.includes("世亚预") || league.includes("世欧预");
           return mode === "worldcup" ? isWorldCup : !isWorldCup;
@@ -386,7 +391,8 @@ export default function JcPredictPage() {
                           <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">主队/选项</th>
                           <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider"></th>
                           <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">客队/赔率</th>
-                          <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">开赛/停售</th>
+                          <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">开赛时间</th>
+                          <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">状态</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
@@ -398,11 +404,10 @@ export default function JcPredictPage() {
                             <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-400">{mode !== 'champion' && m.awayTeam ? 'vs' : ''}</td>
                             <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-slate-800">{m.awayTeam} {m.odds ? <span className="text-orange-500 ml-1">赔率: {m.odds}</span> : ''}</td>
                             <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-400">
-                              {mode === 'champion' ? (
-                                <span className={m.matchTime === '在售' ? 'text-emerald-500 font-bold' : 'text-slate-400'}>{m.matchTime}</span>
-                              ) : (
-                                m.matchTime ? m.matchTime.slice(0, 5) : ""
-                              )}
+                              {mode === 'champion' ? "-" : (m.matchTime ? m.matchTime.slice(0, 5) : "")}
+                            </td>
+                            <td className={`px-4 py-3 whitespace-nowrap text-xs font-bold ${mode === 'champion' && m.saleStatus !== 1 ? 'text-slate-400' : 'text-emerald-500'}`}>
+                              {mode === 'champion' ? (m.saleStatus === 1 ? '在售' : '停售') : '在售'}
                             </td>
                           </tr>
                         ))}
@@ -410,7 +415,7 @@ export default function JcPredictPage() {
                     </table>
                   </div>
                 ) : (
-                  <div className="text-center py-10 text-slate-400 text-sm font-medium bg-slate-50 rounded-2xl border border-dashed border-slate-200 mb-3">今日暂无可分析的竞彩赛事</div>
+                  <div className="text-center py-10 text-slate-400 text-sm font-medium bg-slate-50 rounded-2xl border border-dashed border-slate-200 mb-3">今日暂无可分析的赛事（或全部处于暂停销售状态）</div>
                 )}
                 <button
                   onClick={handleBatchPredict}
