@@ -231,23 +231,69 @@ export async function POST(req: Request) {
     }
 
     // ============================================
-    // 3. 发布成功，更新数据库状态
+    // 3. 拦截流以在结束时更新状态 (成功后才设为 true)
     // ============================================
+    let repoToUpdate = "";
     if (sourceData && sourceData.startsWith("https://github.com/") && !github_url) {
-      try {
-        const repoPath = sourceData.replace("https://github.com/", "");
-        await prisma.gitHubProject.update({
-          where: { repoPath: repoPath },
-          data: { isPublished: true },
-        });
-        console.log(`[Database] 已将 ${repoPath} 状态更新为已发布 (isPublished: true)`);
-      } catch (dbError) {
-        console.error("[Database Update Error]:", dbError);
-        // 不抛出错误，以免影响正常的流返回
-      }
+      repoToUpdate = sourceData.replace("https://github.com/", "");
     }
 
-    return new Response(cozeRes.body, {
+    const stream = new ReadableStream({
+      async start(controller) {
+        const reader = cozeRes.body?.getReader();
+        if (!reader) {
+          controller.close();
+          return;
+        }
+
+        let hasError = false;
+        const decoder = new TextDecoder();
+
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            const text = decoder.decode(value, { stream: true });
+            if (text.includes("event: error") || text.includes("event:error")) {
+              hasError = true;
+            }
+
+            controller.enqueue(value);
+          }
+
+          // 流正常结束，且无报错事件时，更新为 true
+          if (repoToUpdate) {
+            try {
+              await prisma.gitHubProject.update({
+                where: { repoPath: repoToUpdate },
+                data: { isPublished: !hasError },
+              });
+              console.log(`[Database] 流程结束，已将 ${repoToUpdate} 状态更新为 (isPublished: ${!hasError})`);
+            } catch (dbError) {
+              console.error("[Database Update Error]:", dbError);
+            }
+          }
+          controller.close();
+        } catch (error) {
+          console.error("[Stream Error]:", error);
+          if (repoToUpdate) {
+            try {
+              await prisma.gitHubProject.update({
+                where: { repoPath: repoToUpdate },
+                data: { isPublished: false },
+              });
+              console.log(`[Database] 发生流异常，已将 ${repoToUpdate} 状态更新为未发布 (isPublished: false)`);
+            } catch (dbError) {
+              console.error("[Database Update Error]:", dbError);
+            }
+          }
+          controller.error(error);
+        }
+      },
+    });
+
+    return new Response(stream, {
       headers: {
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache",
