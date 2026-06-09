@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { trpc } from "@/server/client";
-import { Radar, ChevronLeft, Sparkles, AlertCircle, ChevronDown, Trophy, BarChart3, Target, Award, TrendingUp } from "lucide-react";
+import { Radar, ChevronLeft, Sparkles, AlertCircle, ChevronDown, Trophy, BarChart3, Target, Award, TrendingUp, Trash2 } from "lucide-react";
 import Link from "next/link";
 import LotteryNumbersInput from "@/components/LotteryNumbersInput";
 
@@ -33,6 +33,19 @@ export default function AiPredictPage() {
   });
 
   const predictNumbersMutation = trpc.ai.predictNumbers.useMutation();
+  const deletePredictionMutation = trpc.ai.deletePrediction.useMutation();
+
+  const handleDelete = async (id: number) => {
+    if (!window.confirm("⚠️ 确定要删除这条推演历史记录吗？删除后将无法恢复。")) return;
+    try {
+      await deletePredictionMutation.mutateAsync({ id });
+      showToast("🗑️ 记录已成功删除");
+      refetchHistory();
+      refetchStats();
+    } catch (err: any) {
+      showToast(err.message || "删除失败");
+    }
+  };
 
   // 模拟雷达加载动画进度
   useEffect(() => {
@@ -488,20 +501,30 @@ export default function AiPredictPage() {
 
                   const hasWon = hits && hits.some((h: any) => h.isWinner);
                   const isExpanded = expandedMap[pred.id] || false;
+                  
+                  const isPending = pred.status === "PENDING";
+                  const isOpened = pred.status === "OPENED";
+                  const isHit = isOpened && hasWon;
+
+                  let cardClassName = "relative overflow-hidden rounded-3xl p-5 md:p-6 border transition-all duration-300 shadow-[0_4px_16px_rgba(0,0,0,0.02)] ";
+                  let leftIndicator = "";
+
+                  if (isPending) {
+                    cardClassName += "border-amber-100 bg-gradient-to-r from-white to-amber-50/10 shadow-amber-50/5";
+                    leftIndicator = "absolute left-0 top-0 bottom-0 w-[4px] bg-gradient-to-b from-amber-400 to-orange-400";
+                  } else if (isHit) {
+                    cardClassName += "border-emerald-100 bg-gradient-to-r from-white to-emerald-50/10 shadow-emerald-50/5";
+                    leftIndicator = "absolute left-0 top-0 bottom-0 w-[4px] bg-gradient-to-b from-emerald-500 to-teal-400";
+                  } else {
+                    cardClassName += "border-slate-100 bg-slate-50/50 opacity-75 grayscale-[20%]";
+                    leftIndicator = "absolute left-0 top-0 bottom-0 w-[4px] bg-slate-300";
+                  }
 
                   return (
-                    <div 
-                      key={pred.id} 
-                      className={`bg-white rounded-3xl p-5 md:p-6 border transition-all duration-300 shadow-[0_4px_16px_rgba(0,0,0,0.02)] ${
-                        pred.status === "PENDING"
-                          ? "border-amber-100 bg-gradient-to-r from-white to-amber-50/5 shadow-amber-50/5"
-                          : hasWon
-                            ? "border-emerald-100 bg-gradient-to-r from-white to-emerald-50/5"
-                            : "border-slate-100"
-                      }`}
-                    >
+                    <div key={pred.id} className={cardClassName}>
+                      {leftIndicator && <div className={leftIndicator} />}
                       {/* Header */}
-                      <div className="flex justify-between items-start gap-2 mb-4 pb-3 border-b border-slate-50">
+                      <div className="flex justify-between items-start gap-2 mb-4 pb-3 border-b border-slate-50 pl-1">
                         <div>
                           <div className="flex items-center gap-2">
                             <span className={`text-[10px] md:text-xs font-black uppercase px-2.5 py-0.5 rounded-full border ${
@@ -539,17 +562,28 @@ export default function AiPredictPage() {
                           </div>
                         </div>
 
-                        {/* Status Badge */}
-                        {pred.status === "PENDING" ? (
-                          <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-100 text-amber-600 px-3 py-1 rounded-full text-xs font-bold animate-pulse">
-                            <span className="w-1.5 h-1.5 bg-amber-500 rounded-full" />
-                            等待开奖
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-100 text-slate-400 px-3 py-1 rounded-full text-xs font-bold">
-                            已开奖
-                          </div>
-                        )}
+                        {/* Status & Actions */}
+                        <div className="flex items-center gap-2">
+                          {pred.status === "PENDING" ? (
+                            <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-100 text-amber-600 px-3 py-1 rounded-full text-xs font-bold animate-pulse">
+                              <span className="w-1.5 h-1.5 bg-amber-500 rounded-full" />
+                              等待开奖
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-100 text-slate-400 px-3 py-1 rounded-full text-xs font-bold">
+                              已开奖
+                            </div>
+                          )}
+                          
+                          <button 
+                            onClick={() => handleDelete(pred.id)}
+                            disabled={deletePredictionMutation.isPending}
+                            className="p-1.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer shrink-0"
+                            title="删除历史记录"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
 
                       {/* Toggle & Summary */}

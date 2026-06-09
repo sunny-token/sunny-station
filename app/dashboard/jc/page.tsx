@@ -646,9 +646,30 @@ export default function JcPredictPage() {
                   const estimatedCheckTime = new Date(new Date(pred.createdAt).getTime() + 24 * 60 * 60 * 1000);
                   estimatedCheckTime.setHours(12, 0, 0, 0);
                   
+                  // 竞彩卡片状态判断
+                  const isPending = pred.status === "PENDING";
+                  const isFinished = pred.status === "FINISHED";
+                  const isHit = isFinished && pred.actualResult && JSON.parse(pred.actualResult).isHit;
+
+                  // 动态样式与高亮条
+                  let cardClassName = "relative overflow-hidden bg-white rounded-3xl p-5 md:p-6 border shadow-[0_4px_16px_rgba(0,0,0,0.02)] transition-all duration-300 ";
+                  let leftIndicator = "";
+
+                  if (isPending) {
+                    cardClassName += "border-amber-100 bg-gradient-to-r from-white to-amber-50/10 shadow-amber-50/5";
+                    leftIndicator = "absolute left-0 top-0 bottom-0 w-[4px] bg-gradient-to-b from-amber-400 to-orange-400";
+                  } else if (isHit) {
+                    cardClassName += "border-rose-100 bg-gradient-to-r from-white to-rose-50/10 shadow-rose-50/5";
+                    leftIndicator = "absolute left-0 top-0 bottom-0 w-[4px] bg-gradient-to-b from-rose-500 to-amber-400";
+                  } else {
+                    cardClassName += "border-slate-100 bg-slate-50/50 opacity-75 grayscale-[20%]";
+                    leftIndicator = "absolute left-0 top-0 bottom-0 w-[4px] bg-slate-300";
+                  }
+
                   return (
-                    <div key={pred.id} className="bg-white rounded-3xl p-5 border border-slate-100 shadow-[0_4px_16px_rgba(0,0,0,0.02)]">
-                      <div className="flex justify-between items-start mb-3 border-b border-slate-50 pb-3">
+                    <div key={pred.id} className={cardClassName}>
+                      {leftIndicator && <div className={leftIndicator} />}
+                      <div className="flex justify-between items-start mb-3 border-b border-slate-50 pb-3 pl-1">
                         <div className="flex flex-col gap-1">
                           <div className="flex items-center gap-2">
                             <span className="font-bold text-slate-800 text-sm">

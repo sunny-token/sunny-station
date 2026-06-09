@@ -303,6 +303,17 @@ export const aiRouter = router({
       return await enrichPredictions(predictions);
     }),
 
+  deletePrediction: publicProcedure
+    .input(z.object({
+      id: z.number()
+    }))
+    .mutation(async ({ input }) => {
+      const deleted = await prisma.aIPrediction.delete({
+        where: { id: input.id }
+      });
+      return deleted;
+    }),
+
   getPredictionStats: publicProcedure
     .input(z.object({ type: z.enum(["ssq", "dlt"]) }))
     .query(async ({ input }) => {
