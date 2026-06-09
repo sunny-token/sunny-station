@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { trpc } from "@/server/client";
-import { Radar, ChevronLeft, AlertCircle, Trophy, Bot, RefreshCw, ExternalLink, X, Upload } from "lucide-react";
+import { Radar, ChevronLeft, AlertCircle, Trophy, Bot, RefreshCw, ExternalLink, X, Upload, Trash2 } from "lucide-react";
 import Link from "next/link";
 
 export default function JcPredictPage() {
@@ -284,7 +284,19 @@ export default function JcPredictPage() {
   }, [queryError]);
 
   const updateResultMutation = trpc.jc.updateResult.useMutation();
+  const deletePredictionMutation = trpc.jc.deletePrediction.useMutation();
   const [expandedIds, setExpandedIds] = useState<number[]>([]);
+
+  const handleDelete = async (id: number) => {
+    if (!window.confirm("⚠️ 确定要删除这条推演历史记录吗？删除后将无法恢复。")) return;
+    try {
+      await deletePredictionMutation.mutateAsync({ id });
+      showToast("🗑️ 记录已成功删除");
+      refetchHistory();
+    } catch (err: any) {
+      showToast(err.message || "删除失败");
+    }
+  };
 
   const batchPredictMutation = trpc.jc.batchPredictMatches.useMutation();
   const toggleExpand = (id: number) => {
@@ -654,95 +666,106 @@ export default function JcPredictPage() {
                           </div>
                         </div>
                         
-                        {pred.status === "PENDING" && (
-                          <div className="flex gap-2">
-                            <a 
-                              href="https://www.sporttery.cn/jc/zqsgkj/"
-                              target="_blank"
-                              rel="noreferrer"
-                              title="点击前往体彩官网查看开奖结果"
-                              className="text-[11px] font-bold px-3 py-1 rounded-full flex items-center gap-1 transition-colors bg-blue-50 text-blue-500 hover:bg-blue-100 cursor-pointer"
-                            >
-                              <ExternalLink className="w-3 h-3" />
-                              查赛果
-                            </a>
-                            <button 
-                              onClick={() => handleOpenCalcModal(pred)}
-                              title="上传开奖截图让AI自动算奖"
-                              className="text-[11px] font-bold px-3 py-1 rounded-full flex items-center gap-1 transition-colors bg-purple-50 text-purple-600 hover:bg-purple-100 cursor-pointer"
-                            >
-                              <Bot className="w-3 h-3" />
-                              AI 智能算奖
-                            </button>
-                            <button 
-                              onClick={async () => {
-                                await updateResultMutation.mutateAsync({ id: pred.id, actualResult: JSON.stringify({ isHit: true, checkedAt: new Date().toISOString() }) });
-                                showToast("🎯 已手动标记为红单！");
-                                refetchHistory();
-                              }}
-                              disabled={updateResultMutation.isPending}
-                              title="如果全中，点击这里标记为红单"
-                              className="text-[11px] font-bold px-3 py-1 rounded-full flex items-center gap-1 transition-colors bg-emerald-50 text-emerald-600 hover:bg-emerald-100 cursor-pointer disabled:opacity-50"
-                            >
-                              红单
-                            </button>
-                            <button 
-                              onClick={async () => {
-                                await updateResultMutation.mutateAsync({ id: pred.id, actualResult: JSON.stringify({ isHit: false, checkedAt: new Date().toISOString() }) });
-                                showToast("📝 已手动标记为黑单");
-                                refetchHistory();
-                              }}
-                              disabled={updateResultMutation.isPending}
-                              title="如果没中，点击这里标记为黑单"
-                              className="text-[11px] font-bold px-3 py-1 rounded-full flex items-center gap-1 transition-colors bg-slate-50 text-slate-500 hover:bg-slate-100 cursor-pointer disabled:opacity-50 border border-slate-200"
-                            >
-                              黑单
-                            </button>
-                          </div>
-                        )}
-                        
-                        {pred.status === "FINISHED" && pred.actualResult && (
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-2">
-                              <div className={`text-[11px] font-bold px-3 py-1 rounded-full ${JSON.parse(pred.actualResult).isHit ? 'bg-rose-50 text-rose-500 border border-rose-100' : 'bg-slate-50 text-slate-500 border border-slate-200'}`}>
-                                {JSON.parse(pred.actualResult).isHit ? "🎯 已中奖 (红单)" : "📝 未中奖 (黑单)"}
-                              </div>
-                              {pred.prizeAmount > 0 && (
-                                <span className="text-emerald-500 font-bold text-xs bg-emerald-50 px-2 py-1 rounded border border-emerald-100">
-                                  奖金: ¥{pred.prizeAmount.toFixed(2)}
-                               </span>
-                              )}
+                        <div className="flex items-start gap-3">
+                          {pred.status === "PENDING" && (
+                            <div className="flex gap-2">
+                              <a 
+                                href="https://www.sporttery.cn/jc/zqsgkj/"
+                                target="_blank"
+                                rel="noreferrer"
+                                title="点击前往体彩官网查看开奖结果"
+                                className="text-[11px] font-bold px-3 py-1 rounded-full flex items-center gap-1 transition-colors bg-blue-50 text-blue-500 hover:bg-blue-100 cursor-pointer"
+                              >
+                                <ExternalLink className="w-3 h-3" />
+                                查赛果
+                              </a>
+                              <button 
+                                onClick={() => handleOpenCalcModal(pred)}
+                                title="上传开奖截图让AI自动算奖"
+                                className="text-[11px] font-bold px-3 py-1 rounded-full flex items-center gap-1 transition-colors bg-purple-50 text-purple-600 hover:bg-purple-100 cursor-pointer"
+                              >
+                                <Bot className="w-3 h-3" />
+                                AI 智能算奖
+                              </button>
                               <button 
                                 onClick={async () => {
-                                  await updateResultMutation.mutateAsync({ id: pred.id, status: "PENDING", actualResult: "" });
-                                  showToast("↩️ 已撤销状态，可重新标记");
+                                  await updateResultMutation.mutateAsync({ id: pred.id, actualResult: JSON.stringify({ isHit: true, checkedAt: new Date().toISOString() }) });
+                                  showToast("🎯 已手动标记为红单！");
                                   refetchHistory();
                                 }}
                                 disabled={updateResultMutation.isPending}
-                                title="点错了？点击撤销标记"
-                                className="text-[11px] text-slate-400 hover:text-slate-600 underline underline-offset-2 transition-colors disabled:opacity-50"
+                                title="如果全中，点击这里标记为红单"
+                                className="text-[11px] font-bold px-3 py-1 rounded-full flex items-center gap-1 transition-colors bg-emerald-50 text-emerald-600 hover:bg-emerald-100 cursor-pointer disabled:opacity-50"
                               >
-                                撤销
+                                红单
+                              </button>
+                              <button 
+                                onClick={async () => {
+                                  await updateResultMutation.mutateAsync({ id: pred.id, actualResult: JSON.stringify({ isHit: false, checkedAt: new Date().toISOString() }) });
+                                  showToast("📝 已手动标记为黑单");
+                                  refetchHistory();
+                                }}
+                                disabled={updateResultMutation.isPending}
+                                title="如果没中，点击这里标记为黑单"
+                                className="text-[11px] font-bold px-3 py-1 rounded-full flex items-center gap-1 transition-colors bg-slate-50 text-slate-500 hover:bg-slate-100 cursor-pointer disabled:opacity-50 border border-slate-200"
+                              >
+                                黑单
                               </button>
                             </div>
-                            
-                            {JSON.parse(pred.actualResult).analysisReasoning && (
-                              <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 mt-2">
-                                <span className="text-[10px] font-bold text-slate-400 block mb-1">AI 算奖详情</span>
-                                <div className="text-[11px] text-slate-600 leading-relaxed space-y-1.5">
-                                  {(JSON.parse(pred.actualResult).analysisReasoning as string)
-                                    .split(/(?<=。)(?=周[一二三四五六日]|第[一二三1-9]|总奖金|综合|最终|实际)/)
-                                    .map((seg: string, i: number) => (
-                                      <p key={i} className={seg.includes('总奖金') || seg.includes('最终') ? 'font-bold text-emerald-700 pt-1 border-t border-slate-200' : ''}>
-                                        {seg.trim()}
-                                      </p>
-                                    ))
-                                  }
+                          )}
+                          
+                          {pred.status === "FINISHED" && pred.actualResult && (
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2 justify-end">
+                                <div className={`text-[11px] font-bold px-3 py-1 rounded-full ${JSON.parse(pred.actualResult).isHit ? 'bg-rose-50 text-rose-500 border border-rose-100' : 'bg-slate-50 text-slate-500 border border-slate-200'}`}>
+                                  {JSON.parse(pred.actualResult).isHit ? "🎯 已中奖 (红单)" : "📝 未中奖 (黑单)"}
                                 </div>
+                                {pred.prizeAmount > 0 && (
+                                  <span className="text-emerald-500 font-bold text-xs bg-emerald-50 px-2 py-1 rounded border border-emerald-100">
+                                    奖金: ¥{pred.prizeAmount.toFixed(2)}
+                                  </span>
+                                )}
+                                <button 
+                                  onClick={async () => {
+                                    await updateResultMutation.mutateAsync({ id: pred.id, status: "PENDING", actualResult: "" });
+                                    showToast("↩️ 已撤销状态，可重新标记");
+                                    refetchHistory();
+                                  }}
+                                  disabled={updateResultMutation.isPending}
+                                  title="点错了？点击撤销标记"
+                                  className="text-[11px] text-slate-400 hover:text-slate-600 underline underline-offset-2 transition-colors disabled:opacity-50"
+                                >
+                                  撤销
+                                </button>
                               </div>
-                            )}
-                          </div>
-                        )}
+                              
+                              {JSON.parse(pred.actualResult).analysisReasoning && (
+                                <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 mt-2">
+                                  <span className="text-[10px] font-bold text-slate-400 block mb-1">AI 算奖详情</span>
+                                  <div className="text-[11px] text-slate-600 leading-relaxed space-y-1.5">
+                                    {(JSON.parse(pred.actualResult).analysisReasoning as string)
+                                      .split(/(?<=。)(?=周[一二三四五六日]|第[一二三1-9]|总奖金|综合|最终|实际)/)
+                                      .map((seg: string, i: number) => (
+                                        <p key={i} className={seg.includes('总奖金') || seg.includes('最终') ? 'font-bold text-emerald-700 pt-1 border-t border-slate-200' : ''}>
+                                          {seg.trim()}
+                                        </p>
+                                      ))
+                                    }
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          
+                          <button 
+                            onClick={() => handleDelete(pred.id)}
+                            disabled={deletePredictionMutation.isPending}
+                            className="p-1 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer shrink-0 mt-0.5"
+                            title="删除历史记录"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
                       
                       <div className="bg-indigo-50/50 rounded-xl p-3 mb-3">

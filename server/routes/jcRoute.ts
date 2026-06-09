@@ -44,6 +44,17 @@ export const jcRouter = router({
       return updated;
     }),
 
+  deletePrediction: adminProcedure
+    .input(z.object({
+      id: z.number()
+    }))
+    .mutation(async ({ input }) => {
+      const deleted = await prisma.jcPrediction.delete({
+        where: { id: input.id }
+      });
+      return deleted;
+    }),
+
   calculatePrizeWithAI: adminProcedure
     .input(z.object({
       id: z.number(),
