@@ -21,6 +21,9 @@ export default function JcPredictPage() {
   const [todayMatches, setTodayMatches] = useState<any[]>([]);
   const [isLoadingMatches, setIsLoadingMatches] = useState(true);
   const [isFetchingMatches, setIsFetchingMatches] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<string>("all");
+  const [matchDates, setMatchDates] = useState<string[]>([]);
+  const [allRegularMatches, setAllRegularMatches] = useState<any[]>([]);
 
   const fetchMatchesClient = useCallback(async () => {
     setIsLoadingMatches(true);
@@ -75,36 +78,26 @@ export default function JcPredictPage() {
             setError(`当前为体彩休市时间（工作日通常11:00开售，周末10:00）。官方提示：${vtools.offLineStopMessage || '本彩种已停止销售'}`);
           }
           setTodayMatches([]);
+          setAllRegularMatches([]);
+          setMatchDates([]);
           return { status: 'success', data: [] };
         }
         
         setError(""); // Clear error if matches are successfully loaded
 
-        const allMatches = json.value.matchInfoList.flatMap((group: any) => group.subMatchList || []);
-        const filteredMatches = allMatches.filter((m: any) => {
-          // Filter out suspended or stopped matches
-          if (m.matchStatus !== "Selling" || m.sellStatus === 2) return false;
-          
-          const league = m.leagueAbbName || "";
-          const isWorldCup = league.includes("世界杯") || league.includes("世预") || league.includes("世亚预") || league.includes("世欧预");
-          return mode === "worldcup" ? isWorldCup : !isWorldCup;
+        const dates: string[] = [];
+        const allMatches = json.value.matchInfoList.flatMap((group: any) => {
+          if (group.businessDate && !dates.includes(group.businessDate)) {
+             dates.push(group.businessDate);
+          }
+          return (group.subMatchList || []).map((m:any) => ({...m, businessDate: group.businessDate}));
         });
         
-        const matches = filteredMatches.map((m: any) => ({
-          matchId: m.matchId,
-          matchNumStr: m.matchNumStr,
-          league: m.leagueAbbName,
-          homeTeam: m.homeTeamAbbName,
-          awayTeam: m.awayTeamAbbName,
-          matchTime: m.matchTime,
-          homeRank: m.homeRank,
-          awayRank: m.awayRank,
-          had: m.had,
-          hhad: m.hhad,
-        })).slice(0, 10);
-        
-        setTodayMatches(matches);
-        return { status: 'success', data: matches };
+        setMatchDates(dates);
+        setSelectedDate(prev => (!dates.includes(prev) && prev !== "all") ? "all" : prev);
+        setAllRegularMatches(allMatches);
+
+        return { status: 'success', data: allMatches };
       }
     } catch (e: any) {
       console.error("Client fetch error:", e);
@@ -119,6 +112,35 @@ export default function JcPredictPage() {
   useEffect(() => {
     fetchMatchesClient();
   }, [fetchMatchesClient]);
+
+  useEffect(() => {
+    if (mode === "champion") return;
+    
+    const filteredMatches = allRegularMatches.filter((m: any) => {
+      if (selectedDate !== "all" && m.businessDate !== selectedDate) return false;
+      if (m.matchStatus !== "Selling" || m.sellStatus === 2) return false;
+      
+      const league = m.leagueAbbName || "";
+      const isWorldCup = league.includes("世界杯") || league.includes("世预") || league.includes("世亚预") || league.includes("世欧预");
+      return mode === "worldcup" ? isWorldCup : !isWorldCup;
+    });
+    
+    const matches = filteredMatches.map((m: any) => ({
+      matchId: m.matchId,
+      matchNumStr: m.matchNumStr,
+      league: m.leagueAbbName,
+      homeTeam: m.homeTeamAbbName,
+      awayTeam: m.awayTeamAbbName,
+      matchTime: m.matchTime,
+      homeRank: m.homeRank,
+      awayRank: m.awayRank,
+      had: m.had,
+      hhad: m.hhad,
+      businessDate: m.businessDate,
+    })).slice(0, 50);
+    
+    setTodayMatches(matches);
+  }, [allRegularMatches, mode, selectedDate]);
 
   const calculatePrizeMutation = trpc.jc.calculatePrizeWithAI.useMutation();
   const [calculatingPredId, setCalculatingPredId] = useState<number | null>(null);
@@ -336,7 +358,7 @@ export default function JcPredictPage() {
 
             <div className="space-y-5 animate-in fade-in zoom-in-95 duration-300">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider pl-1">今日焦点赛事</span>
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider pl-1">{mode === 'champion' ? '焦点赛事' : '比赛日程'}</span>
                   <button 
                     onClick={handleRefresh} 
                     disabled={isFetchingMatches}
@@ -346,6 +368,26 @@ export default function JcPredictPage() {
                     {isFetchingMatches ? '刷新中' : '刷新'}
                   </button>
                 </div>
+
+                {mode !== 'champion' && matchDates.length > 0 && (
+                  <div className="flex overflow-x-auto gap-2 pb-2 scrollbar-hide">
+                    <button
+                      onClick={() => setSelectedDate("all")}
+                      className={`whitespace-nowrap px-4 py-2 rounded-xl text-sm font-bold transition-colors ${selectedDate === "all" ? "bg-indigo-500 text-white shadow-md shadow-indigo-200" : "bg-slate-50 text-slate-500 hover:bg-slate-100"}`}
+                    >
+                      全部日期
+                    </button>
+                    {matchDates.map(date => (
+                      <button
+                        key={date}
+                        onClick={() => setSelectedDate(date)}
+                        className={`whitespace-nowrap px-4 py-2 rounded-xl text-sm font-bold transition-colors ${selectedDate === date ? "bg-indigo-500 text-white shadow-md shadow-indigo-200" : "bg-slate-50 text-slate-500 hover:bg-slate-100"}`}
+                      >
+                        {date}
+                      </button>
+                    ))}
+                  </div>
+                )}
 
                 <div className="grid grid-cols-2 gap-4 mb-2">
                   <div className="space-y-2">
