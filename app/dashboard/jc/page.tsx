@@ -69,7 +69,7 @@ export default function JcPredictPage() {
         setTodayMatches(matches);
         return { status: 'success', data: matches };
       } else {
-        const res = await fetch(`https://webapi.sporttery.cn/gateway/jc/football/getMatchCalculatorV1.qry?poolCode=hhad,had&channel=c`);
+        const res = await fetch(`https://webapi.sporttery.cn/gateway/jc/football/getMatchCalculatorV1.qry?poolCode=hhad,had,crs,hafu,ttg&channel=c`);
         if (!res.ok) throw new Error("fetch failed");
         const json = await res.json();
         if (!json?.value?.matchInfoList) {
@@ -85,16 +85,10 @@ export default function JcPredictPage() {
         
         setError(""); // Clear error if matches are successfully loaded
 
-        const dates: string[] = [];
         const allMatches = json.value.matchInfoList.flatMap((group: any) => {
-          if (group.businessDate && !dates.includes(group.businessDate)) {
-             dates.push(group.businessDate);
-          }
           return (group.subMatchList || []).map((m:any) => ({...m, businessDate: group.businessDate}));
         });
         
-        setMatchDates(dates);
-        setSelectedDate(prev => (!dates.includes(prev) && prev !== "all") ? "all" : prev);
         setAllRegularMatches(allMatches);
 
         return { status: 'success', data: allMatches };
@@ -116,16 +110,31 @@ export default function JcPredictPage() {
   useEffect(() => {
     if (mode === "champion") return;
     
-    const filteredMatches = allRegularMatches.filter((m: any) => {
-      if (selectedDate !== "all" && m.businessDate !== selectedDate) return false;
+    // First, filter by mode (World Cup vs Regular)
+    const modeFilteredMatches = allRegularMatches.filter((m: any) => {
       if (m.matchStatus !== "Selling" || m.sellStatus === 2) return false;
-      
       const league = m.leagueAbbName || "";
       const isWorldCup = league.includes("世界杯") || league.includes("世预") || league.includes("世亚预") || league.includes("世欧预");
       return mode === "worldcup" ? isWorldCup : !isWorldCup;
     });
+
+    // Compute dynamic dates based on the current mode's matches
+    const dates = Array.from(new Set(modeFilteredMatches.map((m: any) => m.businessDate))).filter(Boolean) as string[];
+    setMatchDates(dates);
     
-    const matches = filteredMatches.map((m: any) => ({
+    // If selectedDate is not in the new dates list, reset to "all"
+    setSelectedDate(prev => (!dates.includes(prev) && prev !== "all") ? "all" : prev);
+
+    // Then, filter by the selected date
+    const finalFiltered = modeFilteredMatches.filter((m: any) => {
+      // If we are evaluating the current render, use the updated selectedDate logically
+      // But since setState is async, we'll just check if it's valid
+      const effectiveDate = (!dates.includes(selectedDate) && selectedDate !== "all") ? "all" : selectedDate;
+      if (effectiveDate !== "all" && m.businessDate !== effectiveDate) return false;
+      return true;
+    });
+    
+    const matches = finalFiltered.map((m: any) => ({
       matchId: m.matchId,
       matchNumStr: m.matchNumStr,
       league: m.leagueAbbName,
@@ -136,6 +145,9 @@ export default function JcPredictPage() {
       awayRank: m.awayRank,
       had: m.had,
       hhad: m.hhad,
+      crs: m.crs,
+      hafu: m.hafu,
+      ttg: m.ttg,
       businessDate: m.businessDate,
     })).slice(0, 50);
     
