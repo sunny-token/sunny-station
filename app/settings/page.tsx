@@ -55,6 +55,9 @@ export default function SettingsPage() {
   const [ticketRedNumbers, setTicketRedNumbers] = useState<string[]>([]);
   const [ticketBlueNumbers, setTicketBlueNumbers] = useState<string[]>([]);
   const [ticketIsActive, setTicketIsActive] = useState(true);
+  const [isBatchMode, setIsBatchMode] = useState(false);
+  const [ticketBatchText, setTicketBatchText] = useState("");
+
 
   // 邮箱相关状态
   const [emailPage, setEmailPage] = useState(1);
@@ -171,6 +174,8 @@ export default function SettingsPage() {
     setTicketRedNumbers(["", "", "", "", "", ""]);
     setTicketBlueNumbers([""]);
     setTicketIsActive(true);
+    setIsBatchMode(false);
+    setTicketBatchText("");
     setShowTicketForm(true);
   };
 
@@ -181,64 +186,107 @@ export default function SettingsPage() {
     setTicketRedNumbers([...ticket.numbers.red]);
     setTicketBlueNumbers([...ticket.numbers.blue]);
     setTicketIsActive(ticket.isActive);
+    setIsBatchMode(false);
+    setTicketBatchText("");
     setShowTicketForm(true);
   };
 
   const handleSaveTicket = async () => {
-    const redNums = ticketRedNumbers.filter((n) => n.trim() !== "");
-    const blueNums = ticketBlueNumbers.filter((n) => n.trim() !== "");
-
-    if (ticketLotteryType === "ssq") {
-      if (redNums.length !== 6) {
-        setResult("双色球需要6个红球号码");
-        return;
-      }
-      if (blueNums.length !== 1) {
-        setResult("双色球需要1个蓝球号码");
-        return;
-      }
-    } else {
-      if (redNums.length !== 5) {
-        setResult("大乐透需要5个红球号码");
-        return;
-      }
-      if (blueNums.length !== 2) {
-        setResult("大乐透需要2个蓝球号码");
-        return;
-      }
-    }
-
     if (!ticketName.trim()) {
       setResult("请输入预设号码名称");
       return;
     }
 
     try {
-      const numbers = {
-        red: redNums.map((n) =>
-          parseInt(n.trim(), 10).toString().padStart(2, "0"),
-        ),
-        blue: blueNums.map((n) =>
-          parseInt(n.trim(), 10).toString().padStart(2, "0"),
-        ),
-      };
+      if (isBatchMode && !editingTicket) {
+        const lines = ticketBatchText.split('\n').filter(line => line.trim() !== '');
+        if (lines.length === 0) {
+          setResult("请输入号码");
+          return;
+        }
 
-      if (editingTicket) {
-        await updateTicketMutation.mutateAsync({
-          id: editingTicket.id,
-          name: ticketName.trim(),
-          numbers,
-          isActive: ticketIsActive,
+        const promises = lines.map(async (line, index) => {
+          const parts = line.split('|').map(p => p.trim());
+          if (parts.length !== 2) throw new Error(`第 ${index + 1} 行格式不正确，缺少 '|' 分隔符`);
+          
+          const redNums = parts[0].split(/\s+/).filter(n => n.trim() !== '');
+          const blueNums = parts[1].split(/\s+/).filter(n => n.trim() !== '');
+
+          if (ticketLotteryType === "ssq") {
+            if (redNums.length !== 6) throw new Error(`第 ${index + 1} 行红球数量错误，应为6个`);
+            if (blueNums.length !== 1) throw new Error(`第 ${index + 1} 行蓝球数量错误，应为1个`);
+          } else {
+            if (redNums.length !== 5) throw new Error(`第 ${index + 1} 行红球数量错误，应为5个`);
+            if (blueNums.length !== 2) throw new Error(`第 ${index + 1} 行蓝球数量错误，应为2个`);
+          }
+
+          const numbers = {
+            red: redNums.map(n => parseInt(n, 10).toString().padStart(2, "0")),
+            blue: blueNums.map(n => parseInt(n, 10).toString().padStart(2, "0")),
+          };
+
+          const name = lines.length > 1 ? `${ticketName.trim()}_${index + 1}` : ticketName.trim();
+
+          return createTicketMutation.mutateAsync({
+            lotteryType: ticketLotteryType,
+            name,
+            numbers,
+            isActive: ticketIsActive,
+          });
         });
-        setResult("预设号码更新成功");
+
+        await Promise.all(promises);
+        setResult(`成功添加 ${lines.length} 注预设号码`);
       } else {
-        await createTicketMutation.mutateAsync({
-          lotteryType: ticketLotteryType,
-          name: ticketName.trim(),
-          numbers,
-          isActive: ticketIsActive,
-        });
-        setResult("预设号码添加成功");
+        const redNums = ticketRedNumbers.filter((n) => n.trim() !== "");
+        const blueNums = ticketBlueNumbers.filter((n) => n.trim() !== "");
+
+        if (ticketLotteryType === "ssq") {
+          if (redNums.length !== 6) {
+            setResult("双色球需要6个红球号码");
+            return;
+          }
+          if (blueNums.length !== 1) {
+            setResult("双色球需要1个蓝球号码");
+            return;
+          }
+        } else {
+          if (redNums.length !== 5) {
+            setResult("大乐透需要5个红球号码");
+            return;
+          }
+          if (blueNums.length !== 2) {
+            setResult("大乐透需要2个蓝球号码");
+            return;
+          }
+        }
+
+        const numbers = {
+          red: redNums.map((n) =>
+            parseInt(n.trim(), 10).toString().padStart(2, "0"),
+          ),
+          blue: blueNums.map((n) =>
+            parseInt(n.trim(), 10).toString().padStart(2, "0"),
+          ),
+        };
+
+        if (editingTicket) {
+          await updateTicketMutation.mutateAsync({
+            id: editingTicket.id,
+            name: ticketName.trim(),
+            numbers,
+            isActive: ticketIsActive,
+          });
+          setResult("预设号码更新成功");
+        } else {
+          await createTicketMutation.mutateAsync({
+            lotteryType: ticketLotteryType,
+            name: ticketName.trim(),
+            numbers,
+            isActive: ticketIsActive,
+          });
+          setResult("预设号码添加成功");
+        }
       }
       setShowTicketForm(false);
       refetchTickets();
@@ -789,20 +837,39 @@ export default function SettingsPage() {
                           <label className="text-[10px] font-black text-indigo-600 uppercase tracking-wider">
                             号码策略配置 (红球 | 蓝球)
                           </label>
-                          <div className="text-[9px] font-mono text-slate-400">
-                            双色球: 红01-33 蓝01-16 | 大乐透: 前01-35 后01-12
+                          <div className="flex items-center gap-4">
+                            {!editingTicket && (
+                              <button
+                                onClick={() => setIsBatchMode(!isBatchMode)}
+                                className="text-[10px] font-bold text-indigo-500 hover:text-indigo-700 transition-colors cursor-pointer"
+                              >
+                                {isBatchMode ? "切换到单注录入" : "切换到批量粘贴"}
+                              </button>
+                            )}
+                            <div className="text-[9px] font-mono text-slate-400">
+                              双色球: 红01-33 蓝01-16 | 大乐透: 前01-35 后01-12
+                            </div>
                           </div>
                         </div>
-                        <div className="p-4 bg-slate-50/60 rounded-2xl border border-slate-100 flex items-center shadow-inner">
-                          <LotteryNumbersInput
-                            lotteryType={ticketLotteryType}
-                            redNumbers={ticketRedNumbers}
-                            blueNumbers={ticketBlueNumbers}
-                            onChange={(red, blue) => {
-                              setTicketRedNumbers(red);
-                              setTicketBlueNumbers(blue);
-                            }}
-                          />
+                        <div className="p-4 bg-slate-50/60 rounded-2xl border border-slate-100 flex flex-col gap-4 shadow-inner">
+                          {isBatchMode && !editingTicket ? (
+                            <textarea
+                              value={ticketBatchText}
+                              onChange={(e) => setTicketBatchText(e.target.value)}
+                              placeholder={`请在此粘贴多注号码，每注一行，格式如：\n03 13 20 29 34 | 01 12\n06 15 22 26 33 | 05 08`}
+                              className="w-full h-32 p-3 rounded-xl border border-slate-200 text-sm font-mono focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none resize-none"
+                            />
+                          ) : (
+                            <LotteryNumbersInput
+                              lotteryType={ticketLotteryType}
+                              redNumbers={ticketRedNumbers}
+                              blueNumbers={ticketBlueNumbers}
+                              onChange={(red, blue) => {
+                                setTicketRedNumbers(red);
+                                setTicketBlueNumbers(blue);
+                              }}
+                            />
+                          )}
                         </div>
                       </div>
                     </div>
