@@ -12,6 +12,19 @@ export default function JcPredictPage() {
   const [batchBudget, setBatchBudget] = useState("10元 (买包烟)");
   const [batchRisk, setBatchRisk] = useState("均衡配置 (正路+博冷)");
   const [toastMessage, setToastMessage] = useState("");
+  const [customRules, setCustomRules] = useState("");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedRules = localStorage.getItem("jc_custom_rules") || "";
+      setCustomRules(savedRules);
+    }
+  }, []);
+
+  const handleRulesChange = (val: string) => {
+    setCustomRules(val);
+    localStorage.setItem("jc_custom_rules", val);
+  };
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -315,7 +328,8 @@ export default function JcPredictPage() {
         matches: todayMatches,
         budget: batchBudget,
         risk: batchRisk,
-        type: mode
+        type: mode,
+        rules: customRules
       });
       setBatchResult(res);
       refetchHistory();
@@ -441,6 +455,18 @@ export default function JcPredictPage() {
                       <option value="放手一搏 (全搏冷门高赔)">放手一搏 (博冷门高赔)</option>
                     </select>
                   </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider pl-1">自定义出号规则 (选填)</label>
+                  <textarea 
+                    value={customRules} 
+                    onChange={e => handleRulesChange(e.target.value)}
+                    disabled={isBatchPredicting}
+                    placeholder="例如：过滤掉让球超过2球的比赛、尽量推2串1、优先考虑赔率在1.5到2.5之间的选项..."
+                    rows={2}
+                    className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-100 focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 outline-none transition-all text-slate-700 text-sm font-medium disabled:opacity-50 resize-none placeholder-slate-400"
+                  />
                 </div>
 
                 {isLoadingMatches ? (

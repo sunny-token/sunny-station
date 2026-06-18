@@ -128,7 +128,8 @@ JSON 格式要求如下：
       })),
       budget: z.string().optional(),
       risk: z.string().optional(),
-      type: z.enum(["worldcup", "regular", "champion"]).default("worldcup")
+      type: z.enum(["worldcup", "regular", "champion"]).default("worldcup"),
+      rules: z.string().optional()
     }))
     .mutation(async ({ input }) => {
       const aiRole = input.type === "worldcup" 
@@ -166,6 +167,7 @@ ${matchesStr}
 用户的购彩偏好设定如下：
 - 打票总预算：${input.budget || "未指定（默认建议100元左右）"}
 - 风险承受等级：${input.risk || "未指定（默认稳妥为主）"}
+${input.rules ? `- 额外的自定义出号规则（必须严格遵守此限制条件）：${input.rules}` : ""}
 
 【核心推演策略 - 必读】
 请借鉴专业的足球分析与足彩预测模型（如四维加权模型）进行深度分析：
