@@ -4,6 +4,56 @@ import { trpc } from "@/server/client";
 import { Radar, ChevronLeft, AlertCircle, Trophy, Bot, RefreshCw, ExternalLink, X, Upload, Trash2 } from "lucide-react";
 import Link from "next/link";
 
+const getOddsFromMatchAndResult = (match: any, result: string): string => {
+  if (!match) return "";
+  const resText = result.trim();
+
+  // 1. 让球胜平负 (包含“让”字)
+  if (resText.includes("让")) {
+    if (!match.hhad) return "";
+    if (resText.includes("胜")) return match.hhad.h || "";
+    if (resText.includes("平")) return match.hhad.d || "";
+    if (resText.includes("负")) return match.hhad.a || "";
+  }
+
+  // 2. 胜平负 (不包含“让”字)
+  if (resText.includes("胜") || resText.includes("平") || resText.includes("负")) {
+    // 半全场判断，如“平胜”、“胜平”、“胜胜”（长度通常为2）
+    const cleanText = resText.replace(/(推荐|走势预测|推荐的|让)/g, "").trim();
+    if (cleanText.length === 2 && ["胜", "平", "负"].includes(cleanText[0]) && ["胜", "平", "负"].includes(cleanText[1])) {
+      if (!match.hafu) return "";
+      const mapping: Record<string, string> = { "胜": "h", "平": "d", "负": "a" };
+      const key = (mapping[cleanText[0]] || "") + (mapping[cleanText[1]] || "");
+      return match.hafu[key] || "";
+    }
+
+    if (match.had) {
+      if (resText.includes("胜")) return match.had.h || "";
+      if (resText.includes("平")) return match.had.d || "";
+      if (resText.includes("负")) return match.had.a || "";
+    }
+  }
+
+  // 3. 比分 (形如“2:1”或“0-0”)
+  const scoreMatch = resText.match(/(\d+)\s*[:：-]\s*(\d+)/);
+  if (scoreMatch && match.crs) {
+    const home = scoreMatch[1].padStart(2, "0");
+    const away = scoreMatch[2].padStart(2, "0");
+    const key = `${home}${away}`;
+    return match.crs[key] || match.crs[`_${key}`] || "";
+  }
+
+  // 4. 总进球 (进球数)
+  const goalMatch = resText.match(/(总进球|进球|球)\s*(\d+)/) || resText.match(/^(\d+)球$/);
+  if (goalMatch && match.ttg) {
+    const goals = goalMatch[goalMatch.length - 1];
+    const key = `s${goals}`;
+    return match.ttg[key] || "";
+  }
+
+  return "";
+};
+
 export default function JcPredictPage() {
   const [error, setError] = useState("");
   const [mode, setMode] = useState<"worldcup" | "regular" | "champion">("worldcup");
@@ -238,10 +288,23 @@ export default function JcPredictPage() {
       if (filteredMatches.length === 0) {
         filteredMatches = p.matches;
       }
-      const initialOdds = filteredMatches.map((m: any) => ({
-        label: `${m.matchNumStr} ${m.result}`,
-        value: ""
-      }));
+      const initialOdds = filteredMatches.map((m: any) => {
+        // 优先从历史保存数据中取，若没有再匹配今日列表最新的
+        let matchedMatch = m;
+        if (!m.had && !m.hhad) {
+          const found = todayMatches.find((tm: any) => tm.matchNumStr === m.matchNumStr || (tm.homeTeam === m.homeTeam && tm.awayTeam === m.awayTeam));
+          if (found) {
+            matchedMatch = { ...m, ...found };
+          }
+        }
+        
+        const defaultOdds = getOddsFromMatchAndResult(matchedMatch, m.result);
+
+        return {
+          label: `${m.matchNumStr} ${m.result}`,
+          value: defaultOdds
+        };
+      });
       setCalcOddsList(initialOdds);
     }
   };
