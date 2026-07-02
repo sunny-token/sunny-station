@@ -279,7 +279,7 @@ export default function HomePage() {
     matchedBlue?: number;
     officialNumbers: { red: string[]; blue: string[] };
     userNumbers: { red: string[]; blue: string[] };
-    userNumbersList?: { red: string[]; blue: string[] }[];
+    userNumbersList?: { red: string[]; blue: string[]; matchedCount?: number }[];
     issueNumber: string;
     isMultiSelect?: boolean;
     multiSelectedCounts?: { red: number; blue: number };
@@ -498,7 +498,7 @@ export default function HomePage() {
         const prizeCounts: { [key: number]: number } = {};
         let totalAmount = 0;
         let isAnyWin = false;
-        const userNumbersList: { red: string[]; blue: string[] }[] = [];
+        const userNumbersList: { red: string[]; blue: string[]; matchedCount?: number }[] = [];
         
         const officialRed = officialOpen.red;
         const officialBlueSsq = Array.isArray(officialOpen.blue) ? (officialOpen.blue[0] || "") : (officialOpen.blue || "");
@@ -511,8 +511,8 @@ export default function HomePage() {
           if (isSsq) {
             const userRed = digits.slice(0, 6);
             const userBlue = digits[6];
-            userNumbersList.push({ red: userRed, blue: [userBlue] });
             const prizeRes = checkSsqPrize(userRed, userBlue, officialRed, officialBlueSsq);
+            userNumbersList.push({ red: userRed, blue: [userBlue], matchedCount: prizeRes.matchedRed + prizeRes.matchedBlue });
             level = prizeRes.prizeLevel;
             if (level > 0) {
               singleAmt = getPrizeSingleAmount("ssq", level, prizeRes.prizeName, latestItem);
@@ -520,8 +520,8 @@ export default function HomePage() {
           } else {
             const userFront = digits.slice(0, 5);
             const userBack = digits.slice(5, 7);
-            userNumbersList.push({ red: userFront, blue: userBack });
             const prizeRes = checkDltPrize(userFront, userBack, officialRed, officialBlueDlt);
+            userNumbersList.push({ red: userFront, blue: userBack, matchedCount: prizeRes.matchedFront + prizeRes.matchedBack });
             level = prizeRes.prizeLevel;
             if (level > 0) {
               singleAmt = getPrizeSingleAmount("dlt", level, prizeRes.prizeName, latestItem);
@@ -534,6 +534,9 @@ export default function HomePage() {
             totalAmount += singleAmt;
           }
         });
+
+        // 按照匹配的数量从大到小排序
+        userNumbersList.sort((a, b) => (b.matchedCount || 0) - (a.matchedCount || 0));
 
         const prizeNames: { [key: number]: string } = isSsq 
           ? { 1: "一等奖", 2: "二等奖", 3: "三等奖", 4: "四等奖", 5: "五等奖", 6: "六等奖" }
@@ -1253,7 +1256,7 @@ export default function HomePage() {
                                   isMatched 
                                     ? lotteryType === "ssq"
                                       ? "bg-rose-500 text-white shadow-md shadow-rose-200 ring-4 ring-rose-100 scale-105 z-10"
-                                      : "bg-emerald-500 text-white shadow-md shadow-emerald-200 ring-4 ring-emerald-100 scale-105 z-10"
+                                      : "bg-amber-500 text-white shadow-md shadow-amber-200 ring-4 ring-amber-100 scale-105 z-10"
                                     : "bg-slate-100 text-slate-400 opacity-40 border border-slate-200"
                                 }`}
                               >
@@ -1273,7 +1276,9 @@ export default function HomePage() {
                                 key={idx}
                                 className={`relative w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-xl text-xs font-bold transition-all duration-500 ${
                                   isMatched 
-                                    ? "bg-indigo-600 text-white shadow-md shadow-indigo-200 ring-4 ring-indigo-100 scale-105 z-10"
+                                    ? lotteryType === "ssq"
+                                      ? "bg-indigo-500 text-white shadow-md shadow-indigo-200 ring-4 ring-indigo-100 scale-105 z-10"
+                                      : "bg-emerald-500 text-white shadow-md shadow-emerald-200 ring-4 ring-emerald-100 scale-105 z-10"
                                     : "bg-slate-100 text-slate-400 opacity-40 border border-slate-200"
                                 }`}
                               >
