@@ -6,6 +6,7 @@ import { emailRouter } from "./routes/emailRoute";
 import { authRouter } from "./routes/authRoute";
 import { aiRouter } from "./routes/aiRoute";
 import { jcRouter } from "./routes/jcRoute";
+import { configRouter } from "./routes/configRoute";
 
 export const appRouter = router({
   dlt: dltRouter,
@@ -15,6 +16,7 @@ export const appRouter = router({
   auth: authRouter,
   ai: aiRouter,
   jc: jcRouter,
+  config: configRouter,
   refreshAll: adminProcedure.mutation(async ({ ctx }) => {
     // 一键刷新所有数据：同时刷新 SSQ 和 DLT
     // 直接创建子路由的 caller 来调用方法

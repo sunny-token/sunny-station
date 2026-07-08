@@ -38,6 +38,7 @@ export interface MatchResult {
 export function checkSSQWin(
   ticketNumbers: TicketNumbers,
   openNumbers: OpenNumbers,
+  options?: { enableFortunePrize?: boolean }
 ): MatchResult {
   const ticketRed = ticketNumbers.red.map((n) => n.padStart(2, "0"));
   const ticketBlue = ticketNumbers.blue[0]?.padStart(2, "0") || "";
@@ -106,13 +107,15 @@ export function checkSSQWin(
     });
   } else if (redMatch === 3 && blueMatch === 0) {
     // 2026 新增：福运奖 (3+0)
-    prizeLevels.push({
-      level: 7,
-      name: "福运奖",
-      redMatch: 3,
-      blueMatch: 0,
-      description: "3红 + 0蓝 (奖池≥15亿时生效)",
-    });
+    if (options?.enableFortunePrize !== false) {
+      prizeLevels.push({
+        level: 7,
+        name: "福运奖",
+        redMatch: 3,
+        blueMatch: 0,
+        description: "3红 + 0蓝 (奖池≥15亿时生效)",
+      });
+    }
   }
 
   return {
@@ -245,9 +248,10 @@ export function checkWin(
   lotteryType: LotteryType,
   ticketNumbers: TicketNumbers,
   openNumbers: OpenNumbers,
+  options?: { enableFortunePrize?: boolean }
 ): MatchResult {
   if (lotteryType === "ssq") {
-    return checkSSQWin(ticketNumbers, openNumbers);
+    return checkSSQWin(ticketNumbers, openNumbers, options);
   } else {
     return checkDLTWin(ticketNumbers, openNumbers);
   }

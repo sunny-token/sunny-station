@@ -3,6 +3,7 @@ import { appRouter } from "@/server";
 import { createCallerFactory } from "@/server/trpc";
 import prismaService from "@/lib/prismaService";
 import { checkWin, type TicketNumbers } from "@/lib/lotteryRules";
+import { getSettings } from "@/lib/settings";
 
 /**
  * Unified cron job endpoint for both DLT and SSQ crawlers
@@ -498,7 +499,7 @@ async function checkAndNotifyWinners(
         for (const combo of predictedCombos) {
           try {
             const ticketNumbers = { red: combo.red || [], blue: combo.blue || [] };
-            const matchResult = checkWin(lotteryType, ticketNumbers as TicketNumbers, openNumbers as TicketNumbers);
+            const matchResult = checkWin(lotteryType, ticketNumbers as TicketNumbers, openNumbers as TicketNumbers, { enableFortunePrize: getSettings().enableFortunePrize });
 
             hitDetail.push({
               redHit: matchResult.redMatch,
@@ -586,6 +587,7 @@ async function checkAndNotifyWinners(
       lotteryType,
       ticketNumbers as TicketNumbers,
       openNumbers as TicketNumbers,
+      { enableFortunePrize: getSettings().enableFortunePrize },
     );
 
     if (matchResult.isWinner) {

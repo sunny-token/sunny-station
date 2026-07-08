@@ -52,6 +52,7 @@ const getPrizeSingleAmount = (
       case 4: return 200;
       case 5: return 10;
       case 6: return 5;
+      case 7: return 5; // 福运奖兜底 5 元
       default: return 0;
     }
   } else {
@@ -81,7 +82,8 @@ const calculateSsqMultiPrize = (
   userBlue: string[],
   officialRed: string[],
   officialBlue: string,
-  latestItem: any
+  latestItem: any,
+  enableFortunePrize: boolean = true
 ) => {
   const R = userRed.length;
   const B = userBlue.length;
@@ -92,7 +94,7 @@ const calculateSsqMultiPrize = (
   const r = matchedRedList.length;
   const b = matchedBlueList.length;
   
-  const prizeCounts: { [key: number]: number } = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
+  const prizeCounts: { [key: number]: number } = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0 };
   
   for (let k = 0; k <= 6; k++) {
     for (let m = 0; m <= 1; m++) {
@@ -106,6 +108,7 @@ const calculateSsqMultiPrize = (
       else if ((k === 5 && m === 0) || (k === 4 && m === 1)) level = 4;
       else if ((k === 4 && m === 0) || (k === 3 && m === 1)) level = 5;
       else if (m === 1) level = 6;
+      else if (k === 3 && m === 0 && enableFortunePrize) level = 7;
       
       if (level > 0) {
         prizeCounts[level] += count;
@@ -114,7 +117,7 @@ const calculateSsqMultiPrize = (
   }
   
   const prizeNames: { [key: number]: string } = {
-    1: "一等奖", 2: "二等奖", 3: "三等奖", 4: "四等奖", 5: "五等奖", 6: "六等奖"
+    1: "一等奖", 2: "二等奖", 3: "三等奖", 4: "四等奖", 5: "五等奖", 6: "六等奖", 7: "福运奖"
   };
   
   const prizeList: {
@@ -127,7 +130,7 @@ const calculateSsqMultiPrize = (
   
   let totalAmount = 0;
   
-  for (let level = 1; level <= 6; level++) {
+  for (let level = 1; level <= 7; level++) {
     const count = prizeCounts[level];
     if (count > 0) {
       const name = prizeNames[level];
@@ -258,6 +261,8 @@ export default function HomePage() {
 
   const { data: user, isLoading: userLoading } = trpc.auth.getMe.useQuery();
   const isAdmin = user?.role === "ADMIN";
+  const { data: systemSettings } = trpc.config.get.useQuery();
+  const enableFortunePrize = systemSettings?.enableFortunePrize !== false;
 
   // 智能最新一期比对中枢核心状态
   const [lotteryType, setLotteryType] = useState<"ssq" | "dlt">("ssq");
@@ -580,7 +585,14 @@ export default function HomePage() {
             ? (officialOpen.blue[0] || "") 
             : (officialOpen.blue || "");
 
-          const multiRes = calculateSsqMultiPrize(panelSelected.red, panelSelected.blue, officialRed, officialBlue, latestItem);
+          const multiRes = calculateSsqMultiPrize(
+            panelSelected.red,
+            panelSelected.blue,
+            officialRed,
+            officialBlue,
+            latestItem,
+            enableFortunePrize
+          );
           setRadarPrizeResult({
             prizeLevel: multiRes.prizeList.length > 0 ? 1 : 0,
             prizeName: multiRes.prizeList.length > 0 ? "中奖" : "未中奖",

@@ -3,6 +3,7 @@ import prismaService from "../../lib/prismaService";
 import { z } from "zod";
 import { checkWin, type TicketNumbers } from "../../lib/lotteryRules";
 import * as XLSX from "xlsx";
+import { getSettings } from "../../lib/settings";
 
 /**
  * 预设号码管理路由
@@ -265,6 +266,7 @@ export const ticketRouter = router({
         ticket.lotteryType as "ssq" | "dlt",
         ticketNumbers as TicketNumbers,
         openNumbers as TicketNumbers,
+        { enableFortunePrize: getSettings().enableFortunePrize },
       );
 
       return {

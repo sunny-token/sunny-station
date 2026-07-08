@@ -41,7 +41,7 @@ import LotteryNumbersInput from "@/components/LotteryNumbersInput";
 export default function SettingsPage() {
   const router = useRouter();
   const [result, setResult] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"tickets" | "emails">("tickets");
+  const [activeTab, setActiveTab] = useState<"tickets" | "emails" | "system">("tickets");
 
   // 预设号码相关状态
   const [ticketPage, setTicketPage] = useState(1);
@@ -110,6 +110,18 @@ export default function SettingsPage() {
     onSuccess: () => {
       router.push("/login");
       router.refresh();
+    },
+  });
+
+  // 系统参数相关
+  const { data: systemSettings, refetch: refetchSettings } = trpc.config.get.useQuery();
+  const updateSettingsMutation = trpc.config.update.useMutation({
+    onSuccess: () => {
+      setResult("系统设置更新成功");
+      refetchSettings();
+    },
+    onError: (err) => {
+      setResult(`设置更新失败: ${err.message}`);
     },
   });
 
@@ -621,7 +633,7 @@ export default function SettingsPage() {
         )}
 
         {/* Tab System */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-8 p-1.5 rounded-2xl bg-slate-200/50 border border-slate-200 backdrop-blur-xl">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-8 p-1.5 rounded-2xl bg-slate-200/50 border border-slate-200 backdrop-blur-xl">
           <button
             onClick={() => setActiveTab("tickets")}
             className={`group relative flex items-center justify-center gap-3 px-6 py-4 rounded-xl transition-all duration-300 overflow-hidden ${
@@ -660,6 +672,27 @@ export default function SettingsPage() {
               </div>
               <div className="text-[10px] font-semibold opacity-60 uppercase mt-1">
                 邮件提醒配置
+              </div>
+            </div>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("system")}
+            className={`group relative flex items-center justify-center gap-3 px-6 py-4 rounded-xl transition-all duration-300 overflow-hidden ${
+              activeTab === "system"
+                ? "bg-white text-slate-800 shadow-[0_4px_20px_rgba(0,0,0,0.05)] border border-slate-100 font-bold"
+                : "text-slate-500 hover:text-slate-800 hover:bg-white/40"
+            }`}
+          >
+            <Settings2
+              className={`w-5 h-5 transition-transform duration-300 ${activeTab === "system" ? "scale-110 text-slate-800" : "group-hover:scale-110 text-slate-400"}`}
+            />
+            <div className="text-center">
+              <div className="text-sm font-black uppercase tracking-wider leading-none">
+                系统设置
+              </div>
+              <div className="text-[10px] font-semibold opacity-60 uppercase mt-1">
+                中奖规则及参数
               </div>
             </div>
           </button>
@@ -1563,6 +1596,70 @@ export default function SettingsPage() {
                 )}
               </div>
             )}
+          </div>
+        )}
+
+        {/* 系统设置 */}
+        {activeTab === "system" && (
+          <div className="animate-in fade-in zoom-in-98 duration-500 space-y-8">
+            <div className="p-6 rounded-[2rem] bg-white border border-slate-200/80 shadow-sm backdrop-blur-xl">
+              <div className="flex items-center gap-3.5 mb-6 pb-4 border-b border-slate-100">
+                <div className="w-11 h-11 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-700">
+                  <Settings2 className="w-5.5 h-5.5" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-slate-800 tracking-wide">全局中奖规则控制</h2>
+                  <p className="text-xs text-slate-400 mt-0.5 font-light">
+                    控制特定中奖规则的启用与关闭。仅管理员可以进行更改。
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <div className="flex items-center justify-between p-5 rounded-2xl border border-slate-100 hover:border-slate-200/80 hover:shadow-[0_4px_20px_rgba(0,0,0,0.02)] transition-all duration-300 bg-slate-50/30">
+                  <div className="space-y-1 pr-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-slate-800">启用双色球「福运奖」规则</span>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-indigo-50 text-indigo-700 border border-indigo-100">
+                        2026新规 (3+0)
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 font-light leading-relaxed max-w-xl">
+                      福运奖是双色球在 2026 年新增的特别规则，匹配 3 个红球且没有匹配蓝球 (3+0) 时，可获得 5 元的固定奖金。关闭此项后，3红+0蓝将不再计为中奖。
+                    </p>
+                  </div>
+                  <div className="flex items-center">
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="sr-only peer"
+                        checked={systemSettings?.enableFortunePrize !== false}
+                        disabled={!isAdmin || updateSettingsMutation.isPending}
+                        onChange={(e) => {
+                          if (!isAdmin) {
+                            setResult("权限不足：只有管理员可修改系统配置");
+                            return;
+                          }
+                          updateSettingsMutation.mutate({
+                            enableFortunePrize: e.target.checked,
+                          });
+                        }}
+                      />
+                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600 disabled:opacity-50"></div>
+                    </label>
+                  </div>
+                </div>
+
+                {!isAdmin && (
+                  <div className="p-4 rounded-xl bg-amber-50 border border-amber-100 text-amber-800 flex items-start gap-2.5">
+                    <AlertCircle className="w-4.5 h-4.5 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs font-medium leading-relaxed">
+                      当前账号角色为非管理员角色（用户或访客），只能查看规则配置，无权修改。
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
       </div>
