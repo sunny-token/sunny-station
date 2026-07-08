@@ -3,8 +3,8 @@ import { router, protectedProcedure, adminProcedure } from "../trpc";
 import { getSettings, updateSettings } from "../../lib/settings";
 
 export const configRouter = router({
-  get: protectedProcedure.query(() => {
-    return getSettings();
+  get: protectedProcedure.query(async () => {
+    return await getSettings();
   }),
   update: adminProcedure
     .input(
@@ -12,7 +12,7 @@ export const configRouter = router({
         enableFortunePrize: z.boolean(),
       })
     )
-    .mutation(({ input }) => {
-      return updateSettings(input);
+    .mutation(async ({ input }) => {
+      return await updateSettings(input);
     }),
 });

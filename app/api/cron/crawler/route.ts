@@ -476,6 +476,7 @@ async function checkAndNotifyWinners(
   try {
     console.log(`[CRON] [AI_UPDATE] 开始同步 AI 预测号码的中奖状态 - 期号: ${latestResult.issueNumber}`);
 
+    const settings = await getSettings();
     const predictions = await prisma.aIPrediction.findMany({
       where: {
         lotteryType,
@@ -499,7 +500,7 @@ async function checkAndNotifyWinners(
         for (const combo of predictedCombos) {
           try {
             const ticketNumbers = { red: combo.red || [], blue: combo.blue || [] };
-            const matchResult = checkWin(lotteryType, ticketNumbers as TicketNumbers, openNumbers as TicketNumbers, { enableFortunePrize: getSettings().enableFortunePrize });
+            const matchResult = checkWin(lotteryType, ticketNumbers as TicketNumbers, openNumbers as TicketNumbers, { enableFortunePrize: settings.enableFortunePrize });
 
             hitDetail.push({
               redHit: matchResult.redMatch,
@@ -576,6 +577,8 @@ async function checkAndNotifyWinners(
     matchResult: ReturnType<typeof checkWin>;
   }> = [];
 
+  const settings = await getSettings();
+
   // 检查每个预设号码
   for (const ticket of tickets) {
     const ticketNumbers =
@@ -587,7 +590,7 @@ async function checkAndNotifyWinners(
       lotteryType,
       ticketNumbers as TicketNumbers,
       openNumbers as TicketNumbers,
-      { enableFortunePrize: getSettings().enableFortunePrize },
+      { enableFortunePrize: settings.enableFortunePrize },
     );
 
     if (matchResult.isWinner) {

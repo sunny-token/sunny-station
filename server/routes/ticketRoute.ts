@@ -262,11 +262,12 @@ export const ticketRouter = router({
             : result.openNumbers;
       }
 
+      const settings = await getSettings();
       const matchResult = checkWin(
         ticket.lotteryType as "ssq" | "dlt",
         ticketNumbers as TicketNumbers,
         openNumbers as TicketNumbers,
-        { enableFortunePrize: getSettings().enableFortunePrize },
+        { enableFortunePrize: settings.enableFortunePrize },
       );
 
       return {

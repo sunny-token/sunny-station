@@ -1,7 +1,4 @@
-import fs from "fs";
-import path from "path";
-
-const configPath = path.join(process.cwd(), "lib/settings.json");
+import prismaService from "./prismaService";
 
 export interface SystemSettings {
   enableFortunePrize: boolean;
@@ -11,28 +8,49 @@ const defaultSettings: SystemSettings = {
   enableFortunePrize: true,
 };
 
-export function getSettings(): SystemSettings {
+export async function getSettings(): Promise<SystemSettings> {
   try {
-    if (!fs.existsSync(configPath)) {
-      fs.writeFileSync(configPath, JSON.stringify(defaultSettings, null, 2), "utf-8");
+    const prisma = prismaService.getPrismaClient();
+    const config = await prisma.systemConfig.findUnique({
+      where: { key: "system_settings" },
+    });
+    if (!config) {
+      // 数据库没有配置时，初始化默认配置到数据库中
+      await prisma.systemConfig.upsert({
+        where: { key: "system_settings" },
+        create: {
+          key: "system_settings",
+          value: JSON.stringify(defaultSettings),
+        },
+        update: {},
+      });
       return defaultSettings;
     }
-    const data = fs.readFileSync(configPath, "utf-8");
-    return { ...defaultSettings, ...JSON.parse(data) };
+    return { ...defaultSettings, ...JSON.parse(config.value) };
   } catch (error) {
-    console.error("Failed to read settings, using default settings:", error);
+    console.error("Failed to read settings from DB, using default settings:", error);
     return defaultSettings;
   }
 }
 
-export function updateSettings(newSettings: Partial<SystemSettings>): SystemSettings {
+export async function updateSettings(newSettings: Partial<SystemSettings>): Promise<SystemSettings> {
   try {
-    const current = getSettings();
+    const prisma = prismaService.getPrismaClient();
+    const current = await getSettings();
     const updated = { ...current, ...newSettings };
-    fs.writeFileSync(configPath, JSON.stringify(updated, null, 2), "utf-8");
+    await prisma.systemConfig.upsert({
+      where: { key: "system_settings" },
+      create: {
+        key: "system_settings",
+        value: JSON.stringify(updated),
+      },
+      update: {
+        value: JSON.stringify(updated),
+      },
+    });
     return updated;
   } catch (error) {
-    console.error("Failed to update settings:", error);
+    console.error("Failed to update settings in DB:", error);
     throw new Error("更新设置失败");
   }
 }
